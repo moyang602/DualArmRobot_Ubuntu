@@ -1,0 +1,7 @@
+*.o
+*.c~
+select_traje.txt
+trajectory.h.gch
+jichu
+makefile~
+*.h~
