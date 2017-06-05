@@ -136,7 +136,7 @@ char buf22[200]={0};
 char buf23[200]={0};
 
 int can_node_number[4] = {4,4,4,3};
-int can_channel_number = 3;
+int can_channel_number = 4;
 int can_switch[4][4] = {{1, 1, 1, 1},
 					{1, 1, 1, 1},
 					{0, 0, 0, 0},
@@ -194,7 +194,7 @@ double Joint_Current_Angle[4][4] = {0.0};
 int servo_on_flag = 0;
 int begin_flag =0;
 int motion_mode = 100;
-double line_2count = 500.0;
+double line_2count[3] = {120.0, 120.0, 360.0};
 int send_flag_99= 0;
 
 
@@ -577,7 +577,7 @@ void rad_send(int can_channel_num, int id, double angle_in)
 	}	
 	else   //the hand motion
 	{
-		Encoder_Count_EP2 = angle_in  * line_2count;
+		Encoder_Count_EP2 = angle_in  * line_2count[id];
 		Encoder_Count_EP_Send2 = Encoder_Count_EP2;
 	//	Joint_Angle_EP_degree[i][j] = Joint_Angle_EP[i][j];
 //		Joint_Angle_ER_degree[i][j] = Joint_Angle_EP_degree[i][j] - Joint_Angle_FB_degree[i][j];
@@ -649,7 +649,7 @@ void rad_send(int can_channel_num, int id, double angle_in)
 			else
 			{
 				Encoder_Count_FB[can_channel_num][(frame.can_id & 0xf)-1] = *(int*)frame.data;
-				Joint_Angle_FB[can_channel_num][(frame.can_id & 0xf)-1] = (((double)Encoder_Count_FB[can_channel_num][(frame.can_id & 0xf)-1])/line_2count - zero_comp[can_channel_num][(frame.can_id & 0xf)-1]) * joint_direction[can_channel_num][(frame.can_id & 0xf)-1];
+				Joint_Angle_FB[can_channel_num][(frame.can_id & 0xf)-1] = (((double)Encoder_Count_FB[can_channel_num][(frame.can_id & 0xf)-1])/line_2count[(frame.can_id & 0xf)-1] - zero_comp[can_channel_num][(frame.can_id & 0xf)-1]) * joint_direction[can_channel_num][(frame.can_id & 0xf)-1];
 				Joint_Angle_FB_degree[can_channel_num][(frame.can_id & 0xf)-1] = Joint_Angle_FB[can_channel_num][(frame.can_id & 0xf)-1];
 		//	printf("else\n");
 			}	
@@ -859,7 +859,7 @@ void current_position(int channel_num, double Joint_Angle_FB2[4])
 			else
 			{
 				Encoder_Count_FB[(frame.can_id & 0xf)-1] = *(int*)frame.data;
-				Joint_Angle_FB2[(frame.can_id & 0xf)-1] = (((double)Encoder_Count_FB[(frame.can_id & 0xf)-1])/line_2count - zero_comp[channel_num][(frame.can_id & 0xf)-1]) * joint_direction[channel_num][(frame.can_id & 0xf)-1];
+				Joint_Angle_FB2[(frame.can_id & 0xf)-1] = (((double)Encoder_Count_FB[(frame.can_id & 0xf)-1])/line_2count[(frame.can_id & 0xf)-1] - zero_comp[channel_num][(frame.can_id & 0xf)-1]) * joint_direction[channel_num][(frame.can_id & 0xf)-1];
 				Joint_Angle_FB_degree[channel_num][(frame.can_id & 0xf)-1] = Joint_Angle_FB2[(frame.can_id & 0xf)-1];
 			}
 			
@@ -1791,82 +1791,198 @@ void rt_can_recv(void *arg)
 					
 				break;
 				
+				
 				case 13:
 				
-					can_content_order[0] = 0x54;
-					can_content_order[1] = 0x43;
-					can_content_order[2] = 0x00;
-					can_content_order[3] = 0x80;
+					if(offset_home == 1)
+					{
+						switch (first_time_flag)
+						{
+							case 0:
+						
+								current_position(3, Joint_Angle_FB[3]);						
+								start_position[3][0] = Joint_Angle_FB[3][0];
 					
-					can_byte = (unsigned char *)&JointMoveData;
-					can_content_order[4] = can_byte[0];
-					can_content_order[5] = can_byte[1];
-					can_content_order[6] = can_byte[2];
-					can_content_order[7] = can_byte[3];
-					
-				//	printf("hand 1 = %02x   %02x  %02x  %02x\n", can_content_order[4],can_content_order[5],can_content_order[6],can_content_order[7]);
-					
-					can_id = 0x301;						
-					can_send(3, can_id, 0, can_content_order, 8);
-					
-					sleeptime.tv_nsec = 500000;
-					sleeptime.tv_sec = 0;
-					nanosleep(&sleeptime, NULL);  //wait for 5us
-					
-					ret = rt_dev_recvfrom(rxsock[3], (void *)&frame, sizeof(can_frame_t), 0, (struct sockaddr *)&addr, &addrlen);
-					motion_mode = 100;
+								first_time_flag = 1;
+								motion_mode_control = 0;	
+								t = 0;
+							break;	
+						
+							case 1:
+								
+								if(t <= offset_time)
+								{	
+															
+									Joint_Angle_EP[3][0] = Five_Interpolation(start_position[3][0],0,0,start_position[3][0]+JointMoveData,0,0,offset_time,t);			
+				
+									rad_send(3, 0,Joint_Angle_EP[3][0]);
+									t = t+time_interval;
+									
+									if(t+time_interval > offset_time)
+									{
+										Joint_Angle_EP[3][0] = start_position[3][0]+JointMoveData;
+									}
+																	
+								}					
+								else
+								{
+									offset_cycle_num++;
+									if(offset_cycle_num == 30)
+									{
+										t = 0;
+										motion_mode = 100;
+										first_time_flag = 0;
+										motion_mode_control = 1;
+								
+										for(k-0; k<8;k++)
+										{
+											ret = rt_dev_recvfrom(rxsock[3], (void *)&frame, sizeof(can_frame_t), 0, (struct sockaddr *)&addr, &addrlen);
+										}
+						
+										sleeptime.tv_nsec = 5000;
+										sleeptime.tv_sec = 0;
+										nanosleep(&sleeptime, NULL);  //wait for 5us
+							
+										offset_cycle_num = 0;
+									
+									}
+								}		
+								break;	
+						}						
+					}
 					
 				break;
 				
 				case 14:
-					can_content_order[0] = 0x54;
-					can_content_order[1] = 0x43;
-					can_content_order[2] = 0x00;
-					can_content_order[3] = 0x80;
+				/*	if(offset_home == 0)
+					{
+						find_home(2,3);	
+						offset_home = 3;					
+					}
+				*/	
+					if(offset_home == 1)
+					{
+						switch (first_time_flag)
+						{
+							case 0:
+						
+								current_position(3, Joint_Angle_FB[3]);						
+								start_position[3][1] = Joint_Angle_FB[3][1];
 					
-					can_byte = (unsigned char *)&JointMoveData;
-					can_content_order[4] = can_byte[0];
-					can_content_order[5] = can_byte[1];
-					can_content_order[6] = can_byte[2];
-					can_content_order[7] = can_byte[3];
-			//		printf("hand 2 = %02x   %002x  %002x  %002x\n", can_content_order[4],can_content_order[5],can_content_order[6],can_content_order[7]);
-											
-					can_id = 0x302;						
-					can_send(3, can_id, 0, can_content_order, 8);
-					
-					sleeptime.tv_nsec = 500000;
-					sleeptime.tv_sec = 0;
-					nanosleep(&sleeptime, NULL);  //wait for 5us
-					
-					ret = rt_dev_recvfrom(rxsock[3], (void *)&frame, sizeof(can_frame_t), 0, (struct sockaddr *)&addr, &addrlen);
-					motion_mode = 100;
+								first_time_flag = 1;
+								motion_mode_control = 0;	
+								t = 0;
+							break;	
+						
+							case 1:
+								
+								if(t <= offset_time)
+								{	
+															
+									Joint_Angle_EP[3][1] = Five_Interpolation(start_position[3][1],0,0,start_position[3][1]+JointMoveData,0,0,offset_time,t);			
+				
+									rad_send(3, 1,Joint_Angle_EP[3][1]);
+									t = t+time_interval;
+									
+									if(t+time_interval > offset_time)
+									{
+										Joint_Angle_EP[3][1] = start_position[3][1]+JointMoveData;
+									}
+																	
+								}					
+								else
+								{
+									offset_cycle_num++;
+									if(offset_cycle_num == 30)
+									{
+										t = 0;
+										motion_mode = 100;
+										first_time_flag = 0;
+										motion_mode_control = 1;
+								
+										for(k-0; k<8;k++)
+										{
+											ret = rt_dev_recvfrom(rxsock[3], (void *)&frame, sizeof(can_frame_t), 0, (struct sockaddr *)&addr, &addrlen);
+										}
+						
+										sleeptime.tv_nsec = 5000;
+										sleeptime.tv_sec = 0;
+										nanosleep(&sleeptime, NULL);  //wait for 5us
+							
+										offset_cycle_num = 0;
+									
+									}
+								}		
+								break;	
+						}						
+					}
 					
 				break;
 				
-					
-				
 				case 15:
-					can_content_order[0] = 0x54;
-					can_content_order[1] = 0x43;
-					can_content_order[2] = 0x00;
-					can_content_order[3] = 0x80;
+				/*	if(offset_home == 0)
+					{
+						find_home(2,3);	
+						offset_home = 3;					
+					}
+				*/	
+					if(offset_home == 1)
+					{
+						switch (first_time_flag)
+						{
+							case 0:
+						
+								current_position(3, Joint_Angle_FB[3]);						
+								start_position[3][2] = Joint_Angle_FB[3][2];
 					
-					can_byte = (unsigned char *)&JointMoveData;
-					can_content_order[4] = can_byte[0];
-					can_content_order[5] = can_byte[1];
-					can_content_order[6] = can_byte[2];
-					can_content_order[7] = can_byte[3];
-				//	printf("hand 3 = %02x   %002x  %002x  %002x\n", can_content_order[4],can_content_order[5],can_content_order[6],can_content_order[7]);
-											
-					can_id = 0x303;						
-					can_send(3, can_id, 0, can_content_order, 8);
+								first_time_flag = 1;
+								motion_mode_control = 0;	
+								t = 0;
+							break;	
+						
+							case 1:
+								
+								if(t <= offset_time)
+								{	
+															
+									Joint_Angle_EP[3][2] = Five_Interpolation(start_position[3][2],0,0,start_position[3][2]+JointMoveData,0,0,offset_time,t);			
+				
+									rad_send(3, 2,Joint_Angle_EP[3][2]);
+									t = t+time_interval;
+									
+									if(t+time_interval > offset_time)
+									{
+										Joint_Angle_EP[3][2] = start_position[3][2]+JointMoveData;
+									}
+																	
+								}					
+								else
+								{
+									offset_cycle_num++;
+									if(offset_cycle_num == 30)
+									{
+										t = 0;
+										motion_mode = 100;
+										first_time_flag = 0;
+										motion_mode_control = 1;
+								
+										for(k-0; k<8;k++)
+										{
+											ret = rt_dev_recvfrom(rxsock[3], (void *)&frame, sizeof(can_frame_t), 0, (struct sockaddr *)&addr, &addrlen);
+										}
+						
+										sleeptime.tv_nsec = 5000;
+										sleeptime.tv_sec = 0;
+										nanosleep(&sleeptime, NULL);  //wait for 5us
+							
+										offset_cycle_num = 0;
+									
+									}
+								}		
+								break;	
+						}						
+					}
 					
-					sleeptime.tv_nsec = 500000;
-					sleeptime.tv_sec = 0;
-					nanosleep(&sleeptime, NULL);  //wait for 5us
-					
-					ret = rt_dev_recvfrom(rxsock[3], (void *)&frame, sizeof(can_frame_t), 0, (struct sockaddr *)&addr, &addrlen);
-					motion_mode = 100;
 				break;
 				
 				
@@ -1913,7 +2029,7 @@ void rt_can_recv(void *arg)
 										else
 										{
 											Encoder_Count_FB[i][(frame.can_id & 0xf)-1] = *(int*)frame.data;
-											Joint_Angle_FB[i][(frame.can_id & 0xf)-1] = (((double)Encoder_Count_FB[i][(frame.can_id & 0xf)-1])/line_2count- zero_comp[i][(frame.can_id & 0xf)-1]) * joint_direction[i][(frame.can_id & 0xf)-1]  ;
+											Joint_Angle_FB[i][(frame.can_id & 0xf)-1] = (((double)Encoder_Count_FB[i][(frame.can_id & 0xf)-1])/line_2count[(frame.can_id & 0xf)-1]- zero_comp[i][(frame.can_id & 0xf)-1]) * joint_direction[i][(frame.can_id & 0xf)-1]  ;
 											Joint_Angle_FB_degree[i][(frame.can_id & 0xf)-1] = Joint_Angle_FB[i][(frame.can_id & 0xf)-1];
 										}
 									}	
@@ -2062,7 +2178,7 @@ void rt_can_recv(void *arg)
 											else
 											{
 												Encoder_Count_FB[i][(frame.can_id & 0xf)-1] = *(int*)frame.data;
-												Joint_Angle_FB[i][(frame.can_id & 0xf)-1] = (((double)Encoder_Count_FB[i][(frame.can_id & 0xf)-1])/line_2count- zero_comp[i][(frame.can_id & 0xf)-1]) * joint_direction[i][(frame.can_id & 0xf)-1]  ;
+												Joint_Angle_FB[i][(frame.can_id & 0xf)-1] = (((double)Encoder_Count_FB[i][(frame.can_id & 0xf)-1])/line_2count[(frame.can_id & 0xf)-1] - zero_comp[i][(frame.can_id & 0xf)-1]) * joint_direction[i][(frame.can_id & 0xf)-1]  ;
 												Joint_Angle_FB_degree[i][(frame.can_id & 0xf)-1] = Joint_Angle_FB[i][(frame.can_id & 0xf)-1];
 											}
 										}	
@@ -2238,7 +2354,7 @@ void rt_can_recv(void *arg)
 										else
 										{
 											Encoder_Count_FB[i][(frame.can_id & 0xf)-1] = *(int*)frame.data;
-											Joint_Angle_FB[i][(frame.can_id & 0xf)-1] = (((double)Encoder_Count_FB[i][(frame.can_id & 0xf)-1])/line_2count- zero_comp[i][(frame.can_id & 0xf)-1]) * joint_direction[i][(frame.can_id & 0xf)-1]  ;
+											Joint_Angle_FB[i][(frame.can_id & 0xf)-1] = (((double)Encoder_Count_FB[i][(frame.can_id & 0xf)-1])/line_2count[(frame.can_id & 0xf)-1]- zero_comp[i][(frame.can_id & 0xf)-1]) * joint_direction[i][(frame.can_id & 0xf)-1]  ;
 											Joint_Angle_FB_degree[i][(frame.can_id & 0xf)-1] = Joint_Angle_FB[i][(frame.can_id & 0xf)-1];
 										}
 									}	
@@ -2415,7 +2531,7 @@ void rt_can_recv(void *arg)
 										else
 										{
 											Encoder_Count_FB[i][(frame.can_id & 0xf)-1] = *(int*)frame.data;
-											Joint_Angle_FB[i][(frame.can_id & 0xf)-1] = (((double)Encoder_Count_FB[i][(frame.can_id & 0xf)-1])/line_2count- zero_comp[i][(frame.can_id & 0xf)-1]) * joint_direction[i][(frame.can_id & 0xf)-1]  ;
+											Joint_Angle_FB[i][(frame.can_id & 0xf)-1] = (((double)Encoder_Count_FB[i][(frame.can_id & 0xf)-1])/line_2count[(frame.can_id & 0xf)-1] - zero_comp[i][(frame.can_id & 0xf)-1]) * joint_direction[i][(frame.can_id & 0xf)-1]  ;
 											Joint_Angle_FB_degree[i][(frame.can_id & 0xf)-1] = Joint_Angle_FB[i][(frame.can_id & 0xf)-1];
 										}
 									}	
@@ -2577,7 +2693,7 @@ void rt_can_recv(void *arg)
 											else
 											{
 												Encoder_Count_FB[i][(frame.can_id & 0xf)-1] = *(int*)frame.data;
-												Joint_Angle_FB[i][(frame.can_id & 0xf)-1] = (((double)Encoder_Count_FB[i][(frame.can_id & 0xf)-1])/line_2count- zero_comp[i][(frame.can_id & 0xf)-1]) * joint_direction[i][(frame.can_id & 0xf)-1]  ;
+												Joint_Angle_FB[i][(frame.can_id & 0xf)-1] = (((double)Encoder_Count_FB[i][(frame.can_id & 0xf)-1])/line_2count[(frame.can_id & 0xf)-1] - zero_comp[i][(frame.can_id & 0xf)-1]) * joint_direction[i][(frame.can_id & 0xf)-1]  ;
 												Joint_Angle_FB_degree[i][(frame.can_id & 0xf)-1] = Joint_Angle_FB[i][(frame.can_id & 0xf)-1];
 											}
 										}	
@@ -2765,7 +2881,7 @@ void rt_can_recv(void *arg)
 											else
 											{
 												Encoder_Count_FB[i][(frame.can_id & 0xf)-1] = *(int*)frame.data;
-												Joint_Angle_FB[i][(frame.can_id & 0xf)-1] = (((double)Encoder_Count_FB[i][(frame.can_id & 0xf)-1])/line_2count- zero_comp[i][(frame.can_id & 0xf)-1]) * joint_direction[i][(frame.can_id & 0xf)-1]  ;
+												Joint_Angle_FB[i][(frame.can_id & 0xf)-1] = (((double)Encoder_Count_FB[i][(frame.can_id & 0xf)-1])/line_2count[(frame.can_id & 0xf)-1]- zero_comp[i][(frame.can_id & 0xf)-1]) * joint_direction[i][(frame.can_id & 0xf)-1]  ;
 												Joint_Angle_FB_degree[i][(frame.can_id & 0xf)-1] = Joint_Angle_FB[i][(frame.can_id & 0xf)-1];
 											}
 										}	
@@ -2953,7 +3069,7 @@ void rt_can_recv(void *arg)
 											else
 											{
 												Encoder_Count_FB[i][(frame.can_id & 0xf)-1] = *(int*)frame.data;
-												Joint_Angle_FB[i][(frame.can_id & 0xf)-1] = (((double)Encoder_Count_FB[i][(frame.can_id & 0xf)-1])/line_2count- zero_comp[i][(frame.can_id & 0xf)-1]) * joint_direction[i][(frame.can_id & 0xf)-1]  ;
+												Joint_Angle_FB[i][(frame.can_id & 0xf)-1] = (((double)Encoder_Count_FB[i][(frame.can_id & 0xf)-1])/line_2count[(frame.can_id & 0xf)-1]- zero_comp[i][(frame.can_id & 0xf)-1]) * joint_direction[i][(frame.can_id & 0xf)-1]  ;
 												Joint_Angle_FB_degree[i][(frame.can_id & 0xf)-1] = Joint_Angle_FB[i][(frame.can_id & 0xf)-1];
 											}
 										}	
