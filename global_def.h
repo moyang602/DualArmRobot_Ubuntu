@@ -45,6 +45,26 @@
 #define ARM2_ENDZ_MOVE 98
 #define ARM3_ENDZ_MOVE 97
 
+#define HAND_CURRENT 70
+#define HAND1_AUTOMATIC_CLOSE 71
 
+#define SINGLE_JOINT_MOTION 101
+#define ONE_ARM_MOTION    102
+#define TWO_ARMS_MOTION 103
+#define VISION_MOTION   104
+#define MANIPULATE_MOTION 105
+#define FIND_HOME_MOTION  106
+
+#define ARM1 0
+#define ARM2 1
+#define ARM3 2
+
+#define FIND_HOME_NEW      110
+#define RETURN_ORIGIN_POSITION	 111
+#define PREPARE_FIND_HOME 112
+#define TURN_MOTION   113
+#define TURN_MOTION2   114
+ 
+ 
 #define GLOABL_DEF
 #endif
