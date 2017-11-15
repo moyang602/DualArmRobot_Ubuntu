@@ -57,6 +57,7 @@
 #include <rtdm/rtcan.h>
 #include "trajectory.h"
 #include "global_def.h"
+#include "communication.h"
 
 #define hand2base 300.0
 
@@ -275,66 +276,11 @@ double line_2count[3] = {1344.0, 1344.0, 1344.0};
 int send_flag_99= 0;
 
 
-/**********************  UDP通讯 Start ***********************/
-#pragma pack(push)
-#pragma pack(1)
-struct DataUDP_Struct
-{
-	unsigned int TrustFlag;
-	float LeftArmAngle[7];
-	float RightArmAngle[7];
-	float LeftHandAngle[4];
-	float RightHandAngle[4];
-	float HeadAngle[2];
-	float WaistAngle[2];
-	float LeftArmCurrent[7];
-	float RightArmCurrent[7];
-	float LeftHandCurrent[4];
-	float RightHandCurrent[4];
-	float HeadCurrent[2];
-	float WaistCurrent[2];
-	float LeftArmAngleEX[7];
-	float RightArmAngleEX[7];
-	float LeftHandAngleEX[4];
-	float RightHandAngleEX[4];
-	float HeadAngleEX[2];
-	float WaistAngleEX[2];
-	unsigned int CheckSum;
-};
-#pragma pack(pop)
+/********************** UDP通讯相关 Start ***************************/
+int UDPTimes = 0;	// UDP 周期计数
 
-#pragma pack(push)
-#pragma pack(1)
-struct CommandUDP_Struct
-{
-	unsigned char Mode;
-	unsigned char CANCH;
-	unsigned char CANID;
-	float Data[12];
-	float time;
-	unsigned char CheckSum;
-};
-#pragma pack(pop)
+/********************** UDP通讯相关 End ***************************/
 
-struct DataUDP_Struct UploadData;
-struct CommandUDP_Struct DownloadData;
-
-// UDP通讯变量声明
-#define HOST_PORT 8000
-#define HOST_IP "192.168.0.3"
-#define DEST_PORT 8001
-#define DEST_IP "192.168.0.4"
-
-int UDP_Sock;
-struct sockaddr_in DestAddr;
-socklen_t nAddrLen;
-int UDPComm_init(void);
-
-unsigned char sendbuff[400];
-unsigned char recvbuff[400];
-
-int UDPTimes = 0;
-/**********************  UDP通讯 End ***********************/
 
 /**********************  VisionControl Start ***********************/
 float DeltaMatrix[4][4] = {0.0};
@@ -2970,344 +2916,190 @@ void rt_can_recv(void *arg)
 			}
 		}
 
-		/************************* UDP数据传输 Start **************************/
+		/********************** UDP通讯相关 Start ***************************/
 		UDPTimes++;
-		if(UDPTimes == 33)
+		if(UDPTimes >= UDPCYCLE)
 		{
-				UDPTimes = 0;
-				// 发送关节角
-				UploadData.TrustFlag = 0x5555;
-				if(send_flag_99)
-				{
-					UploadData.LeftArmAngle[0] = Joint_Angle_FB[2][0];
-					UploadData.LeftArmAngle[1] = Joint_Angle_FB[3][0];
-					UploadData.LeftArmAngle[2] = Joint_Angle_FB[3][1];
-					UploadData.LeftArmAngle[3] = Joint_Angle_FB[2][1];
-					UploadData.LeftArmAngle[4] = Joint_Angle_FB[0][4];
-					UploadData.LeftArmAngle[5] = Joint_Angle_FB[0][5];
-					UploadData.LeftArmAngle[6] = Joint_Angle_FB[0][6];
-
-					UploadData.RightArmAngle[0] = Joint_Angle_FB[2][2];
-					UploadData.RightArmAngle[1] = Joint_Angle_FB[3][2];
-					UploadData.RightArmAngle[2] = Joint_Angle_FB[3][3];
-					UploadData.RightArmAngle[3] = Joint_Angle_FB[2][3];
-					UploadData.RightArmAngle[4] = Joint_Angle_FB[1][4];
-					UploadData.RightArmAngle[5] = Joint_Angle_FB[1][5];
-					UploadData.RightArmAngle[6] = Joint_Angle_FB[1][6];
-
-					UploadData.LeftHandAngle[0] = Joint_Angle_FB[0][0];
-					UploadData.LeftHandAngle[1] = Joint_Angle_FB[0][1];
-					UploadData.LeftHandAngle[2] = Joint_Angle_FB[0][2];
-					UploadData.LeftHandAngle[3] = Joint_Angle_FB[0][3];
-
-					UploadData.RightHandAngle[0] = Joint_Angle_FB[1][0];
-					UploadData.RightHandAngle[1] = Joint_Angle_FB[1][1];
-					UploadData.RightHandAngle[2] = Joint_Angle_FB[1][2];
-					UploadData.RightHandAngle[3] = Joint_Angle_FB[1][3];
-
-					UploadData.HeadAngle[0] = Joint_Angle_FB[2][4];
-					UploadData.HeadAngle[1] = Joint_Angle_FB[2][5];
-
-					UploadData.WaistAngle[0] = Joint_Angle_FB[3][4];
-					UploadData.WaistAngle[1] = Joint_Angle_FB[3][5];
-				}
-				else
-				{
-					UploadData.LeftArmAngle[0] = Joint_Angle_EP[2][0];
-					UploadData.LeftArmAngle[1] = Joint_Angle_EP[3][0];
-					UploadData.LeftArmAngle[2] = Joint_Angle_EP[3][1];
-					UploadData.LeftArmAngle[3] = Joint_Angle_EP[2][1];
-					UploadData.LeftArmAngle[4] = Joint_Angle_EP[0][4];
-					UploadData.LeftArmAngle[5] = Joint_Angle_EP[0][5];
-					UploadData.LeftArmAngle[6] = Joint_Angle_EP[0][6];
-
-					UploadData.RightArmAngle[0] = Joint_Angle_EP[2][2];
-					UploadData.RightArmAngle[1] = Joint_Angle_EP[3][2];
-					UploadData.RightArmAngle[2] = Joint_Angle_EP[3][3];
-					UploadData.RightArmAngle[3] = Joint_Angle_EP[2][3];
-					UploadData.RightArmAngle[4] = Joint_Angle_EP[1][4];
-					UploadData.RightArmAngle[5] = Joint_Angle_EP[1][5];
-					UploadData.RightArmAngle[6] = Joint_Angle_EP[1][6];
-
-					UploadData.LeftHandAngle[0] = Joint_Angle_EP[0][0];
-					UploadData.LeftHandAngle[1] = Joint_Angle_EP[0][1];
-					UploadData.LeftHandAngle[2] = Joint_Angle_EP[0][2];
-					UploadData.LeftHandAngle[3] = Joint_Angle_EP[0][3];
-
-					UploadData.RightHandAngle[0] = Joint_Angle_EP[1][0];
-					UploadData.RightHandAngle[1] = Joint_Angle_EP[1][1];
-					UploadData.RightHandAngle[2] = Joint_Angle_EP[1][2];
-					UploadData.RightHandAngle[3] = Joint_Angle_EP[1][3];
-
-					UploadData.HeadAngle[0] = Joint_Angle_EP[2][4];
-					UploadData.HeadAngle[1] = Joint_Angle_EP[2][5];
-
-					UploadData.WaistAngle[0] = Joint_Angle_EP[3][4];
-					UploadData.WaistAngle[1] = Joint_Angle_EP[3][5];
-				}
-
-
-				UploadData.LeftArmCurrent[0] = motor_current[2][0];
-				UploadData.LeftArmCurrent[1] = motor_current[3][0];
-				UploadData.LeftArmCurrent[2] = motor_current[3][1];
-				UploadData.LeftArmCurrent[3] = motor_current[2][1];
-				UploadData.LeftArmCurrent[4] = motor_current[0][4];
-				UploadData.LeftArmCurrent[5] = motor_current[0][5];
-				UploadData.LeftArmCurrent[6] = motor_current[0][6];
-
-				UploadData.RightArmCurrent[0] = motor_current[2][2];
-				UploadData.RightArmCurrent[1] = motor_current[3][2];
-				UploadData.RightArmCurrent[2] = motor_current[3][3];
-				UploadData.RightArmCurrent[3] = motor_current[2][3];
-				UploadData.RightArmCurrent[4] = motor_current[1][4];
-				UploadData.RightArmCurrent[5] = motor_current[1][5];
-				UploadData.RightArmCurrent[6] = motor_current[1][6];
-
-				UploadData.LeftHandCurrent[0] = motor_current[0][0];
-				UploadData.LeftHandCurrent[1] = motor_current[0][1];
-				UploadData.LeftHandCurrent[2] = motor_current[0][2];
-				UploadData.LeftHandCurrent[3] = motor_current[0][3];
-
-				UploadData.RightHandCurrent[0] = motor_current[1][0];
-				UploadData.RightHandCurrent[1] = motor_current[1][1];
-				UploadData.RightHandCurrent[2] = motor_current[1][2];
-				UploadData.RightHandCurrent[3] = motor_current[1][3];
-
-				UploadData.HeadCurrent[0] = motor_current[2][4];
-				UploadData.HeadCurrent[1] = motor_current[2][5];
-
-				UploadData.WaistCurrent[0] = motor_current[3][4];
-				UploadData.WaistCurrent[1] = motor_current[3][5];
-
-
-				UploadData.LeftArmCurrent[0] = motor_current[2][0];
-				UploadData.LeftArmCurrent[1] = motor_current[3][0];
-				UploadData.LeftArmCurrent[2] = motor_current[3][1];
-				UploadData.LeftArmCurrent[3] = motor_current[2][1];
-				UploadData.LeftArmCurrent[4] = motor_current[0][4];
-				UploadData.LeftArmCurrent[5] = motor_current[0][5];
-				UploadData.LeftArmCurrent[6] = motor_current[0][6];
-
-				UploadData.RightArmCurrent[0] = motor_current[2][2];
-				UploadData.RightArmCurrent[1] = motor_current[3][2];
-				UploadData.RightArmCurrent[2] = motor_current[3][3];
-				UploadData.RightArmCurrent[3] = motor_current[2][3];
-				UploadData.RightArmCurrent[4] = motor_current[1][4];
-				UploadData.RightArmCurrent[5] = motor_current[1][5];
-				UploadData.RightArmCurrent[6] = motor_current[1][6];
-
-				UploadData.LeftHandCurrent[0] = motor_current[0][0];
-				UploadData.LeftHandCurrent[1] = motor_current[0][1];
-				UploadData.LeftHandCurrent[2] = motor_current[0][2];
-				UploadData.LeftHandCurrent[3] = motor_current[0][3];
-
-				UploadData.RightHandCurrent[0] = motor_current[1][0];
-				UploadData.RightHandCurrent[1] = motor_current[1][1];
-				UploadData.RightHandCurrent[2] = motor_current[1][2];
-				UploadData.RightHandCurrent[3] = motor_current[1][3];
-
-				UploadData.HeadCurrent[0] = motor_current[2][4];
-				UploadData.HeadCurrent[1] = motor_current[2][5];
-
-				UploadData.WaistCurrent[0] = motor_current[3][4];
-				UploadData.WaistCurrent[1] = motor_current[3][5];
-
-
-				UploadData.LeftArmAngleEX[0] = Joint_Angle_EP[2][0];
-				UploadData.LeftArmAngleEX[1] = Joint_Angle_EP[3][0];
-				UploadData.LeftArmAngleEX[2] = Joint_Angle_EP[3][1];
-				UploadData.LeftArmAngleEX[3] = Joint_Angle_EP[2][1];
-				UploadData.LeftArmAngleEX[4] = Joint_Angle_EP[0][4];
-				UploadData.LeftArmAngleEX[5] = Joint_Angle_EP[0][5];
-				UploadData.LeftArmAngleEX[6] = Joint_Angle_EP[0][6];
-
-				UploadData.RightArmAngleEX[0] = Joint_Angle_EP[2][2];
-				UploadData.RightArmAngleEX[1] = Joint_Angle_EP[3][2];
-				UploadData.RightArmAngleEX[2] = Joint_Angle_EP[3][3];
-				UploadData.RightArmAngleEX[3] = Joint_Angle_EP[2][3];
-				UploadData.RightArmAngleEX[4] = Joint_Angle_EP[1][4];
-				UploadData.RightArmAngleEX[5] = Joint_Angle_EP[1][5];
-				UploadData.RightArmAngleEX[6] = Joint_Angle_EP[1][6];
-
-				UploadData.LeftHandAngleEX[0] = Joint_Angle_EP[0][0];
-				UploadData.LeftHandAngleEX[1] = Joint_Angle_EP[0][1];
-				UploadData.LeftHandAngleEX[2] = Joint_Angle_EP[0][2];
-				UploadData.LeftHandAngleEX[3] = Joint_Angle_EP[0][3];
-
-				UploadData.RightHandAngleEX[0] = Joint_Angle_EP[1][0];
-				UploadData.RightHandAngleEX[1] = Joint_Angle_EP[1][1];
-				UploadData.RightHandAngleEX[2] = Joint_Angle_EP[1][2];
-				UploadData.RightHandAngleEX[3] = Joint_Angle_EP[1][3];
-
-				UploadData.HeadAngleEX[0] = Joint_Angle_EP[2][4];
-				UploadData.HeadAngleEX[1] = Joint_Angle_EP[2][5];
-
-				UploadData.WaistAngleEX[0] = Joint_Angle_EP[3][4];
-				UploadData.WaistAngleEX[1] = Joint_Angle_EP[3][5];
-
-
-
-				memcpy(sendbuff,&UploadData,sizeof(UploadData));
-
-				int n;
-
-				nAddrLen = sizeof(DestAddr);
-				n = sendto(UDP_Sock, sendbuff, sizeof(UploadData), 0, (struct sockaddr *)&DestAddr, nAddrLen);
-
-				// 接收指令
-				timetest1 = rt_timer_read();
-				memset(recvbuff,0,sizeof(recvbuff));
-				n = recvfrom(UDP_Sock, recvbuff, sizeof(recvbuff), MSG_DONTWAIT, (struct sockaddr *)&DestAddr, &nAddrLen);
-
-				if((n == sizeof(DownloadData)) && (motion_mode_control == 0))
-				{
-					memcpy(&DownloadData,recvbuff,sizeof(DownloadData));
-
-					switch(DownloadData.Mode)
-					{
-						case 01:
-							motion_mode = SINGLE_JOINT_MOTION;
-							can_channel_main = DownloadData.CANCH;
-							can_id_main = DownloadData.CANID;
-							JointMoveData = DownloadData.Data[0] * degree2rad;
-
-							printf("motion_mode = SINGLE_JOINT_MOTION  CH %ld  CANID %ld,  MOVE %f DEGREE\n", can_channel_main+1,can_id_main+1, DownloadData.Data[0]);
-						break;
-
-						case 02:
-							motion_mode = ONE_ARM_MOTION;
-							can_channel_main = DownloadData.CANCH;
-							One_arm_main[0] = DownloadData.Data[0] * degree2rad;
-							One_arm_main[1] = DownloadData.Data[1] * degree2rad;
-							One_arm_main[2] = DownloadData.Data[2] * degree2rad;
-							One_arm_main[3] = DownloadData.Data[3] * degree2rad;
-
-							printf("motion_mode = ONE_ARM_MOTION  Arm %ld  %f  %f  %f  %f\n", can_channel_main+1, DownloadData.Data[0],DownloadData.Data[1],DownloadData.Data[2],DownloadData.Data[3]);
-						break;
-
-						case 03:
-							motion_mode = TWO_ARMS_MOTION;
-							End_Numb = DownloadData.CANCH;
-							for(i=0;i<3;i++)
-							{
-								for(j=0;j<4;j++)
-								{
-									T_END_main[i][j] = DownloadData.Data[i*4+j];
-								}
-							}
-							T_END_main[3][0] = 0.0;
-							T_END_main[3][1] = 0.0;
-							T_END_main[3][2] = 0.0;
-							T_END_main[3][3] = 1.0;
-							two_arms_time = DownloadData.Data[12];
-
-							printf("motion_mode = TWO_ARMS_MOTION  end_numb %d\n, time length is %f", End_Numb,two_arms_time);
-
-						break;
-
-						case 04:
-							motion_mode = VISION_MOTION;
-							End_Numb = DownloadData.CANCH;
-
-							if((DownloadData.Data[0] ==0.0)&&(DownloadData.Data[1] ==0.0)&&(DownloadData.Data[2] ==0.0))
-							{
-								motion_mode = 0;
-							}
-							else
-							{
-								for(i=0;i<3;i++)
-								{
-									for(j=0;j<4;j++)
-									{
-										DeltaMatrix[i][j] = DownloadData.Data[i*4+j];
-									}
-								}
-								DeltaMatrix[3][0] = 0.0;
-								DeltaMatrix[3][1] = 0.0;
-								DeltaMatrix[3][2] = 0.0;
-								DeltaMatrix[3][3] = 1.0;
-								vision_motion_time = DownloadData.Data[12];
-								printf("motion_mode = VISION_MOTION  end_numb %d\n, time length is %f\n", End_Numb, vision_motion_time);
-							}
-						break;
-
-						case 06:
-							motion_mode = FIND_HOME_MOTION;
-							can_channel_main = DownloadData.CANCH;
-							can_id_main = DownloadData.CANID;
-						break;
-
-						case ARM1_SERVO_ON:
-							motion_mode = ARM1_SERVO_ON;
-						break;
-
-						case ARM2_SERVO_ON:
-							motion_mode = ARM2_SERVO_ON;
-						break;
-
-						case ARM3_SERVO_ON:
-							motion_mode = ARM3_SERVO_ON;
-						break;
-
-						case ARM1_SERVO_OFF:
-							motion_mode = ARM1_SERVO_OFF;
-						break;
-
-						case ARM2_SERVO_OFF:
-							motion_mode = ARM2_SERVO_OFF;
-						break;
-
-						case ARM3_SERVO_OFF:
-							motion_mode = ARM3_SERVO_OFF;
-						break;
-
-						case HAND1_SERVO_ON:
-							motion_mode = HAND1_SERVO_ON;
-						break;
-
-						case HAND2_SERVO_ON:
-							motion_mode = HAND2_SERVO_ON;
-						break;
-
-						case HAND3_SERVO_ON:
-							motion_mode = HAND3_SERVO_ON;
-						break;
-
-						case HAND1_SERVO_OFF:
-							motion_mode = HAND1_SERVO_OFF;
-						break;
-
-						case HAND2_SERVO_OFF:
-							motion_mode = HAND2_SERVO_OFF;
-						break;
-
-						case HAND3_SERVO_OFF:
-							motion_mode = HAND3_SERVO_OFF;
-						break;
-
-						default:
-						break;
-
-					}
-
-
-					timetest2 = rt_timer_read();
-					timecost = (timetest2 - timetest1)/1000;//us
-					printf("Spend %lf us, Mode %d, Data %f\n",timecost,motion_mode,JointMoveData* Rad2Degree);
-			//		first_time_flag = 0;
-				}
-				else if(n>0)
-				{
-					printf("Recv %d Byte data\n",n);
-
-				}
-				timetest1 = 0;
-				timetest2 = 0;
+			UDPTimes = 0;
+
+			// 发送数据帧赋值
+			UploadData.TrustFlag = 0x5555;
+			if(send_flag_99)
+			{
+				UploadData.LeftArmAngle[0] = Joint_Angle_FB[2][0];
+				UploadData.LeftArmAngle[1] = Joint_Angle_FB[3][0];
+				UploadData.LeftArmAngle[2] = Joint_Angle_FB[3][1];
+				UploadData.LeftArmAngle[3] = Joint_Angle_FB[2][1];
+				UploadData.LeftArmAngle[4] = Joint_Angle_FB[0][4];
+				UploadData.LeftArmAngle[5] = Joint_Angle_FB[0][5];
+				UploadData.LeftArmAngle[6] = Joint_Angle_FB[0][6];
+
+				UploadData.RightArmAngle[0] = Joint_Angle_FB[2][2];
+				UploadData.RightArmAngle[1] = Joint_Angle_FB[3][2];
+				UploadData.RightArmAngle[2] = Joint_Angle_FB[3][3];
+				UploadData.RightArmAngle[3] = Joint_Angle_FB[2][3];
+				UploadData.RightArmAngle[4] = Joint_Angle_FB[1][4];
+				UploadData.RightArmAngle[5] = Joint_Angle_FB[1][5];
+				UploadData.RightArmAngle[6] = Joint_Angle_FB[1][6];
+
+				UploadData.LeftHandAngle[0] = Joint_Angle_FB[0][0];
+				UploadData.LeftHandAngle[1] = Joint_Angle_FB[0][1];
+				UploadData.LeftHandAngle[2] = Joint_Angle_FB[0][2];
+				UploadData.LeftHandAngle[3] = Joint_Angle_FB[0][3];
+
+				UploadData.RightHandAngle[0] = Joint_Angle_FB[1][0];
+				UploadData.RightHandAngle[1] = Joint_Angle_FB[1][1];
+				UploadData.RightHandAngle[2] = Joint_Angle_FB[1][2];
+				UploadData.RightHandAngle[3] = Joint_Angle_FB[1][3];
+
+				UploadData.HeadAngle[0] = Joint_Angle_FB[2][4];
+				UploadData.HeadAngle[1] = Joint_Angle_FB[2][5];
+
+				UploadData.WaistAngle[0] = Joint_Angle_FB[3][4];
+				UploadData.WaistAngle[1] = Joint_Angle_FB[3][5];
+			}
+			else
+			{
+				UploadData.LeftArmAngle[0] = Joint_Angle_EP[2][0];
+				UploadData.LeftArmAngle[1] = Joint_Angle_EP[3][0];
+				UploadData.LeftArmAngle[2] = Joint_Angle_EP[3][1];
+				UploadData.LeftArmAngle[3] = Joint_Angle_EP[2][1];
+				UploadData.LeftArmAngle[4] = Joint_Angle_EP[0][4];
+				UploadData.LeftArmAngle[5] = Joint_Angle_EP[0][5];
+				UploadData.LeftArmAngle[6] = Joint_Angle_EP[0][6];
+
+				UploadData.RightArmAngle[0] = Joint_Angle_EP[2][2];
+				UploadData.RightArmAngle[1] = Joint_Angle_EP[3][2];
+				UploadData.RightArmAngle[2] = Joint_Angle_EP[3][3];
+				UploadData.RightArmAngle[3] = Joint_Angle_EP[2][3];
+				UploadData.RightArmAngle[4] = Joint_Angle_EP[1][4];
+				UploadData.RightArmAngle[5] = Joint_Angle_EP[1][5];
+				UploadData.RightArmAngle[6] = Joint_Angle_EP[1][6];
+
+				UploadData.LeftHandAngle[0] = Joint_Angle_EP[0][0];
+				UploadData.LeftHandAngle[1] = Joint_Angle_EP[0][1];
+				UploadData.LeftHandAngle[2] = Joint_Angle_EP[0][2];
+				UploadData.LeftHandAngle[3] = Joint_Angle_EP[0][3];
+
+				UploadData.RightHandAngle[0] = Joint_Angle_EP[1][0];
+				UploadData.RightHandAngle[1] = Joint_Angle_EP[1][1];
+				UploadData.RightHandAngle[2] = Joint_Angle_EP[1][2];
+				UploadData.RightHandAngle[3] = Joint_Angle_EP[1][3];
+
+				UploadData.HeadAngle[0] = Joint_Angle_EP[2][4];
+				UploadData.HeadAngle[1] = Joint_Angle_EP[2][5];
+
+				UploadData.WaistAngle[0] = Joint_Angle_EP[3][4];
+				UploadData.WaistAngle[1] = Joint_Angle_EP[3][5];
 			}
 
 
+			UploadData.LeftArmCurrent[0] = motor_current[2][0];
+			UploadData.LeftArmCurrent[1] = motor_current[3][0];
+			UploadData.LeftArmCurrent[2] = motor_current[3][1];
+			UploadData.LeftArmCurrent[3] = motor_current[2][1];
+			UploadData.LeftArmCurrent[4] = motor_current[0][4];
+			UploadData.LeftArmCurrent[5] = motor_current[0][5];
+			UploadData.LeftArmCurrent[6] = motor_current[0][6];
 
-		/************************* UDP数据传输 End **************************/
+			UploadData.RightArmCurrent[0] = motor_current[2][2];
+			UploadData.RightArmCurrent[1] = motor_current[3][2];
+			UploadData.RightArmCurrent[2] = motor_current[3][3];
+			UploadData.RightArmCurrent[3] = motor_current[2][3];
+			UploadData.RightArmCurrent[4] = motor_current[1][4];
+			UploadData.RightArmCurrent[5] = motor_current[1][5];
+			UploadData.RightArmCurrent[6] = motor_current[1][6];
+
+			UploadData.LeftHandCurrent[0] = motor_current[0][0];
+			UploadData.LeftHandCurrent[1] = motor_current[0][1];
+			UploadData.LeftHandCurrent[2] = motor_current[0][2];
+			UploadData.LeftHandCurrent[3] = motor_current[0][3];
+
+			UploadData.RightHandCurrent[0] = motor_current[1][0];
+			UploadData.RightHandCurrent[1] = motor_current[1][1];
+			UploadData.RightHandCurrent[2] = motor_current[1][2];
+			UploadData.RightHandCurrent[3] = motor_current[1][3];
+
+			UploadData.HeadCurrent[0] = motor_current[2][4];
+			UploadData.HeadCurrent[1] = motor_current[2][5];
+
+			UploadData.WaistCurrent[0] = motor_current[3][4];
+			UploadData.WaistCurrent[1] = motor_current[3][5];
+
+
+			UploadData.LeftArmCurrent[0] = motor_current[2][0];
+			UploadData.LeftArmCurrent[1] = motor_current[3][0];
+			UploadData.LeftArmCurrent[2] = motor_current[3][1];
+			UploadData.LeftArmCurrent[3] = motor_current[2][1];
+			UploadData.LeftArmCurrent[4] = motor_current[0][4];
+			UploadData.LeftArmCurrent[5] = motor_current[0][5];
+			UploadData.LeftArmCurrent[6] = motor_current[0][6];
+
+			UploadData.RightArmCurrent[0] = motor_current[2][2];
+			UploadData.RightArmCurrent[1] = motor_current[3][2];
+			UploadData.RightArmCurrent[2] = motor_current[3][3];
+			UploadData.RightArmCurrent[3] = motor_current[2][3];
+			UploadData.RightArmCurrent[4] = motor_current[1][4];
+			UploadData.RightArmCurrent[5] = motor_current[1][5];
+			UploadData.RightArmCurrent[6] = motor_current[1][6];
+
+			UploadData.LeftHandCurrent[0] = motor_current[0][0];
+			UploadData.LeftHandCurrent[1] = motor_current[0][1];
+			UploadData.LeftHandCurrent[2] = motor_current[0][2];
+			UploadData.LeftHandCurrent[3] = motor_current[0][3];
+
+			UploadData.RightHandCurrent[0] = motor_current[1][0];
+			UploadData.RightHandCurrent[1] = motor_current[1][1];
+			UploadData.RightHandCurrent[2] = motor_current[1][2];
+			UploadData.RightHandCurrent[3] = motor_current[1][3];
+
+			UploadData.HeadCurrent[0] = motor_current[2][4];
+			UploadData.HeadCurrent[1] = motor_current[2][5];
+
+			UploadData.WaistCurrent[0] = motor_current[3][4];
+			UploadData.WaistCurrent[1] = motor_current[3][5];
+
+
+			UploadData.LeftArmAngleEX[0] = Joint_Angle_EP[2][0];
+			UploadData.LeftArmAngleEX[1] = Joint_Angle_EP[3][0];
+			UploadData.LeftArmAngleEX[2] = Joint_Angle_EP[3][1];
+			UploadData.LeftArmAngleEX[3] = Joint_Angle_EP[2][1];
+			UploadData.LeftArmAngleEX[4] = Joint_Angle_EP[0][4];
+			UploadData.LeftArmAngleEX[5] = Joint_Angle_EP[0][5];
+			UploadData.LeftArmAngleEX[6] = Joint_Angle_EP[0][6];
+
+			UploadData.RightArmAngleEX[0] = Joint_Angle_EP[2][2];
+			UploadData.RightArmAngleEX[1] = Joint_Angle_EP[3][2];
+			UploadData.RightArmAngleEX[2] = Joint_Angle_EP[3][3];
+			UploadData.RightArmAngleEX[3] = Joint_Angle_EP[2][3];
+			UploadData.RightArmAngleEX[4] = Joint_Angle_EP[1][4];
+			UploadData.RightArmAngleEX[5] = Joint_Angle_EP[1][5];
+			UploadData.RightArmAngleEX[6] = Joint_Angle_EP[1][6];
+
+			UploadData.LeftHandAngleEX[0] = Joint_Angle_EP[0][0];
+			UploadData.LeftHandAngleEX[1] = Joint_Angle_EP[0][1];
+			UploadData.LeftHandAngleEX[2] = Joint_Angle_EP[0][2];
+			UploadData.LeftHandAngleEX[3] = Joint_Angle_EP[0][3];
+
+			UploadData.RightHandAngleEX[0] = Joint_Angle_EP[1][0];
+			UploadData.RightHandAngleEX[1] = Joint_Angle_EP[1][1];
+			UploadData.RightHandAngleEX[2] = Joint_Angle_EP[1][2];
+			UploadData.RightHandAngleEX[3] = Joint_Angle_EP[1][3];
+
+			UploadData.HeadAngleEX[0] = Joint_Angle_EP[2][4];
+			UploadData.HeadAngleEX[1] = Joint_Angle_EP[2][5];
+
+			UploadData.WaistAngleEX[0] = Joint_Angle_EP[3][4];
+			UploadData.WaistAngleEX[1] = Joint_Angle_EP[3][5];
+
+			UDPSend();
+			UDPRecv(motion_mode_control,&can_channel_main,&can_id_main,&JointMoveData);
+
+		}
+
+				
+
+		/********************** UDP通讯相关 End ***************************/
 
 		/************************* 界面显示 **************************/
 		sprintf(buf2, "Voltage:  %8.3f    Current:  %8.3f",VoltageAll,CurrentAll);
@@ -3361,27 +3153,7 @@ void rt_can_recv(void *arg)
 	}
 }
 
-int UDPComm_init(void)
-{
 
-    	if ( (UDP_Sock=socket(AF_INET, SOCK_DGRAM, 0)) <0)
-	{
-		perror("socket created failed!\n");
-	}
-	struct sockaddr_in HostAddr;
-	bzero(&HostAddr,sizeof(HostAddr));
-	HostAddr.sin_family = AF_INET;
-	HostAddr.sin_port = htons(HOST_PORT);
-	HostAddr.sin_addr.s_addr = inet_addr(HOST_IP);
-	if (bind(UDP_Sock, &HostAddr, sizeof(HostAddr)) < 0)
-	{
-		perror("socket binded failed!\n");
-	}
-
-	DestAddr.sin_family = AF_INET;
-	DestAddr.sin_port = htons(DEST_PORT);
-	DestAddr.sin_addr.s_addr = inet_addr(DEST_IP);
-}
 
 int can_rt_init(char channal[4][16], long baudrate_set)
 {
