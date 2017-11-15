@@ -1,5 +1,10 @@
 #ifndef GLOABL_DEF
 
+#define Rad2Degree 	57.29577951308
+#define Degree2Rad 	0.0174532925
+#define sin15	0.2588190451025
+#define cos15 	0.965925826289
+
 #define ARM1_JOINT1_MOVE 1
 #define ARM1_JOINT2_MOVE 2
 #define ARM1_JOINT3_MOVE 3

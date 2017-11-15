@@ -193,8 +193,7 @@ int servo_on_off_flag = 0;
 //int print_flag = 1;
 int hand_id = 0;
 float hand_current_expect = 0.0;
-double sin15 = 0.2588190451025;
-double cos15 = 0.965925826289;
+
 
 //long data1[8];
 Atom wm_delete_window;
@@ -288,7 +287,7 @@ float DeltaMatrix[4][4] = {0.0};
 /**********************  VisionControl End ***********************/
 
 
-// 关节运动量
+// 单关节运动量
 float JointMoveData = 0.0;
 
 double high_time = 0.0;
@@ -309,8 +308,7 @@ double Rad2Count[4][7] = {{7.00281748,636.619772,636.619772,636.619772,2607.5945
 						  {7.00281748,636.619772,636.619772,636.619772,2607.5945876176,2607.5945876176,2607.5945876176},
  						  {2607.5945876176,2607.5945876176,2607.5945876176,2607.5945876176,2607.5945876176,2607.5945876176,2607.5945876176},
  						  {2607.5945876176,2607.5945876176,2607.5945876176,2607.5945876176,651.8986,651.8986,0.0}};//651.898;
-double Rad2Degree = 57.29577951308;
-double degree2rad = 0.0174532925;
+
 double reduction_ratio[4][7] = {{34.0,100.0,100.0,100.0,160.0,160.0,160.0},
 								{34.0,100.0,100.0,100.0,160.0,160.0,160.0},
 								{160.0,160.0,160.0,160.0,100.0,100.0,100.0},
@@ -1705,8 +1703,6 @@ void rt_can_recv(void *arg)
 /**********************************************************************************/
 	//    开始循环
 /**********************************************************************************/
-	RTIME timetest1, timetest2;
-
 	while(canrv_running)
 	{
 		rt_task_wait_period(NULL);
@@ -2921,8 +2917,8 @@ void rt_can_recv(void *arg)
 		if(UDPTimes >= UDPCYCLE)
 		{
 			UDPTimes = 0;
-
-			// 发送数据帧赋值
+			struct RobotDataUDP_Struct UploadData;
+			
 			UploadData.TrustFlag = 0x5555;
 			if(send_flag_99)
 			{
@@ -3091,13 +3087,31 @@ void rt_can_recv(void *arg)
 
 			UploadData.WaistAngleEX[0] = Joint_Angle_EP[3][4];
 			UploadData.WaistAngleEX[1] = Joint_Angle_EP[3][5];
+		
+			RobotFBSend(UploadData);
+			int rtnMode = UDPRecv();
+			if(motion_mode_control == 0)	// 运动已完成
+			{
+				switch(rtnMode)
+				{
+					case SINGLE_JOINT_MOTION:	//单关节运动模式
+					{
+						GetSingleJointData(&can_channel_main,&can_id_main,&JointMoveData,&singe_joint_time);
+						motion_mode = SINGLE_JOINT_MOTION;
+					}
+					break;
 
-			UDPSend();
-			UDPRecv(motion_mode_control,&can_channel_main,&can_id_main,&JointMoveData);
+					default:
+					break;
+				}
 
+			}
+			else if(motion_mode_control&&rtnMode)
+			{
+				printf("Motion has not completed!\n");
+			}
+			
 		}
-
-				
 
 		/********************** UDP通讯相关 End ***************************/
 
@@ -3328,7 +3342,7 @@ int main(int argc, char* argv[])
 	char channal[4][16] = {"rtcan0","rtcan1","rtcan2","rtcan3"};
 	int i =0;
 
-	UDPComm_init();
+	RobotUDPComm_init();
 	can_rt_init(channal, 1000000);
 
 

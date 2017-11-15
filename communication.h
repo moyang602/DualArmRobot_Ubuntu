@@ -5,10 +5,19 @@
 #include <netinet/in.h>
 
 
-/**********************  UDP通讯 Start ***********************/
+// 与上位机UDP通讯变量声明
+#define CTRLHOST_PORT 8000
+#define CTRLHOST_IP "192.168.1.3"
+#define DESTPC_PORT 8001
+#define DESTPC_IP "192.168.1.4"
+#define UDPCYCLE 30			// UDPCYCLE*程序运行周期 = UDP通讯周期
+
+/***********************************************************
+                      定义机器人回传数据
+************************************************************/
 #pragma pack(push)
 #pragma pack(1)
-struct DataUDP_Struct
+struct RobotDataUDP_Struct
 {
 	unsigned int TrustFlag;
 	float LeftArmAngle[7];
@@ -33,9 +42,12 @@ struct DataUDP_Struct
 };
 #pragma pack(pop)
 
+/***********************************************************
+                      定义单关节运动指令
+************************************************************/
 #pragma pack(push)
 #pragma pack(1)
-struct CommandUDP_Struct
+struct SingleJointCMD_Struct
 {
 	unsigned char Mode;
 	unsigned char CANCH;
@@ -46,33 +58,48 @@ struct CommandUDP_Struct
 };
 #pragma pack(pop)
 
-struct DataUDP_Struct UploadData;
-struct CommandUDP_Struct DownloadData;
+/***********************************************************
+                      定义末端运动指令
+************************************************************/
+#pragma pack(push)
+#pragma pack(1)
+struct EndCMD_Struct
+{
+	unsigned char Mode;
+	unsigned char ArmSelect;
+	float Data[12];
+	float time;
+	unsigned char CheckSum;
+};
+#pragma pack(pop)
 
+/***********************************************************
+                      定义遥操作运动指令
+************************************************************/
+#pragma pack(push)
+#pragma pack(1)
+struct RemoteCMD_Struct
+{
+	unsigned char Mode;
+	float Data[14];
+	unsigned char CheckSum;
+};
+#pragma pack(pop)
 
-
-// UDP通讯变量声明
-#define HOST_PORT 8000
-#define HOST_IP "192.168.0.3"
-#define DEST_PORT 8001
-#define DEST_IP "192.168.0.4"
-#define UDPCYCLE 30			// UDPCYCLE*程序运行周期 = UDP通讯周期
+struct SingleJointCMD_Struct SingleJointData;
+struct EndCMD_Struct EndData;
+struct RemoteCMD_Struct RemoteData;
 
 int UDP_Sock;
-struct sockaddr_in DestAddr;
-socklen_t nAddrLen;
-int UDPComm_init(void);
+struct sockaddr_in DestPCAddr;
 
-unsigned char sendbuff[400];
-unsigned char recvbuff[400];
-
-
-
-/**********************  UDP通讯 End ***********************/
 
 //函数声明
-int UDPComm_init(void);
-int UDPSend(void);
-int UDPRecv(int motion_mode_control,long* can_channel_main,long* can_id_main,float* JointMoveData);
+int RobotUDPComm_init(void);
+int RobotFBSend(struct RobotDataUDP_Struct RobotFBData);
+int UDPRecv(void);
+int GetSingleJointData(long* can_channel_main,long* can_id_main,float* JointMoveData,double* JointMoveTime);
+int GetEndData(int* ArmSelect,float EndData[12], double* EndMoveTime);
+int GetRemoteData(float RemoteMotionData[14]);
 
 #endif

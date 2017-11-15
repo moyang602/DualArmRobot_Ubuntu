@@ -2,46 +2,136 @@
 #include "global_def.h"
 
 
-int UDPComm_init(void)
+int RobotUDPComm_init(void)
 {
 
-    	if ( (UDP_Sock=socket(AF_INET, SOCK_DGRAM, 0)) <0)
+    if ( (UDP_Sock=socket(AF_INET, SOCK_DGRAM, 0)) <0)
 	{
-		perror("socket created failed!\n");
+		perror("PC socket created failed!\n");
 	}
 	struct sockaddr_in HostAddr;
 	bzero(&HostAddr,sizeof(HostAddr));
 	HostAddr.sin_family = AF_INET;
-	HostAddr.sin_port = htons(HOST_PORT);
-	HostAddr.sin_addr.s_addr = inet_addr(HOST_IP);
+	HostAddr.sin_port = htons(CTRLHOST_PORT);
+	HostAddr.sin_addr.s_addr = inet_addr(CTRLHOST_IP);
 	if (bind(UDP_Sock, &HostAddr, sizeof(HostAddr)) < 0)
 	{
-		perror("socket binded failed!\n");
+		perror("PC socket binded failed!\n");
 	}
 
-	DestAddr.sin_family = AF_INET;
-	DestAddr.sin_port = htons(DEST_PORT);
-	DestAddr.sin_addr.s_addr = inet_addr(DEST_IP);
+	DestPCAddr.sin_family = AF_INET;
+	DestPCAddr.sin_port = htons(DESTPC_PORT);
+	DestPCAddr.sin_addr.s_addr = inet_addr(DESTPC_IP);
 }
 
-int UDPSend(void)
+int RobotFBSend(struct RobotDataUDP_Struct RobotFBData)
 {
-	memset(sendbuff,0,sizeof(sendbuff));
-	memcpy(sendbuff,&UploadData,sizeof(UploadData));
-
+	unsigned char sendbuff[400];
 	int n;
+	memset(sendbuff,0,sizeof(sendbuff));
+	memcpy(sendbuff,&RobotFBData,sizeof(RobotFBData));
 
-	nAddrLen = sizeof(DestAddr);
-	n = sendto(UDP_Sock, sendbuff, sizeof(UploadData), 0, (struct sockaddr *)&DestAddr, nAddrLen);
-
+	socklen_t nAddrLen = sizeof(DestPCAddr);
+	n = sendto(UDP_Sock, sendbuff, sizeof(RobotFBData), 0, (struct sockaddr *)&DestPCAddr, nAddrLen);
 }
 
+int UDPRecv()
+{
+	int n;
+	int i = 0;
+	unsigned char recvbuff[400];
+	memset(recvbuff,0,sizeof(recvbuff));
+
+	socklen_t nAddrLen = sizeof(DestPCAddr);
+	n = recvfrom(UDP_Sock, recvbuff, sizeof(recvbuff), MSG_DONTWAIT, (struct sockaddr *)&DestPCAddr, &nAddrLen);
+
+	if(n>=0)
+	{
+		switch(recvbuff[0])
+		{
+			case SINGLE_JOINT_MOTION:
+			{	
+				unsigned char sum = 0;
+				for (i = 0; i < (sizeof(SingleJointData) -1); ++i)
+				{
+					sum += recvbuff[i];
+				}
+				if (sum != recvbuff[sizeof(SingleJointCMD_Struct) -1])	//校验和不正确直接退出
+				{
+					printf("recv %d bytes wrong data!\n",n);
+					return 0;
+				}
+				memcpy(&SingleJointData,recvbuff,sizeof(SingleJointData));
+
+				return SINGLE_JOINT_MOTION;
+			}
+
+			break;
+
+			case 0x02:
+
+			break;
+
+			case 0x03:
+
+			break;
+
+			default:
+			break;
+		}
+
+	}
+	else if(n<0)
+	{
+	//	printf("UDPRecv wrong!!!\n");
+		return 0;
+	}
+}
+
+int GetSingleJointData(long* can_channel_main,long* can_id_main,float* JointMoveData,double* JointMoveTime)
+{
+	*can_channel_main = SingleJointData.CANCH;
+	*can_id_main = SingleJointData.CANID;
+	*JointMoveData = SingleJointData.Data * Degree2Rad;
+	if(SingleJointData.time<=5.0)
+		*JointMoveTime = 5.0;
+	else
+		*JointMoveTime = SingleJointData.time;
+	printf("motion_mode = SINGLE_JOINT_MOTION  CH %ld CANID %ld, MOVE %6.3f DEG, TIME %5.2f s\n", *can_channel_main+1,*can_id_main+1, SingleJointData.Data, *JointMoveTime);
+}
+
+int GetEndData(int* ArmSelect,float EndMoveData[12], double* EndMoveTime)
+{
+	int i = 0;
+	*ArmSelect = EndData.ArmSelect;
+	for(i=0;i<12;i++)
+	{
+		EndMoveData[i] = EndData.Data[i];
+	}
+	if(EndData.time<=5.0)
+		*EndMoveTime = 5.0;
+	else
+		*EndMoveTime = EndData.time;
+	printf("motion_mode = END_MOTION  ARM %d TIME  %8.3f s\n", *ArmSelect, *EndMoveTime);
+
+}
+int GetRemoteData(float RemoteMotionData[14])
+{
+	int i = 0;
+	for(i=0;i<14;i++)
+	{
+		RemoteMotionData[i] = RemoteData.Data[i];
+	}
+	printf("motion_mode = REMOTE_MOTION\n");
+}
+
+/*
 int UDPRecv(int motion_mode_control,long* can_channel_main,long* can_id_main,float* JointMoveData)
 {
 	int n;
 	int motion_mode = 0;
 	memset(recvbuff,0,sizeof(recvbuff));
-	n = recvfrom(UDP_Sock, recvbuff, sizeof(recvbuff), MSG_DONTWAIT, (struct sockaddr *)&DestAddr, &nAddrLen);
+	n = recvfrom(UDP_Sock, recvbuff, sizeof(recvbuff), MSG_DONTWAIT, (struct sockaddr *)&DestPCAddr, &nAddrLen);
 
 	if((n == sizeof(DownloadData)) && (motion_mode_control == 0))
 	{
@@ -120,7 +210,7 @@ int UDPRecv(int motion_mode_control,long* can_channel_main,long* can_id_main,flo
 				can_channel_main = DownloadData.CANCH;
 				can_id_main = DownloadData.CANID;
 			break;
-*/
+
 			default:
 			break;
 
@@ -133,3 +223,4 @@ int UDPRecv(int motion_mode_control,long* can_channel_main,long* can_id_main,flo
 	}
 
 }
+*/
