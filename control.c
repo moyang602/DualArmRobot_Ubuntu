@@ -2847,54 +2847,60 @@ void rt_can_recv(void *arg)
 		/********************** UDP通讯相关 End ***************************/
 
 		/************************* 界面显示 **************************/
+		struct RealRobot_Struct AngleFBDeg;
+		struct RealRobot_Struct AngleEPDeg;
+		struct RealRobot_Struct AngleERDeg;
+		struct RealRobot_Struct RealCurrent;
+		memset(&AngleFBDeg,0,sizeof(AngleFBDeg));
+		memset(&AngleEPDeg,0,sizeof(AngleEPDeg));
+		memset(&AngleERDeg,0,sizeof(AngleERDeg));
+		memset(&RealCurrent,0,sizeof(RealCurrent));
+
+		CanDef2RealRobot(Joint_Angle_FB_degree, &AngleFBDeg);
+		CanDef2RealRobot(Joint_Angle_EP_degree, &AngleEPDeg);
+		CanDef2RealRobot(Joint_Angle_ER_degree, &AngleERDeg);
+		CanDef2RealRobot(motor_current, &RealCurrent);
+
 		sprintf(buf2, "Voltage:  %8.3f    Current:  %8.3f",VoltageAll,CurrentAll);
 		sprintf(buf3, "******************************  Robot Joint Angle  ******************************");
-		sprintf(buf4, "CH1 Recv  %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f  %8.3f",
-		Joint_Angle_FB_degree[0][0], Joint_Angle_FB_degree[0][1], Joint_Angle_FB_degree[0][2], Joint_Angle_FB_degree[0][3], Joint_Angle_FB_degree[0][4], Joint_Angle_FB_degree[0][5], Joint_Angle_FB_degree[0][6]);
 
-		sprintf(buf5, "CH1 Send  %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f  %8.3f",
-		Joint_Angle_EP_degree[0][0], Joint_Angle_EP_degree[0][1], Joint_Angle_EP_degree[0][2], Joint_Angle_EP_degree[0][3], Joint_Angle_EP_degree[0][4], Joint_Angle_EP_degree[0][5], Joint_Angle_EP_degree[0][6]);
+		sprintf(buf4, "LArmRecv %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f  %8.3f",
+		AngleFBDeg.LeftArm[0], AngleFBDeg.LeftArm[1], AngleFBDeg.LeftArm[2], AngleFBDeg.LeftArm[3], AngleFBDeg.LeftArm[4], AngleFBDeg.LeftArm[5], AngleFBDeg.LeftArm[6]);
+		sprintf(buf5, "LArmSend %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f  %8.3f",
+		AngleEPDeg.LeftArm[0], AngleEPDeg.LeftArm[1], AngleEPDeg.LeftArm[2], AngleEPDeg.LeftArm[3], AngleEPDeg.LeftArm[4], AngleEPDeg.LeftArm[5], AngleEPDeg.LeftArm[6]);
+		sprintf(buf6, "LArmErr  %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f  %8.3f",
+		AngleERDeg.LeftArm[0], AngleERDeg.LeftArm[1], AngleERDeg.LeftArm[2], AngleERDeg.LeftArm[3], AngleERDeg.LeftArm[4], AngleERDeg.LeftArm[5], AngleERDeg.LeftArm[6]);
 
-		sprintf(buf6, "CH1 Error %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f  %8.3f",
-		Joint_Angle_ER_degree[0][0], Joint_Angle_ER_degree[0][1], Joint_Angle_ER_degree[0][2], Joint_Angle_ER_degree[0][3], Joint_Angle_ER_degree[0][4], Joint_Angle_ER_degree[0][5], Joint_Angle_ER_degree[0][6]);
+		sprintf(buf7, "RArmRecv %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f  %8.3f",
+		AngleFBDeg.RightArm[0], AngleFBDeg.RightArm[1], AngleFBDeg.RightArm[2], AngleFBDeg.RightArm[3], AngleFBDeg.RightArm[4], AngleFBDeg.RightArm[5], AngleFBDeg.RightArm[6]);
+		sprintf(buf8, "RArmSend %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f  %8.3f",
+		AngleEPDeg.RightArm[0], AngleEPDeg.RightArm[1], AngleEPDeg.RightArm[2], AngleEPDeg.RightArm[3], AngleEPDeg.RightArm[4], AngleEPDeg.RightArm[5], AngleEPDeg.RightArm[6]);
+		sprintf(buf9, "RArmErr  %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f  %8.3f",
+		AngleERDeg.RightArm[0], AngleERDeg.RightArm[1], AngleERDeg.RightArm[2], AngleERDeg.RightArm[3], AngleERDeg.RightArm[4], AngleERDeg.RightArm[5], AngleERDeg.RightArm[6]);
 
-		sprintf(buf7, "CH2 Recv  %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f  %8.3f",
-		Joint_Angle_FB_degree[1][0], Joint_Angle_FB_degree[1][1], Joint_Angle_FB_degree[1][2], Joint_Angle_FB_degree[1][3], Joint_Angle_FB_degree[1][4], Joint_Angle_FB_degree[1][5], Joint_Angle_FB_degree[1][6]);
+		sprintf(buf10, "LHandRecv %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f",
+		AngleFBDeg.LeftHand[0], AngleFBDeg.LeftHand[1], AngleFBDeg.LeftHand[2], AngleFBDeg.LeftHand[3], AngleFBDeg.Head[0], AngleFBDeg.Head[1]);
+		sprintf(buf11, "LHandSend %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f",
+		AngleEPDeg.LeftHand[0], AngleEPDeg.LeftHand[1], AngleEPDeg.LeftHand[2], AngleEPDeg.LeftHand[3], AngleEPDeg.Head[0], AngleEPDeg.Head[1]);
+		sprintf(buf12, "LHandErr  %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f",
+		AngleERDeg.LeftHand[0], AngleERDeg.LeftHand[1], AngleERDeg.LeftHand[2], AngleERDeg.LeftHand[3], AngleERDeg.Head[0], AngleERDeg.Head[1]);
 
-		sprintf(buf8, "CH2 Send  %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f  %8.3f",
-		Joint_Angle_EP_degree[1][0], Joint_Angle_EP_degree[1][1], Joint_Angle_EP_degree[1][2], Joint_Angle_EP_degree[1][3], Joint_Angle_EP_degree[1][4], Joint_Angle_EP_degree[1][5], Joint_Angle_EP_degree[1][6]);
-
-		sprintf(buf9, "CH2 Error %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f  %8.3f",
-		Joint_Angle_ER_degree[1][0], Joint_Angle_ER_degree[1][1], Joint_Angle_ER_degree[1][2], Joint_Angle_ER_degree[1][3], Joint_Angle_ER_degree[1][4], Joint_Angle_ER_degree[1][5], Joint_Angle_ER_degree[1][6]);
-
-		sprintf(buf10, "CH3 Recv  %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f  %8.3f  %8.3f",
-		Joint_Angle_FB_degree[2][0], Joint_Angle_FB_degree[2][1], Joint_Angle_FB_degree[2][2], Joint_Angle_FB_degree[2][3], Joint_Angle_FB_degree[2][4], Joint_Angle_FB_degree[2][5], Head_Angle_FB_degree[0], Head_Angle_FB_degree[1]);
-
-		sprintf(buf11, "CH3 Send  %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f",
-		Joint_Angle_EP_degree[2][0], Joint_Angle_EP_degree[2][1], Joint_Angle_EP_degree[2][2], Joint_Angle_EP_degree[2][3], Joint_Angle_EP_degree[2][4], Joint_Angle_EP_degree[2][5]);
-
-		sprintf(buf12, "CH3 Error %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f",
-		Joint_Angle_ER_degree[2][0], Joint_Angle_ER_degree[2][1], Joint_Angle_ER_degree[2][2], Joint_Angle_ER_degree[2][3], Joint_Angle_ER_degree[2][4], Joint_Angle_ER_degree[2][5]);
-
-		sprintf(buf13, "CH4 Recv  %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f",
-		Joint_Angle_FB_degree[3][0], Joint_Angle_FB_degree[3][1], Joint_Angle_FB_degree[3][2], Joint_Angle_FB_degree[3][3], Joint_Angle_FB_degree[3][4], Joint_Angle_FB_degree[3][5]);
-
-		sprintf(buf14, "CH4 Send  %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f",
-		Joint_Angle_EP_degree[3][0], Joint_Angle_EP_degree[3][1], Joint_Angle_EP_degree[3][2], Joint_Angle_EP_degree[3][3], Joint_Angle_EP_degree[3][4], Joint_Angle_EP_degree[3][5]);
-
-		sprintf(buf15, "CH4 Error %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f",
-		Joint_Angle_ER_degree[3][0], Joint_Angle_ER_degree[3][1], Joint_Angle_ER_degree[3][2], Joint_Angle_ER_degree[3][3], Joint_Angle_ER_degree[3][4], Joint_Angle_ER_degree[3][5]);
+		sprintf(buf13, "RHandRecv %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f",
+		AngleFBDeg.RightHand[0], AngleFBDeg.RightHand[1], AngleFBDeg.RightHand[2], AngleFBDeg.RightHand[3], AngleFBDeg.Waist[0], AngleFBDeg.Waist[1]);
+		sprintf(buf14, "RHandSend %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f",
+		AngleEPDeg.RightHand[0], AngleEPDeg.RightHand[1], AngleEPDeg.RightHand[2], AngleEPDeg.RightHand[3], AngleEPDeg.Waist[0], AngleEPDeg.Waist[1]);
+		sprintf(buf15, "RHandErr  %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f",
+		AngleERDeg.RightHand[0], AngleERDeg.RightHand[1], AngleERDeg.RightHand[2], AngleERDeg.RightHand[3], AngleERDeg.Waist[0], AngleERDeg.Waist[1]);
 
 		sprintf(buf16, "*********************************  Robot current *********************************");
-		sprintf(buf17, "CH1 Current %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f  %8.3f",
-		motor_current[0][0], motor_current[0][1], motor_current[0][2], motor_current[0][3], motor_current[0][4], motor_current[0][5], motor_current[0][6]);
-		sprintf(buf18, "CH2 Current %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f  %8.3f",
-		motor_current[1][0], motor_current[1][1], motor_current[1][2], motor_current[1][3], motor_current[1][4], motor_current[1][5], motor_current[1][6]);
-		sprintf(buf19, "CH3 Current %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f",
-		motor_current[2][0], motor_current[2][1], motor_current[2][2], motor_current[2][3], motor_current[2][4], motor_current[2][5]);
-		sprintf(buf20, "CH4 Current %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f",
-		motor_current[3][0], motor_current[3][1], motor_current[3][2], motor_current[3][3], motor_current[3][4], motor_current[3][5]);
-
+		sprintf(buf17, "LArmCur %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f  %8.3f",
+		RealCurrent.LeftArm[0], RealCurrent.LeftArm[1], RealCurrent.LeftArm[2], RealCurrent.LeftArm[3], RealCurrent.LeftArm[4], RealCurrent.LeftArm[5], RealCurrent.LeftArm[6]);
+		sprintf(buf18, "RArmCur %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f  %8.3f",
+		RealCurrent.RightArm[0], RealCurrent.RightArm[1], RealCurrent.RightArm[2], RealCurrent.RightArm[3], RealCurrent.RightArm[4], RealCurrent.RightArm[5], RealCurrent.RightArm[6]);
+		sprintf(buf19, "LHandCur %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f",
+		RealCurrent.LeftHand[0], RealCurrent.LeftHand[1], RealCurrent.LeftHand[2], RealCurrent.LeftHand[3], RealCurrent.Head[0], RealCurrent.Head[1]);
+		sprintf(buf20, "RHandCur %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f",
+		RealCurrent.RightHand[0], RealCurrent.RightHand[1], RealCurrent.RightHand[2], RealCurrent.RightHand[3], RealCurrent.Waist[0], RealCurrent.Waist[1]);
 	}
 }
 
