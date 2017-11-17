@@ -56,19 +56,33 @@ int UDPRecv()
 				{
 					sum += recvbuff[i];
 				}
-				if (sum != recvbuff[sizeof(SingleJointCMD_Struct) -1])	//校验和不正确直接退出
-				{
-					printf("recv %d bytes wrong data!\n",n);
-					return 0;
-				}
+			//	if (sum != recvbuff[sizeof(SingleJointData) -1])	//校验和不正确直接退出
+			//	{
+			//		printf("recv %d bytes wrong data!\n",n);
+			//		return 0;
+			//	}
 				memcpy(&SingleJointData,recvbuff,sizeof(SingleJointData));
-
 				return SINGLE_JOINT_MOTION;
 			}
 
 			break;
 
-			case 0x02:
+			case ONE_ARM_MOTION:
+			{
+				unsigned char sum = 0;
+				for (i = 0; i < (sizeof(SignleArmData) -1); ++i)
+				{
+					sum += recvbuff[i];
+				}
+				if (sum != recvbuff[sizeof(SignleArmData) -1])	//校验和不正确直接退出
+				{
+					printf("recv %d bytes wrong data!\n",n);
+					return 0;
+				}
+				memcpy(&SignleArmData,recvbuff,sizeof(SignleArmData));
+
+				return ONE_ARM_MOTION;
+			}
 
 			break;
 
@@ -98,6 +112,21 @@ int GetSingleJointData(long* can_channel_main,long* can_id_main,float* JointMove
 	else
 		*JointMoveTime = SingleJointData.time;
 	printf("motion_mode = SINGLE_JOINT_MOTION  CH %ld CANID %ld, MOVE %6.3f DEG, TIME %5.2f s\n", *can_channel_main+1,*can_id_main+1, SingleJointData.Data, *JointMoveTime);
+}
+
+int GetSingleArmData(int* ArmSelect,float ArmMoveData[7], double* ArmMoveTime)
+{
+	int i =0;
+	*ArmSelect = SignleArmData.ArmSelect;
+	for (i = 0; i < 7; i++)
+	{
+		ArmMoveData[i] = SignleArmData.Data[i];
+	}
+	if(SignleArmData.time<=5.0)
+		*ArmMoveTime = 5.0;
+	else
+		*ArmMoveTime = SignleArmData.time;
+	printf("motion_mode = ONE_ARM_MOTION  ARM %d TIME  %8.3f s\n", *ArmSelect, *ArmMoveTime);
 }
 
 int GetEndData(int* ArmSelect,float EndMoveData[12], double* EndMoveTime)

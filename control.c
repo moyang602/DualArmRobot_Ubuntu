@@ -71,6 +71,8 @@ void driver_init_status(void);
 int elmo_init(void);
 void servo_off(void);
 void servo_on(void);
+void power_off(void);
+void power_on(void);
 void current_position(int channel_num, double Joint_Angle_FB[4]);
 void find_home(int channel_num, int id_num);
 void rad_send(int i, int j, double angle_in);
@@ -89,7 +91,7 @@ int prepare_find_home(void);
 RT_TASK demo_task_rvcan;
 RT_TASK rt_task_desc;
 RT_TASK rt_task_view;
-RTIME now, previous, period, now2;
+RTIME now, previous, period, now2, previous2, period2;
 
 GC MyGC;
 
@@ -125,6 +127,7 @@ Atom MyAtom;
 double runtime = 0.0;
 char buf[200] = {0};
 char buf1[200] = {0};
+char bufs1[100] = {0};
 char buf2[200] = {0};
 char buf3[200]={0};
 char buf4[200]={0};
@@ -159,13 +162,13 @@ int can_channel_number = 4;
 int can_switch[4][7] = {{1, 1, 1, 1, 1, 1, 1},
 						{1, 1, 1, 1, 1, 1, 1},
 						{1, 1, 1, 1, 1, 1, 1},
-						{1, 1, 1, 1, 1, 1, 0}};
+						{1, 1, 1, 1, 1, 1, 1}};
 
 
-double joint_direction[4][7] = {{1, -1, 1, 1, 1, -1, 1},		// 456 OK
-								{1, 1, 1, 1, 1, 1, 1},
-								{1, 1, 1, 1, 1, 1},			// 12 OK
-								{1, 1, 1, 1, 1, 1}};
+double joint_direction[4][7] = {{1, -1, 1, 1, 1, 1, 1},		// 456 OK
+								{1, 1, 1, 1, 1, 1, 1},		// 456 OK
+								{1, 1, 1, 1, 1, 1},			// 1234 OK
+								{1, 1, 1, 1, 1, 1}};		// 1234 OK
 double zero_comp[4][7] = {0.0};
 int can_work_states[27] = {0};
 double motor_current[4][7] = {0.0};
@@ -267,6 +270,7 @@ double Joint_Current_Angle[4][7] = {0.0};
 
 
 //double pi = 3.1415926535898;
+int power_on_flag = 0;
 int servo_on_flag = 0;
 int begin_flag =0;
 //int MOTION_MODE = 100;
@@ -932,15 +936,15 @@ void view (void *n)
 				break;
 
 				case '1':	// 开伺服
-         				printf("servo on\n");
-         				servo_on();
-						servo_on_flag = 1;
+         			printf("servo on\n");
+         			servo_on();
+					servo_on_flag = 1;
 				break;
 
 				case 't':
 				case 'T':
-					printf("Temp motion\n");
-         			motion_mode = SINGLE_JOINT_MOTION;
+				//	printf("Temp motion\n");
+         		//	motion_mode = SINGLE_JOINT_MOTION;
 				break;
 
 				case '2':	// get current joint pos
@@ -948,12 +952,18 @@ void view (void *n)
 				//	{
 				//		current_position(i, Joint_Angle_FB[i]);
 				//	}
+					printf("power on\n");
+					power_on();
+					power_on_flag = 1;
+
 				break;
 
 				case '3':
 
-					printf("home offset\n");
-         			motion_mode = HOMEBACK;
+					printf("power off\n");
+					power_off();
+					power_on_flag = 0;
+         		//	motion_mode = HOMEBACK;
          		//	home_flag = 1;
 
 				break;
@@ -1051,10 +1061,14 @@ void view (void *n)
 					sprintf(buf1, "servo on");
 				else
 					sprintf(buf1, "servo off");
-
+				if(power_on_flag == 1)
+					sprintf(bufs1, "power on");
+				else
+					sprintf(bufs1, "power off");
 
 				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead, buf, strlen(buf));
 				XDrawString(MyDisplay, MyWindow, MyGC, 400, DispHead, buf1, strlen(buf1));
+				XDrawString(MyDisplay, MyWindow, MyGC, 520, DispHead, bufs1, strlen(bufs1));
 				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+30, buf2, strlen(buf2));
 				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+60, buf3, strlen(buf3));
 				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+90, buf4, strlen(buf4));
@@ -1167,8 +1181,6 @@ int can_send(int channel, long can_id, int can_mode, long can_content[8], int ca
 
 void SYNC_Receive(void)
 {
-	double Encoder_Count_EP2 = 0.0;
-	long Encoder_Count_EP_Send2 = 0.0;
 	struct timespec sleeptime;
 	long count_out[8] = {0};
 	long can_id = 0;
@@ -1179,6 +1191,8 @@ void SYNC_Receive(void)
 	int i, j;
 	int canRecvStatus[4];
 
+
+	now2 = rt_timer_read();
 
 	// receive Motor Driver data
 	sleeptime.tv_nsec = 300000;
@@ -1194,15 +1208,19 @@ void SYNC_Receive(void)
 		nanosleep(&sleeptime,NULL);
 	}
 
-	sleeptime.tv_nsec = 800000;
+	sleeptime.tv_nsec = 800000;		//moyang602  sleeptime.tv_nsec = 2000000;
 	sleeptime.tv_sec = 0;
 	nanosleep(&sleeptime,NULL);
+
+	sleeptime.tv_nsec = 5000;
+	sleeptime.tv_sec = 0;
 
 	for(i=0; i<can_channel_number; i++)
 	{
 		for(j=0; j< can_node_number[i]; j++)
 		{
 			ret = rt_dev_recvfrom(rxsock[i], (void *)&frame, sizeof(can_frame_t), 0, (struct sockaddr *)&addr, &addrlen);
+			nanosleep(&sleeptime,NULL);
 			if (ret < 0)
 			{
 				switch (ret)
@@ -1248,7 +1266,11 @@ void SYNC_Receive(void)
 		}
 	}
 
+	previous2 = rt_timer_read();
+	period2 = (previous2 - now2) / 1000;   //us
 
+//	printf("can_send_receive_time = %ld\n", period2);
+/*
 	// receive Head Encoder data
 	sleeptime.tv_nsec = 30000;
 	sleeptime.tv_sec = 0;
@@ -1330,7 +1352,7 @@ void SYNC_Receive(void)
 		VoltageAll = ((frame.data[0]& 0x1f)*32 + frame.data[1])/1.0;
 		CurrentAll = ((frame.data[2]& 0x1f)*32 + frame.data[3])/1.0;
 	}
-
+*/
 
 }
 
@@ -1599,10 +1621,6 @@ void rt_can_recv(void *arg)
 {
 	// trajectory planning var
 	int index;
-	double VDataTemp[3];
-
-	int GetDataTimes = 0;
-	int PlanningStep = 0;
 
 	int i,j, ret, count = 0;
 	struct can_frame frame;
@@ -1610,22 +1628,20 @@ void rt_can_recv(void *arg)
 	socklen_t addrlen = sizeof(addr);
 	struct msghdr msg;
 	struct iovec iov;
-	long int acjiaodu[30];
 	struct timespec sleeptime;
 	long can_id = 1;
 
-	nanosecs_abs_t timestamp, timestamp_prev = 0;
 	long can_content[8] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07};
 	long can_content_order[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 	unsigned char * can_byte;
-	long Encoder_Count_EP_BYTE[27][6] = {0};
+
 	int canRecvStatus[4];
 
 	double t = 0.0;
 //	double time_interval = 0.003;
 
 	int can_connection_status[27] = {0};
-	double half_time = 10.0;
+
 	double start_position[4][7] = {0.0};
 
 	double end_position[4][4] = {{-0.510793, 0, 0.701553, 0.0},{0.510793, 0.0, 0.371256, 0.0},{pi/10, pi/10, pi/10, pi/10},{pi/10, pi/10, pi/10, pi/10}};
@@ -1655,9 +1671,6 @@ void rt_can_recv(void *arg)
 	int first_time_TURN_MOTION2 = 0;
 
 	double singe_joint_time = 5.0;
-	double singe_joint_time2 = 5.0;
-	double hand_acc = 0.4;//0.5;
-	double hand_vb = 1.5;//2.0;
 	double one_arm_time = 15.0;
 	double two_arms_time = 30.0;
 	double homeback_time = 10.0;
@@ -1682,22 +1695,18 @@ void rt_can_recv(void *arg)
 	double anglein4[8] = {41.671/Rad2Degree, -1.175/Rad2Degree, 6.661/Rad2Degree, 2.501/Rad2Degree, -41.671/Rad2Degree, 0.025/Rad2Degree, -28.799/Rad2Degree, 1.139/Rad2Degree};
 	double angle_out[4][8];
 	double angle_out2[8];
-	double beta;
 
 	int motion_mode_control = 0;   //when motion_mode_control == 0; motion_mode can be changed
 
 	double angle_2leg[6] = {0.0};
 	double delta_matrix2[4][4];
-	double timecost = 0.0;
 
 	int return_value = 1;
 
 	sleeptime.tv_nsec = 20000000;
 	sleeptime.tv_sec = 0;
 
-	double turn_angle[4] = {0, 10.0/Rad2Degree, 0.0, 5.0/Rad2Degree};
-
-	elmo_init();
+//	elmo_init();
 
 	rt_task_set_periodic(NULL, TM_NOW, 6000000);
 /**********************************************************************************/
@@ -1740,193 +1749,6 @@ void rt_can_recv(void *arg)
 					{
 						if(t <= singe_joint_time)
 						{
-						/*	t = t+time_interval;
-							Joint_Angle_EP[0][0] = 1*sin(0.1256637*t);
-							Joint_Angle_EP[0][1] = 0.2*sin(0.1256637*t);
-							Joint_Angle_EP[0][2] = 0.3*sin(0.1256637*t);
-							Joint_Angle_EP[0][3] = 0.25*sin(0.1256637*t);
-							Joint_Angle_EP[0][4] = 0.21*sin(0.1256637*t);
-							Joint_Angle_EP[0][5] = 0.3*sin(0.1256637*t);
-							Joint_Angle_EP[0][6] = 0.23*sin(0.1256637*t);
-							printf("time = %f\n",t);
-							if(t > singe_joint_time)
-							{
-								Joint_Angle_EP[0][0] = 0;
-								Joint_Angle_EP[0][1] = 0;
-								Joint_Angle_EP[0][2] = 0;
-								Joint_Angle_EP[0][3] = 0;
-								Joint_Angle_EP[0][4] = 0;
-								Joint_Angle_EP[0][5] = 0;
-								Joint_Angle_EP[0][6] = 0;
-							}
-
-							if(send_flag_99 == 1)
-							{
-								rad_send(0,0,Joint_Angle_EP[0][0]);
-								sleeptime.tv_nsec = 400000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(0,1,Joint_Angle_EP[0][1]);
-								sleeptime.tv_nsec = 400000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(0,2,Joint_Angle_EP[0][2]);
-								sleeptime.tv_nsec = 400000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(0,3,Joint_Angle_EP[0][3]);
-								sleeptime.tv_nsec = 400000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(0,4,Joint_Angle_EP[0][4]);
-								sleeptime.tv_nsec = 400000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(0,5,Joint_Angle_EP[0][5]);
-								sleeptime.tv_nsec = 400000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(0,6,Joint_Angle_EP[0][6]);
-							}	*/
-
-						/*	t = t+time_interval;
-							Joint_Angle_EP[1][0] = 1*sin(0.1256637*t);
-							Joint_Angle_EP[1][1] = 0.2*sin(0.1256637*t);
-							Joint_Angle_EP[1][2] = 0.3*sin(0.1256637*t);
-							Joint_Angle_EP[1][3] = 0.25*sin(0.1256637*t);
-							Joint_Angle_EP[1][4] = 0.21*sin(0.1256637*t);
-							Joint_Angle_EP[1][5] = 0.3*sin(0.1256637*t);
-							Joint_Angle_EP[1][6] = 0.23*sin(0.1256637*t);
-							printf("time = %f\n",t);
-							if(t > singe_joint_time)
-							{
-								Joint_Angle_EP[1][0] = 0;
-								Joint_Angle_EP[1][1] = 0;
-								Joint_Angle_EP[1][2] = 0;
-								Joint_Angle_EP[1][3] = 0;
-								Joint_Angle_EP[1][4] = 0;
-								Joint_Angle_EP[1][5] = 0;
-								Joint_Angle_EP[1][6] = 0;
-							}
-
-							if(send_flag_99 == 1)
-							{
-								rad_send(1,0,Joint_Angle_EP[1][0]);
-								sleeptime.tv_nsec = 400000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(1,1,Joint_Angle_EP[1][1]);
-								sleeptime.tv_nsec = 400000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(1,2,Joint_Angle_EP[1][2]);
-								sleeptime.tv_nsec = 400000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(1,3,Joint_Angle_EP[1][3]);
-								sleeptime.tv_nsec = 400000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(1,4,Joint_Angle_EP[1][4]);
-								sleeptime.tv_nsec = 400000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(1,5,Joint_Angle_EP[1][5]);
-								sleeptime.tv_nsec = 400000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(1,6,Joint_Angle_EP[1][6]);
-
-							}	*/
-
-						/*	t = t+time_interval;
-							Joint_Angle_EP[2][0] = 0.3*sin(0.1256637*t);
-							Joint_Angle_EP[2][1] = 0.2*sin(0.1256637*t);
-							Joint_Angle_EP[2][2] = 0.3*sin(0.1256637*t);
-							Joint_Angle_EP[2][3] = 0.25*sin(0.1256637*t);
-							Joint_Angle_EP[2][4] = 0.21*sin(0.1256637*t);
-							Joint_Angle_EP[2][5] = 0.3*sin(0.1256637*t);
-							printf("time = %f\n",t);
-							if(t > singe_joint_time)
-							{
-								Joint_Angle_EP[2][0] = 0;
-								Joint_Angle_EP[2][1] = 0;
-								Joint_Angle_EP[2][2] = 0;
-								Joint_Angle_EP[2][3] = 0;
-								Joint_Angle_EP[2][4] = 0;
-								Joint_Angle_EP[2][5] = 0;
-							}
-
-							if(send_flag_99 == 1)
-							{
-								rad_send(2,0,Joint_Angle_EP[2][0]);
-								sleeptime.tv_nsec = 400000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(2,1,Joint_Angle_EP[2][1]);
-								sleeptime.tv_nsec = 400000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(2,2,Joint_Angle_EP[2][2]);
-								sleeptime.tv_nsec = 400000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(2,3,Joint_Angle_EP[2][3]);
-								sleeptime.tv_nsec = 400000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(2,4,Joint_Angle_EP[2][4]);
-								sleeptime.tv_nsec = 400000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(2,5,Joint_Angle_EP[2][5]);
-
-							}	*/
-
-						/*	t = t+time_interval;
-							Joint_Angle_EP[3][0] = 0.3*sin(0.1256637*t);
-							Joint_Angle_EP[3][1] = 0.2*sin(0.1256637*t);
-							Joint_Angle_EP[3][2] = 0.3*sin(0.1256637*t);
-							Joint_Angle_EP[3][3] = 0.25*sin(0.1256637*t);
-							Joint_Angle_EP[3][4] = 0.21*sin(0.1256637*t);
-							Joint_Angle_EP[3][5] = 0.3*sin(0.1256637*t);
-							printf("time = %f\n",t);
-							if(t > singe_joint_time)
-							{
-								Joint_Angle_EP[3][0] = 0;
-								Joint_Angle_EP[3][1] = 0;
-								Joint_Angle_EP[3][2] = 0;
-								Joint_Angle_EP[3][3] = 0;
-								Joint_Angle_EP[3][4] = 0;
-								Joint_Angle_EP[3][5] = 0;
-							}
-
-							if(send_flag_99 == 1)
-							{
-								rad_send(3,0,Joint_Angle_EP[3][0]);
-								sleeptime.tv_nsec = 400000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(3,1,Joint_Angle_EP[3][1]);
-								sleeptime.tv_nsec = 400000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(3,2,Joint_Angle_EP[3][2]);
-								sleeptime.tv_nsec = 400000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(3,3,Joint_Angle_EP[3][3]);
-								sleeptime.tv_nsec = 400000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(3,4,Joint_Angle_EP[3][4]);
-								sleeptime.tv_nsec = 400000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(3,5,Joint_Angle_EP[3][5]);
-
-							}	*/
-
 							t = t+time_interval;
 							Joint_Angle_EP[can_channel_main][can_id_main] = Five_Interpolation(start_position[can_channel_main][can_id_main],0,0,start_position[can_channel_main][can_id_main]+JointMoveData,0,0,singe_joint_time,t);
 
@@ -1959,8 +1781,6 @@ void rt_can_recv(void *arg)
 					find_home(can_channel_main,can_id_main);
 					motion_mode = 100;
 					printf("MOTION_MODE: FIND_HOME_MOTION\n");
-			//		canrv_running = 0;
-
 				break;
 
 				case ONE_ARM_MOTION:
@@ -3965,6 +3785,85 @@ void servo_off(void)
 
 }
 
+void power_on(void)
+{
+	int can_ch = 3;
+	long can_id = 7;
+	long can_content[2] = {0x4E, 0x50};
+	struct timespec sleeptime;
+	int ret;
+	struct can_frame frame;
+	struct sockaddr_can addr;
+	socklen_t addrlen = sizeof(addr);
+
+	can_send(can_ch, can_id, 0, can_content, 2);
+
+	sleeptime.tv_nsec = 5000000;
+	sleeptime.tv_sec = 0;
+
+	nanosleep(&sleeptime,NULL);
+
+	ret = rt_dev_recvfrom(rxsock[can_ch], (void *)&frame, sizeof(can_frame_t), 0, (struct sockaddr *)&addr, &addrlen);  //recive the drvier boot can massage
+	if(ret < 0)
+	{
+		can_work_states[27] = 0;
+		printf("power on receive failed\n");
+	}
+	else
+	{
+		if((frame.data[0] == 0x4E) && (frame.data[1] == 0x4E))
+		{
+			can_work_states[27] = 1;
+			printf("power on success\n");
+		}
+
+		else
+		{
+			can_work_states[27] = 0;
+			printf("power on failed\n");
+		}
+	}
+}
+
+void power_off(void)
+{
+	int can_ch = 3;
+	long can_id = 7;
+	long can_content[2] = {0x46, 0x50};
+	struct timespec sleeptime;
+	int ret;
+	struct can_frame frame;
+	struct sockaddr_can addr;
+	socklen_t addrlen = sizeof(addr);
+
+	can_send(can_ch, can_id, 0, can_content, 2);
+
+	sleeptime.tv_nsec = 5000000;
+	sleeptime.tv_sec = 0;
+
+	nanosleep(&sleeptime,NULL);
+
+	ret = rt_dev_recvfrom(rxsock[can_ch], (void *)&frame, sizeof(can_frame_t), 0, (struct sockaddr *)&addr, &addrlen);  //recive the drvier boot can massage
+	if(ret < 0)
+	{
+		can_work_states[27] = 0;
+		printf("power off receive failed\n");
+	}
+	else
+	{
+		if((frame.data[0] == 0x46) && (frame.data[1] == 0x46))
+		{
+			can_work_states[27] = 1;
+			printf("power off success\n");
+		}
+
+		else
+		{
+			can_work_states[27] = 0;
+			printf("power off failed\n");
+		}
+	}
+}
 
 
 void servo_on(void)
@@ -3978,11 +3877,19 @@ void servo_on(void)
 	struct sockaddr_can addr;
 	socklen_t addrlen = sizeof(addr);
 //	int k=0;
-
-	sleeptime.tv_nsec = 20000000;
-	sleeptime.tv_sec = 0;
 	long can_content_order[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 	int can_connection_status[27] = {0};
+
+	elmo_init();
+
+
+	sleeptime.tv_nsec = 15000000;
+	sleeptime.tv_sec = 0;
+
+
+	nanosleep(&sleeptime,NULL);
+	sleeptime.tv_nsec = 20000000;
+	sleeptime.tv_sec = 0;
 
 	for(i=0; i<can_channel_number; i++)
 	{

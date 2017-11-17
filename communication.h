@@ -9,7 +9,7 @@
 #define CTRLHOST_PORT 8000
 #define CTRLHOST_IP "192.168.1.3"
 #define DESTPC_PORT 8001
-#define DESTPC_IP "192.168.1.4"
+#define DESTPC_IP "192.168.1.2"
 #define UDPCYCLE 30			// UDPCYCLE*程序运行周期 = UDP通讯周期
 
 /***********************************************************
@@ -59,6 +59,21 @@ struct SingleJointCMD_Struct
 #pragma pack(pop)
 
 /***********************************************************
+                      定义单臂整体关节运动指令
+************************************************************/
+#pragma pack(push)
+#pragma pack(1)
+struct SingleArmCMD_Struct
+{
+	unsigned char Mode;
+	unsigned char ArmSelect;
+	float Data[7];
+	float time;
+	unsigned char CheckSum;
+};
+#pragma pack(pop)
+
+/***********************************************************
                       定义末端运动指令
 ************************************************************/
 #pragma pack(push)
@@ -87,6 +102,7 @@ struct RemoteCMD_Struct
 #pragma pack(pop)
 
 struct SingleJointCMD_Struct SingleJointData;
+struct SingleArmCMD_Struct SignleArmData;
 struct EndCMD_Struct EndData;
 struct RemoteCMD_Struct RemoteData;
 
@@ -99,6 +115,7 @@ int RobotUDPComm_init(void);
 int RobotFBSend(struct RobotDataUDP_Struct RobotFBData);
 int UDPRecv(void);
 int GetSingleJointData(long* can_channel_main,long* can_id_main,float* JointMoveData,double* JointMoveTime);
+int GetSingleArmData(int* ArmSelect,float ArmMoveData[7], double* ArmMoveTime);
 int GetEndData(int* ArmSelect,float EndData[12], double* EndMoveTime);
 int GetRemoteData(float RemoteMotionData[14]);
 
