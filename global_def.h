@@ -59,6 +59,7 @@
 #define VISION_MOTION   104
 #define MANIPULATE_MOTION 105
 #define FIND_HOME_MOTION  106
+#define ROBOT_CONTROL 107
 
 #define ARM1 0
 #define ARM2 1
@@ -70,6 +71,15 @@
 #define TURN_MOTION   113
 #define TURN_MOTION2   114
  
+#define CMD_POWER_ON 		0xA1
+#define CMD_POWER_OFF 		0xA2
+#define CMD_ELMO_INIT 		0xA3
+#define CMD_SERV0_ON 		0xA4
+#define CMD_SERV0_OFF 		0xA5
+#define CMD_CTR_ENABLE 		0xA6
+#define CMD_CTR_DISENABLE 	0xA7
+#define CMD_HOMEZERO 		0xA8
+#define CMD_RESET			0xA9
  
 #define GLOABL_DEF
 #endif

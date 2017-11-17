@@ -1,6 +1,14 @@
 #include "communication.h"
 #include "global_def.h"
 
+struct SingleJointCMD_Struct SingleJointData;
+struct SingleArmCMD_Struct SignleArmData;
+struct EndCMD_Struct EndData;
+struct RemoteCMD_Struct RemoteData;
+struct ControlCMD_Struct ControlCMD;
+
+int UDP_Sock;
+struct sockaddr_in DestPCAddr;
 
 int RobotUDPComm_init(void)
 {
@@ -86,7 +94,23 @@ int UDPRecv()
 
 			break;
 
-			case 0x03:
+			case ROBOT_CONTROL:
+			{
+				unsigned char sum = 0;
+				for (i = 0; i < (sizeof(ControlCMD) -1); ++i)
+				{
+					sum += recvbuff[i];
+				}
+				if (sum != recvbuff[sizeof(ControlCMD) -1])	//校验和不正确直接退出
+				{
+					printf("recv %d bytes wrong data!\n",n);
+					return 0;
+				}
+
+				memcpy(&ControlCMD,recvbuff,sizeof(ControlCMD));
+
+				return ROBOT_CONTROL;
+			}
 
 			break;
 
@@ -154,6 +178,11 @@ int GetRemoteData(float RemoteMotionData[14])
 	printf("motion_mode = REMOTE_MOTION\n");
 }
 
+int GetControlCMD(void)
+{
+	printf("ControlMode = %d\n",ControlCMD.Command);
+	return ControlCMD.Command;
+}
 /*
 int UDPRecv(int motion_mode_control,long* can_channel_main,long* can_id_main,float* JointMoveData)
 {

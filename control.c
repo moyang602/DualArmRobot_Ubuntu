@@ -86,6 +86,8 @@ void servo_on_off(int on_off, int channel, int id);
 int find_home_new(void);
 int return_origin_position(void);
 int prepare_find_home(void);
+
+void CanDef2RealRobot(double CanDef[4][7], struct RealRobot_Struct* RealRobot);	// CAN定义到实际机器人数据结构转换
 //varable declear
 
 RT_TASK demo_task_rvcan;
@@ -128,6 +130,7 @@ double runtime = 0.0;
 char buf[200] = {0};
 char buf1[200] = {0};
 char bufs1[100] = {0};
+char bufs2[100] = {0};
 char buf2[200] = {0};
 char buf3[200]={0};
 char buf4[200]={0};
@@ -154,6 +157,7 @@ char buf24[200]={0};
 
 double One_arm_main[4] = {0.0};
 int motion_mode = 0;
+int control_mode = 0;
 long can_channel_main = 0;
 long can_id_main = 0;
 int End_Numb = 0;
@@ -276,7 +280,7 @@ int begin_flag =0;
 //int MOTION_MODE = 100;
 double line_2count[3] = {1344.0, 1344.0, 1344.0};
 //double line_2count[3] = {240.0, 720.0, 240.0};
-int send_flag_99= 0;
+int motion_enable_flag= 0;
 
 
 /********************** UDP通讯相关 Start ***************************/
@@ -410,7 +414,7 @@ int find_home_new(void)
 					Joint_Angle_EP[i][j] = prepare_position[i][j];
 				}
 
-				if(send_flag_99 == 1)
+				if(motion_enable_flag == 1)
 				{
 					rad_send(i,j,Joint_Angle_EP[i][j]);
 				}
@@ -434,7 +438,7 @@ int find_home_new(void)
 						Joint_Angle_EP[i][j] = prepare_position[i][j];
 					}
 
-					if(send_flag_99 == 1)
+					if(motion_enable_flag == 1)
 					{
 						rad_send(i,j,Joint_Angle_EP[i][j]);
 					}
@@ -457,7 +461,7 @@ int find_home_new(void)
 						Joint_Angle_EP[i][j] = prepare_position[i][j];
 					}
 
-					if(send_flag_99 == 1)
+					if(motion_enable_flag == 1)
 					{
 						rad_send(i,j,Joint_Angle_EP[i][j]);
 					}
@@ -514,7 +518,7 @@ int prepare_find_home(void)
 				Joint_Angle_EP[1][0] = angle[1];
 			}
 
-			if(send_flag_99 == 1)
+			if(motion_enable_flag == 1)
 			{
 				rad_send(0,0,Joint_Angle_EP[0][0]);
 				sleeptime.tv_nsec = 5000;
@@ -576,7 +580,7 @@ int return_origin_position(void)
 						Joint_Angle_EP[i][j] = origin_position[i][j];
 					}
 
-					if(send_flag_99 == 1)
+					if(motion_enable_flag == 1)
 					{
 						rad_send(i,j,Joint_Angle_EP[i][j]);
 					}
@@ -941,10 +945,10 @@ void view (void *n)
 					servo_on_flag = 1;
 				break;
 
-				case 't':
-				case 'T':
-				//	printf("Temp motion\n");
-         		//	motion_mode = SINGLE_JOINT_MOTION;
+				case 'i':
+				case 'I':
+					elmo_init();
+					printf("elmo init\n");
 				break;
 
 				case '2':	// get current joint pos
@@ -999,14 +1003,14 @@ void view (void *n)
 
 				case '5':
 
-					send_flag_99 =1;
-					printf("send_flag_99 = 1\n");
+					motion_enable_flag =1;
+					printf("motion_enable_flag = 1\n");
 
 				break;
 
 				case '6':
-					send_flag_99 = 0;
-					printf("send_flag_99 = 0\n");
+					motion_enable_flag = 0;
+					printf("motion_enable_flag = 0\n");
 				break;
 
 				case '8':
@@ -1057,18 +1061,23 @@ void view (void *n)
 				XClearWindow(MyDisplay, MyWindow);
 
 				sprintf(buf, "Loop time : %ldus   runtime: %5.2fs", (long)period, runtime);
-				if(servo_on_flag == 1)
-					sprintf(buf1, "servo on");
-				else
-					sprintf(buf1, "servo off");
 				if(power_on_flag == 1)
-					sprintf(bufs1, "power on");
+					sprintf(buf1, "power on");
 				else
-					sprintf(bufs1, "power off");
+					sprintf(buf1, "power off");
+				if(servo_on_flag == 1)
+					sprintf(bufs1, "servo on");
+				else
+					sprintf(bufs1, "servo off");
+				if(motion_enable_flag == 1)
+					sprintf(bufs2, "motion enable");
+				else
+					sprintf(bufs2, "motion disable");
 
 				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead, buf, strlen(buf));
 				XDrawString(MyDisplay, MyWindow, MyGC, 400, DispHead, buf1, strlen(buf1));
 				XDrawString(MyDisplay, MyWindow, MyGC, 520, DispHead, bufs1, strlen(bufs1));
+				XDrawString(MyDisplay, MyWindow, MyGC, 640, DispHead, bufs2, strlen(bufs2));
 				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+30, buf2, strlen(buf2));
 				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+60, buf3, strlen(buf3));
 				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+90, buf4, strlen(buf4));
@@ -1706,7 +1715,6 @@ void rt_can_recv(void *arg)
 	sleeptime.tv_nsec = 20000000;
 	sleeptime.tv_sec = 0;
 
-//	elmo_init();
 
 	rt_task_set_periodic(NULL, TM_NOW, 6000000);
 /**********************************************************************************/
@@ -1728,6 +1736,59 @@ void rt_can_recv(void *arg)
 		view_time++;
 	//	printf("zhouqi = %ld\n", (long)period);
 		runtime = runtime + time_interval;
+
+		switch (control_mode)
+		{
+			case CMD_POWER_ON:
+				printf("power on by UDP\n");
+				power_on();
+				power_on_flag = 1;
+			break;
+
+			case CMD_POWER_OFF:
+				printf("power off by UDP\n");
+				power_off();
+				power_on_flag = 0;
+			break;
+
+			case CMD_ELMO_INIT:
+				elmo_init();
+				printf("elmo init by UDP\n");
+			break;
+
+			case CMD_SERV0_ON:
+				printf("servo on by UDP\n");
+     			servo_on();
+				servo_on_flag = 1;
+			break;
+
+			case CMD_SERV0_OFF:
+				printf("servo off by UDP\n");
+				servo_off();
+				servo_on_flag  = 0;
+			break;
+
+			case CMD_CTR_ENABLE：
+				motion_enable_flag =1;
+				printf("motion_enable_flag = 1 by UDP\n");
+			break;
+
+			case CMD_CTR_DISENABLE:
+				motion_enable_flag = 0;
+				printf("motion_enable_flag = 0 by UDP\n");
+			break;
+
+			case CMD_HOMEZERO:
+
+			break;
+
+			case CMD_RESET:
+
+			break;
+
+			default:
+			break;
+		}
 
 		if(servo_on_flag == 1)
 		{
@@ -1757,7 +1818,7 @@ void rt_can_recv(void *arg)
 								Joint_Angle_EP[can_channel_main][can_id_main] = start_position[can_channel_main][can_id_main]+JointMoveData;
 							}
 
-							if(send_flag_99 == 1)
+							if(motion_enable_flag == 1)
 							{
 								rad_send(can_channel_main,can_id_main,Joint_Angle_EP[can_channel_main][can_id_main]);
 							}
@@ -1814,7 +1875,7 @@ void rt_can_recv(void *arg)
 									Joint_Angle_EP[can_channel_main][i] = start_position[can_channel_main][i]+One_arm_main[i];
 								}
 
-								if(send_flag_99 == 1)
+								if(motion_enable_flag == 1)
 								{
 									rad_send(can_channel_main, i, Joint_Angle_EP[can_channel_main][i]);
 								}
@@ -2008,7 +2069,7 @@ void rt_can_recv(void *arg)
 										Joint_Angle_EP[i][j] = end_position[i][j];
 									}
 
-									if(send_flag_99 == 1)
+									if(motion_enable_flag == 1)
 									{
 										rad_send(i,j,Joint_Angle_EP[i][j]);
 									}
@@ -2135,7 +2196,7 @@ void rt_can_recv(void *arg)
 										Joint_Angle_EP[i][j] = end_position2[i][j];
 									}
 
-									if(send_flag_99 == 1)
+									if(motion_enable_flag == 1)
 									{
 										rad_send(i,j,Joint_Angle_EP[i][j]);
 									}
@@ -2168,7 +2229,7 @@ void rt_can_recv(void *arg)
 										Joint_Angle_EP[i][j] = end_position[i][j];
 									}
 
-									if(send_flag_99 == 1)
+									if(motion_enable_flag == 1)
 									{
 										rad_send(i,j,Joint_Angle_EP[i][j]);
 									}
@@ -2301,7 +2362,7 @@ void rt_can_recv(void *arg)
 										Joint_Angle_EP[i][j] = end_position2[i][j];
 									}
 
-									if(send_flag_99 == 1)
+									if(motion_enable_flag == 1)
 									{
 										rad_send(i,j,Joint_Angle_EP[i][j]);
 									}
@@ -2334,7 +2395,7 @@ void rt_can_recv(void *arg)
 										Joint_Angle_EP[i][j] = end_position[i][j];
 									}
 
-									if(send_flag_99 == 1)
+									if(motion_enable_flag == 1)
 									{
 										rad_send(i,j,Joint_Angle_EP[i][j]);
 									}
@@ -2395,7 +2456,7 @@ void rt_can_recv(void *arg)
 											Joint_Angle_EP[i][j] = home_offset[i][j];
 										}
 
-										if(send_flag_99 == 1)
+										if(motion_enable_flag == 1)
 										{
 											rad_send(i,j,Joint_Angle_EP[i][j]);
 										}
@@ -2693,7 +2754,7 @@ void rt_can_recv(void *arg)
 											Joint_Angle_EP[i][j] = end_position[i][j];
 										}
 
-										if(send_flag_99 == 1)
+										if(motion_enable_flag == 1)
 										{
 											rad_send(i,j,Joint_Angle_EP[i][j]);
 										}
@@ -2738,176 +2799,22 @@ void rt_can_recv(void *arg)
 		{
 			UDPTimes = 0;
 			struct RobotDataUDP_Struct UploadData;
-			
+			memset(&UploadData,0,sizeof(UploadData));
+			void CanDef2RealRobot(double CanDef[4][7], struct RealRobot_Struct* RealRobot)
 			UploadData.TrustFlag = 0x5555;
-			if(send_flag_99)
+			if(motion_enable_flag)
 			{
-				UploadData.LeftArmAngle[0] = Joint_Angle_FB[2][0];
-				UploadData.LeftArmAngle[1] = Joint_Angle_FB[3][0];
-				UploadData.LeftArmAngle[2] = Joint_Angle_FB[3][1];
-				UploadData.LeftArmAngle[3] = Joint_Angle_FB[2][1];
-				UploadData.LeftArmAngle[4] = Joint_Angle_FB[0][4];
-				UploadData.LeftArmAngle[5] = Joint_Angle_FB[0][5];
-				UploadData.LeftArmAngle[6] = Joint_Angle_FB[0][6];
-
-				UploadData.RightArmAngle[0] = Joint_Angle_FB[2][2];
-				UploadData.RightArmAngle[1] = Joint_Angle_FB[3][2];
-				UploadData.RightArmAngle[2] = Joint_Angle_FB[3][3];
-				UploadData.RightArmAngle[3] = Joint_Angle_FB[2][3];
-				UploadData.RightArmAngle[4] = Joint_Angle_FB[1][4];
-				UploadData.RightArmAngle[5] = Joint_Angle_FB[1][5];
-				UploadData.RightArmAngle[6] = Joint_Angle_FB[1][6];
-
-				UploadData.LeftHandAngle[0] = Joint_Angle_FB[0][0];
-				UploadData.LeftHandAngle[1] = Joint_Angle_FB[0][1];
-				UploadData.LeftHandAngle[2] = Joint_Angle_FB[0][2];
-				UploadData.LeftHandAngle[3] = Joint_Angle_FB[0][3];
-
-				UploadData.RightHandAngle[0] = Joint_Angle_FB[1][0];
-				UploadData.RightHandAngle[1] = Joint_Angle_FB[1][1];
-				UploadData.RightHandAngle[2] = Joint_Angle_FB[1][2];
-				UploadData.RightHandAngle[3] = Joint_Angle_FB[1][3];
-
-				UploadData.HeadAngle[0] = Joint_Angle_FB[2][4];
-				UploadData.HeadAngle[1] = Joint_Angle_FB[2][5];
-
-				UploadData.WaistAngle[0] = Joint_Angle_FB[3][4];
-				UploadData.WaistAngle[1] = Joint_Angle_FB[3][5];
+				CanDef2RealRobot(Joint_Angle_FB, &UploadData.RobotAngle);
 			}
 			else
 			{
-				UploadData.LeftArmAngle[0] = Joint_Angle_EP[2][0];
-				UploadData.LeftArmAngle[1] = Joint_Angle_EP[3][0];
-				UploadData.LeftArmAngle[2] = Joint_Angle_EP[3][1];
-				UploadData.LeftArmAngle[3] = Joint_Angle_EP[2][1];
-				UploadData.LeftArmAngle[4] = Joint_Angle_EP[0][4];
-				UploadData.LeftArmAngle[5] = Joint_Angle_EP[0][5];
-				UploadData.LeftArmAngle[6] = Joint_Angle_EP[0][6];
-
-				UploadData.RightArmAngle[0] = Joint_Angle_EP[2][2];
-				UploadData.RightArmAngle[1] = Joint_Angle_EP[3][2];
-				UploadData.RightArmAngle[2] = Joint_Angle_EP[3][3];
-				UploadData.RightArmAngle[3] = Joint_Angle_EP[2][3];
-				UploadData.RightArmAngle[4] = Joint_Angle_EP[1][4];
-				UploadData.RightArmAngle[5] = Joint_Angle_EP[1][5];
-				UploadData.RightArmAngle[6] = Joint_Angle_EP[1][6];
-
-				UploadData.LeftHandAngle[0] = Joint_Angle_EP[0][0];
-				UploadData.LeftHandAngle[1] = Joint_Angle_EP[0][1];
-				UploadData.LeftHandAngle[2] = Joint_Angle_EP[0][2];
-				UploadData.LeftHandAngle[3] = Joint_Angle_EP[0][3];
-
-				UploadData.RightHandAngle[0] = Joint_Angle_EP[1][0];
-				UploadData.RightHandAngle[1] = Joint_Angle_EP[1][1];
-				UploadData.RightHandAngle[2] = Joint_Angle_EP[1][2];
-				UploadData.RightHandAngle[3] = Joint_Angle_EP[1][3];
-
-				UploadData.HeadAngle[0] = Joint_Angle_EP[2][4];
-				UploadData.HeadAngle[1] = Joint_Angle_EP[2][5];
-
-				UploadData.WaistAngle[0] = Joint_Angle_EP[3][4];
-				UploadData.WaistAngle[1] = Joint_Angle_EP[3][5];
+				CanDef2RealRobot(Joint_Angle_EP, &UploadData.RobotAngle);
 			}
 
+			CanDef2RealRobot(motor_current, &UploadData.RobotCurrent);
 
-			UploadData.LeftArmCurrent[0] = motor_current[2][0];
-			UploadData.LeftArmCurrent[1] = motor_current[3][0];
-			UploadData.LeftArmCurrent[2] = motor_current[3][1];
-			UploadData.LeftArmCurrent[3] = motor_current[2][1];
-			UploadData.LeftArmCurrent[4] = motor_current[0][4];
-			UploadData.LeftArmCurrent[5] = motor_current[0][5];
-			UploadData.LeftArmCurrent[6] = motor_current[0][6];
+			CanDef2RealRobot(Joint_Angle_EP, &UploadData.RobotAngleEX);
 
-			UploadData.RightArmCurrent[0] = motor_current[2][2];
-			UploadData.RightArmCurrent[1] = motor_current[3][2];
-			UploadData.RightArmCurrent[2] = motor_current[3][3];
-			UploadData.RightArmCurrent[3] = motor_current[2][3];
-			UploadData.RightArmCurrent[4] = motor_current[1][4];
-			UploadData.RightArmCurrent[5] = motor_current[1][5];
-			UploadData.RightArmCurrent[6] = motor_current[1][6];
-
-			UploadData.LeftHandCurrent[0] = motor_current[0][0];
-			UploadData.LeftHandCurrent[1] = motor_current[0][1];
-			UploadData.LeftHandCurrent[2] = motor_current[0][2];
-			UploadData.LeftHandCurrent[3] = motor_current[0][3];
-
-			UploadData.RightHandCurrent[0] = motor_current[1][0];
-			UploadData.RightHandCurrent[1] = motor_current[1][1];
-			UploadData.RightHandCurrent[2] = motor_current[1][2];
-			UploadData.RightHandCurrent[3] = motor_current[1][3];
-
-			UploadData.HeadCurrent[0] = motor_current[2][4];
-			UploadData.HeadCurrent[1] = motor_current[2][5];
-
-			UploadData.WaistCurrent[0] = motor_current[3][4];
-			UploadData.WaistCurrent[1] = motor_current[3][5];
-
-
-			UploadData.LeftArmCurrent[0] = motor_current[2][0];
-			UploadData.LeftArmCurrent[1] = motor_current[3][0];
-			UploadData.LeftArmCurrent[2] = motor_current[3][1];
-			UploadData.LeftArmCurrent[3] = motor_current[2][1];
-			UploadData.LeftArmCurrent[4] = motor_current[0][4];
-			UploadData.LeftArmCurrent[5] = motor_current[0][5];
-			UploadData.LeftArmCurrent[6] = motor_current[0][6];
-
-			UploadData.RightArmCurrent[0] = motor_current[2][2];
-			UploadData.RightArmCurrent[1] = motor_current[3][2];
-			UploadData.RightArmCurrent[2] = motor_current[3][3];
-			UploadData.RightArmCurrent[3] = motor_current[2][3];
-			UploadData.RightArmCurrent[4] = motor_current[1][4];
-			UploadData.RightArmCurrent[5] = motor_current[1][5];
-			UploadData.RightArmCurrent[6] = motor_current[1][6];
-
-			UploadData.LeftHandCurrent[0] = motor_current[0][0];
-			UploadData.LeftHandCurrent[1] = motor_current[0][1];
-			UploadData.LeftHandCurrent[2] = motor_current[0][2];
-			UploadData.LeftHandCurrent[3] = motor_current[0][3];
-
-			UploadData.RightHandCurrent[0] = motor_current[1][0];
-			UploadData.RightHandCurrent[1] = motor_current[1][1];
-			UploadData.RightHandCurrent[2] = motor_current[1][2];
-			UploadData.RightHandCurrent[3] = motor_current[1][3];
-
-			UploadData.HeadCurrent[0] = motor_current[2][4];
-			UploadData.HeadCurrent[1] = motor_current[2][5];
-
-			UploadData.WaistCurrent[0] = motor_current[3][4];
-			UploadData.WaistCurrent[1] = motor_current[3][5];
-
-
-			UploadData.LeftArmAngleEX[0] = Joint_Angle_EP[2][0];
-			UploadData.LeftArmAngleEX[1] = Joint_Angle_EP[3][0];
-			UploadData.LeftArmAngleEX[2] = Joint_Angle_EP[3][1];
-			UploadData.LeftArmAngleEX[3] = Joint_Angle_EP[2][1];
-			UploadData.LeftArmAngleEX[4] = Joint_Angle_EP[0][4];
-			UploadData.LeftArmAngleEX[5] = Joint_Angle_EP[0][5];
-			UploadData.LeftArmAngleEX[6] = Joint_Angle_EP[0][6];
-
-			UploadData.RightArmAngleEX[0] = Joint_Angle_EP[2][2];
-			UploadData.RightArmAngleEX[1] = Joint_Angle_EP[3][2];
-			UploadData.RightArmAngleEX[2] = Joint_Angle_EP[3][3];
-			UploadData.RightArmAngleEX[3] = Joint_Angle_EP[2][3];
-			UploadData.RightArmAngleEX[4] = Joint_Angle_EP[1][4];
-			UploadData.RightArmAngleEX[5] = Joint_Angle_EP[1][5];
-			UploadData.RightArmAngleEX[6] = Joint_Angle_EP[1][6];
-
-			UploadData.LeftHandAngleEX[0] = Joint_Angle_EP[0][0];
-			UploadData.LeftHandAngleEX[1] = Joint_Angle_EP[0][1];
-			UploadData.LeftHandAngleEX[2] = Joint_Angle_EP[0][2];
-			UploadData.LeftHandAngleEX[3] = Joint_Angle_EP[0][3];
-
-			UploadData.RightHandAngleEX[0] = Joint_Angle_EP[1][0];
-			UploadData.RightHandAngleEX[1] = Joint_Angle_EP[1][1];
-			UploadData.RightHandAngleEX[2] = Joint_Angle_EP[1][2];
-			UploadData.RightHandAngleEX[3] = Joint_Angle_EP[1][3];
-
-			UploadData.HeadAngleEX[0] = Joint_Angle_EP[2][4];
-			UploadData.HeadAngleEX[1] = Joint_Angle_EP[2][5];
-
-			UploadData.WaistAngleEX[0] = Joint_Angle_EP[3][4];
-			UploadData.WaistAngleEX[1] = Joint_Angle_EP[3][5];
-		
 			RobotFBSend(UploadData);
 			int rtnMode = UDPRecv();
 			if(motion_mode_control == 0)	// 运动已完成
@@ -2921,6 +2828,10 @@ void rt_can_recv(void *arg)
 					}
 					break;
 
+					case ROBOT_CONTROL:		//机器人控制模式
+					{
+						control_mode = GetControlCMD();
+					}
 					default:
 					break;
 				}
@@ -3880,17 +3791,7 @@ void servo_on(void)
 	long can_content_order[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 	int can_connection_status[27] = {0};
 
-	elmo_init();
-
-
-	sleeptime.tv_nsec = 15000000;
-	sleeptime.tv_sec = 0;
-
-
-	nanosleep(&sleeptime,NULL);
-	sleeptime.tv_nsec = 20000000;
-	sleeptime.tv_sec = 0;
-
+	
 	for(i=0; i<can_channel_number; i++)
 	{
 		can_id = 0x200;
@@ -3904,7 +3805,8 @@ void servo_on(void)
 
 		can_send(i, can_id, 0, can_content_order, 6);   //controlword: disable volatage
 	}
-
+	sleeptime.tv_nsec = 20000000;
+	sleeptime.tv_sec = 0;
 	nanosleep(&sleeptime,NULL);
 
 
@@ -4113,3 +4015,38 @@ void servo_on(void)
 	sprintf(buf23, "CAN init        %d  %d  %d  %d  %d  %d  %d . %d  %d  %d  %d  %d  %d  %d . %d  %d  %d  %d  %d  %d  %d . %d  %d  %d  %d  %d  %d",can_work_states[0],can_work_states[1],  can_work_states[2],can_work_states[3],can_work_states[4],can_work_states[5],can_work_states[6],can_work_states[7], can_work_states[8],can_work_states[9],can_work_states[10],can_work_states[11],can_work_states[12],can_work_states[13], can_work_states[14], can_work_states[15], can_work_states[16], can_work_states[17], can_work_states[18], can_work_states[19], can_work_states[20], can_work_states[21], can_work_states[22], can_work_states[23], can_work_states[24], can_work_states[25], can_work_states[26]);
 }
 
+// CAN定义到实际机器人数据结构转换
+void CanDef2RealRobot(double CanDef[4][7], struct RealRobot_Struct* RealRobot)
+{
+	RealRobot->LeftArm[0] = CanDef[2][0];
+	RealRobot->LeftArm[1] = CanDef[3][0];
+	RealRobot->LeftArm[2] = CanDef[3][1];
+	RealRobot->LeftArm[3] = CanDef[2][1];
+	RealRobot->LeftArm[4] = CanDef[0][4];
+	RealRobot->LeftArm[5] = CanDef[0][5];
+	RealRobot->LeftArm[6] = CanDef[0][6];
+
+	RealRobot->RightArm[0] = CanDef[2][2];
+	RealRobot->RightArm[1] = CanDef[3][2];
+	RealRobot->RightArm[2] = CanDef[3][3];
+	RealRobot->RightArm[3] = CanDef[2][3];
+	RealRobot->RightArm[4] = CanDef[1][4];
+	RealRobot->RightArm[5] = CanDef[1][5];
+	RealRobot->RightArm[6] = CanDef[1][6];
+
+	RealRobot->LeftHand[0] = CanDef[0][0];
+	RealRobot->LeftHand[1] = CanDef[0][1];
+	RealRobot->LeftHand[2] = CanDef[0][2];
+	RealRobot->LeftHand[3] = CanDef[0][3];
+
+	RealRobot->RightHand[0] = CanDef[1][0];
+	RealRobot->RightHand[1] = CanDef[1][1];
+	RealRobot->RightHand[2] = CanDef[1][2];
+	RealRobot->RightHand[3] = CanDef[1][3];
+
+	RealRobot->Head[0] = CanDef[2][4];
+	RealRobot->Head[1] = CanDef[2][5];
+
+	RealRobot->Waist[0] = CanDef[3][4];
+	RealRobot->Waist[1] = CanDef[3][5];
+}

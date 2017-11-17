@@ -12,6 +12,24 @@
 #define DESTPC_IP "192.168.1.2"
 #define UDPCYCLE 30			// UDPCYCLE*程序运行周期 = UDP通讯周期
 
+
+/***********************************************************
+                      定义实际机器人数据结构
+************************************************************/
+#pragma pack(push)
+#pragma pack(1)
+struct RealRobot_Struct
+{
+	float LeftArm[7];
+	float RightArm[7];
+	float LeftHand[4];
+	float RightHand[4];
+	float Head[2];
+	float Waist[2];
+};
+#pragma pack(pop)
+
+
 /***********************************************************
                       定义机器人回传数据
 ************************************************************/
@@ -20,24 +38,9 @@
 struct RobotDataUDP_Struct
 {
 	unsigned int TrustFlag;
-	float LeftArmAngle[7];
-	float RightArmAngle[7];
-	float LeftHandAngle[4];
-	float RightHandAngle[4];
-	float HeadAngle[2];
-	float WaistAngle[2];
-	float LeftArmCurrent[7];
-	float RightArmCurrent[7];
-	float LeftHandCurrent[4];
-	float RightHandCurrent[4];
-	float HeadCurrent[2];
-	float WaistCurrent[2];
-	float LeftArmAngleEX[7];
-	float RightArmAngleEX[7];
-	float LeftHandAngleEX[4];
-	float RightHandAngleEX[4];
-	float HeadAngleEX[2];
-	float WaistAngleEX[2];
+	struct RealRobot_Struct RobotAngle;
+	struct RealRobot_Struct RobotCurrent;
+	struct RealRobot_Struct RobotAngleEX;
 	unsigned int CheckSum;
 };
 #pragma pack(pop)
@@ -101,13 +104,18 @@ struct RemoteCMD_Struct
 };
 #pragma pack(pop)
 
-struct SingleJointCMD_Struct SingleJointData;
-struct SingleArmCMD_Struct SignleArmData;
-struct EndCMD_Struct EndData;
-struct RemoteCMD_Struct RemoteData;
-
-int UDP_Sock;
-struct sockaddr_in DestPCAddr;
+/***********************************************************
+                      定义控制指令
+************************************************************/
+#pragma pack(push)
+#pragma pack(1)
+struct ControlCMD_Struct
+{
+	unsigned char Mode;
+	unsigned char Command;
+	unsigned char CheckSum;
+};
+#pragma pack(pop)
 
 
 //函数声明
@@ -118,5 +126,6 @@ int GetSingleJointData(long* can_channel_main,long* can_id_main,float* JointMove
 int GetSingleArmData(int* ArmSelect,float ArmMoveData[7], double* ArmMoveTime);
 int GetEndData(int* ArmSelect,float EndData[12], double* EndMoveTime);
 int GetRemoteData(float RemoteMotionData[14]);
+int GetControlCMD(void);
 
 #endif
