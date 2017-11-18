@@ -44,7 +44,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <time.h>
-#include <errno.h>
 #include <getopt.h>
 #include <sys/mman.h>
 
@@ -61,7 +60,7 @@
 
 #define hand2base 300.0
 
-//函数声明
+/*********************************函数声明**********************************/
 void send_event();
 void timespec_add_us(struct timespec *t, long us);
 int timespec_cmp(struct timespec *a, struct timespec *b);
@@ -87,9 +86,12 @@ int find_home_new(void);
 int return_origin_position(void);
 int prepare_find_home(void);
 
-void CanDef2RealRobot(double CanDef[4][7], struct RealRobot_Struct* RealRobot);	// CAN定义到实际机器人数据结构转换
-//varable declear
+// CAN定义到实际机器人数据结构转换
+void CanDef2RealRobot(double CanDef[4][7], struct RealRobot_Struct* RealRobot);	
 
+
+/*********************************变量声明**********************************/
+/////////////// 系统变量
 RT_TASK demo_task_rvcan;
 RT_TASK rt_task_desc;
 RT_TASK rt_task_view;
@@ -97,36 +99,35 @@ RTIME now, previous, period, now2, previous2, period2;
 
 GC MyGC;
 
-double time_interval = 0.006;
+Display *MyDisplay;
+Window MyWindow;
+Atom MyAtom;
+Atom wm_delete_window;
+Atom wm_protocols;
+sem_t low_go;
 
-extern int optind, opterr, optopt;
+int canrv_running = 1;
+
+int view_time = 1;
+
 static int txsock[4], rxsock[4];
-
-RT_TASK rt_task_desc;
 static int s=-1, dlc=0, rtr=0, extended=0, verbose=1, loops=1;
-//static SRTIME delay=1000000;
-//static int count=0, print=1, use_send=0, loopback=-1;
 static nanosecs_rel_t timeout_rv = 100;
 static nanosecs_rel_t timeout_send = 1000;
 static struct can_frame frame;
 static struct sockaddr_can to_addr;
-//socklen_t addrlen = sizeof(addr);
-int can_fd = -1;
 
-#define BUF_SIZ 255
+struct  ifreq ifr[4];
+
 #define MAX_FILTER 16
 struct sockaddr_can recv_addr;
 struct can_filter recv_filter[MAX_FILTER];
 static int filter_count = 0;
-struct  ifreq ifr[4];
 
-double acangle[30];
-
-Display *MyDisplay;
-Window MyWindow;
-Atom MyAtom;
-
+double time_interval = 0.006;
 double runtime = 0.0;
+
+////////////// 显示变量
 char buf[200] = {0};
 char buf1[200] = {0};
 char bufs1[100] = {0};
@@ -163,25 +164,112 @@ long can_id_main = 0;
 int End_Numb = 0;
 int can_node_number[4] = {7,7,6,6};
 int can_channel_number = 4;
+
+// CAN发送开关（远程帧无效）
 int can_switch[4][7] = {{1, 1, 1, 1, 1, 1, 1},
 						{1, 1, 1, 1, 1, 1, 1},
 						{1, 1, 1, 1, 1, 1, 1},
 						{1, 1, 1, 1, 1, 1, 1}};
 
-
+// 各节点速度方向
 double joint_direction[4][7] = {{1, -1, 1, 1, 1, 1, 1},		// 456 OK
 								{1, 1, 1, 1, 1, 1, 1},		// 456 OK
-								{1, 1, 1, 1, 1, 1},			// 1234 OK
-								{1, 1, 1, 1, 1, 1}};		// 1234 OK
+								{1, 1, 1, 1, -1, -1},		// 123456 OK
+								{1, 1, 1, 1, -1, -1}};		// 123456 OK
+
+// 各节点初始零位值
+double home_offset[4][7] = {{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
+							{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
+							{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
+							{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0}};
+
+// 各节点最大位置限位
+double AngleMax_deg[4][7] = {{1, -1, 1, 1, 1, 1, 1},
+							{1, 1, 1, 1, 1, 1, 1},
+							{1, 1, 1, 1, -1, -1},
+							{1, 1, 1, 1, -1, -1}};
+
+// 各节点最小位置限位
+double AngleMin_deg[4][7] = {{1, -1, 1, 1, 1, 1, 1},
+							{1, 1, 1, 1, 1, 1, 1},
+							{1, 1, 1, 1, -1, -1},
+							{1, 1, 1, 1, -1, -1}};
+
+// 各节点最大运动速度限制	deg/s
+double VelocityLimit_deg[4][7] = {{1, -1, 1, 1, 1, 1, 1},
+							  {1, 1, 1, 1, 1, 1, 1},
+							  {1, 1, 1, 1, -1, -1},
+							  {1, 1, 1, 1, -1, -1}};
+// 各节点运动错误指示		
+// 1——正向位置超限
+// -1——反向位置超限
+// 2——正向速度超限
+// -2——反向速度超限
+// 0——正常
+int JointError[4][7] = {{0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0}};
+
+// 各节点电机侧弧度与码盘计数换算关系（1rad对应码盘数）
+double Rad2Count[4][7] = {{7.00281748,636.619772,636.619772,636.619772,2607.5945876176,2607.5945876176,2607.5945876176},
+						  {7.00281748,636.619772,636.619772,636.619772,2607.5945876176,2607.5945876176,2607.5945876176},
+ 						  {2607.5945876176,2607.5945876176,2607.5945876176,2607.5945876176,1303.7973,1303.7973,1000.0},
+ 						  {2607.5945876176,2607.5945876176,2607.5945876176,2607.5945876176,651.8986,651.8986,0.0}};//651.898;
+
+// 各节点减速比
+double reduction_ratio[4][7] = {{34.0,100.0,100.0,100.0,160.0,160.0,160.0},
+								{34.0,100.0,100.0,100.0,160.0,160.0,160.0},
+								{160.0,160.0,160.0,160.0,21.0,21.0,100.0},
+								{160.0,160.0,160.0,160.0,120.0,120.0}};
 double zero_comp[4][7] = {0.0};
+// 各节点CAN工作状态
 int can_work_states[27] = {0};
+// 各节点电流值
 double motor_current[4][7] = {0.0};
-int motor_current_feedback[4][7] = {0};
+// 各节点电流参考值
 double motor_current_refrence[4][7] = {	{5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0},
 										{5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0},
 										{5.0, 5.0, 5.0, 5.0, 5.0, 5.0},
 										{5.0, 5.0, 5.0, 5.0, 5.0, 5.0}};
+// 各节点速度限制设定值
+long motor_sp[4][7] = {{40, 	5500,	5500,	5500, 	50000,	50000,	50000},
+					   {40, 	5500,	5500,	5500, 	50000,	50000,	50000},
+					   {50000, 	50000, 	50000,	50000, 	500,	500},
+					   {50000, 	50000,	50000,	50000, 	500,	500}};
+// 各节点额定电流
+float motor_cl[4][7] = {{0.75, 1.0, 1.0, 1.0, 7.0, 7.0, 7.0},
+						{0.75, 1.0, 1.0, 1.0, 7.0, 7.0, 7.0},
+						{7.0, 7.0, 7.0, 7.0, 1.0, 1.0},
+						{7.0, 7.0, 7.0, 7.0, 1.0, 1.0}};
+// 各节点峰值电流
+float motor_pl[4][7] = {{0.8, 1.2, 1.2, 1.2, 10.0, 10.0, 10.0},
+						{0.8, 1.2, 1.2, 1.2, 10.0, 10.0, 10.0},
+						{10.0, 10.0, 10.0, 10.0, 1.2, 1.2},
+						{10.0, 10.0, 10.0, 10.0, 1.2, 1.2}};
+// 各节点角度反馈弧度值
+double Joint_Angle_FB[4][7] = {0.0};
+// 各节点角度期望弧度值
+double Joint_Angle_EP[4][7] = {0.0};
+// 各节点角度反馈角度值
+double Joint_Angle_FB_degree[4][7] = {0.0};
+// 各节点角度期望角度值
+double Joint_Angle_EP_degree[4][7] = {0.0};
+// 各节点角度误差角度值
+double Joint_Angle_ER_degree[4][7] = {0.0};
+// 各节点前一次角度反馈弧度值
+double Joint_Angle_LastFB[4][7] = {0.0};
+// 各节点前一次角度反馈角度值
+double Joint_Angle_LastFB_degree[4][7] = {0.0};
 
+// 头部绝对码盘角度弧度值
+double Head_Angle_FB[2] = {0.0};
+// 头部绝对码盘角度角度值
+double Head_Angle_FB_degree[2] = {0.0};
+// 供电电源电压反馈
+double VoltageFB = 0.0;
+// 供电电源电流反馈
+double CurrentFB = 0.0;
 
 double T_hand_end[4][4] = {{1.0, 0.0, 0.0, 0.0},
 						{0.0, 1.0, 0.0, 0.0},
@@ -193,95 +281,15 @@ double T_hand_end_inv[4][4] = {{1.0, 0.0, 0.0, 0.0},
 						{0.0, 0.0, 1.0, hand2base},
 						{0.0, 0.0, 0.0, 1.0}};
 
-int servo_on_off_flag = 0;
-//double v_hand_max = 0.2;
-//double a_hand_max = 0.5;
-//double hand_current_max = 1.0;
-//int print_flag = 1;
-int hand_id = 0;
-float hand_current_expect = 0.0;
-
-
-//long data1[8];
-Atom wm_delete_window;
-Atom wm_protocols;
-
-struct timespec t1;
-double time_start = 0;
-double time_end;
-double time_diff = 0.0;
-int jjj = 0;
-double max = 0;
-double average =0.0;
-double numb = 1.0;
-int s1;
-int can1=0;
-int can2=1;
-int can3=2;
-int can4=3;
-//long handvel=0;
-sem_t low_go;
-
-int offset_home = 3;
-double turn_time = 15.0;
-
-
-int Encoder_Count_FB[4][7] = {0};
-int Encoder_Count_EP[4][7] = {0};
-int Encoder_Count_EP_Send[4][7] = {0};
-double Joint_Angle_FB[4][7] = {0.0};
-double Joint_Angle_EP[4][7] = {0.0};
-double Joint_Angle_FB_degree[4][7] = {0.0};
-double Joint_Angle_EP_degree[4][7] = {0.0};
-double Joint_Angle_ER_degree[4][7] = {0.0};
-
-int HeadEncoder_Count_FB[2] = {0};
-double Head_Angle_FB[2] = {0.0};
-double Head_Angle_FB_degree[2] = {0.0};
-
-double VoltageAll = 0.0;
-double CurrentAll = 0.0;
-
-long motor_sp[4][7] = {{40, 	5500,	5500,	5500, 	50000,	50000,	50000},
-					   {40, 	5500,	5500,	5500, 	50000,	50000,	50000},
-					   {50000, 	50000, 	50000,	50000, 	500,	500},
-					   {50000, 	50000,	50000,	50000, 	500,	500}};
-
-float motor_cl[4][7] = {{0.75, 1.0, 1.0, 1.0, 7.0, 7.0, 7.0},
-						{0.75, 1.0, 1.0, 1.0, 7.0, 7.0, 7.0},
-						{7.0, 7.0, 7.0, 7.0, 1.0, 1.0},
-						{7.0, 7.0, 7.0, 7.0, 1.0, 1.0}};
-
-float motor_pl[4][7] = {{0.8, 1.2, 1.2, 1.2, 10.0, 10.0, 10.0},
-						{0.8, 1.2, 1.2, 1.2, 10.0, 10.0, 10.0},
-						{10.0, 10.0, 10.0, 10.0, 1.2, 1.2},
-						{10.0, 10.0, 10.0, 10.0, 1.2, 1.2}};
-
-double home_offset[4][7] = {{-0.043633, 	-0.366619137, 	0.0261799, 0.19198622,0.0,0.0,0.0},
-							{-0.02617994,	-0.383972436,  -0.017453293, -0.102617994,0.0,0.0,0.0},
-							{-0.01745329,	0.453785603,   -0.0174532925, -0.0959931068,0.0,0.0,0.0},
-							{0.0,			0.0,			0.0, 0.0, 0.0, 0.0, 0.0}};
-
-double joint_angle_last[8] = {0.5, 0.0, 0.2, 0.0, -0.5, 0.0, -0.2, 0.0};
-
-double joint_max_angle[4] = {0.0};
-double joint_min_angle[4] = {0.0};
-double max_joint_speed[4] = {0.0};
-
-double home_time = 5.0;
-
-double Joint_Current_Angle[4][7] = {0.0};
-
-
-//double pi = 3.1415926535898;
+// 标志量
 int power_on_flag = 0;
 int servo_on_flag = 0;
-int begin_flag =0;
-//int MOTION_MODE = 100;
-double line_2count[3] = {1344.0, 1344.0, 1344.0};
-//double line_2count[3] = {240.0, 720.0, 240.0};
 int motion_enable_flag= 0;
 
+
+// 单关节运动量
+float JointMoveData = 0.0;
+float RemoteMotionData[14] = {0.0};
 
 /********************** UDP通讯相关 Start ***************************/
 int UDPTimes = 0;	// UDP 周期计数
@@ -293,34 +301,6 @@ int UDPTimes = 0;	// UDP 周期计数
 float DeltaMatrix[4][4] = {0.0};
 
 /**********************  VisionControl End ***********************/
-
-
-// 单关节运动量
-float JointMoveData = 0.0;
-
-double high_time = 0.0;
-
-long time_inteval = 1000;
-struct sched_param the_priority_main, the_priority5;
-
-pthread_t th1, th2;
-int prio;
-int high_stop_flag = 0;
-struct timespec start, end;
-int unm100 = 0;
-int canrv_running = 1;
-
-//int ordermode;
-int view_time = 1;
-double Rad2Count[4][7] = {{7.00281748,636.619772,636.619772,636.619772,2607.5945876176,2607.5945876176,2607.5945876176},
-						  {7.00281748,636.619772,636.619772,636.619772,2607.5945876176,2607.5945876176,2607.5945876176},
- 						  {2607.5945876176,2607.5945876176,2607.5945876176,2607.5945876176,2607.5945876176,2607.5945876176,2607.5945876176},
- 						  {2607.5945876176,2607.5945876176,2607.5945876176,2607.5945876176,651.8986,651.8986,0.0}};//651.898;
-
-double reduction_ratio[4][7] = {{34.0,100.0,100.0,100.0,160.0,160.0,160.0},
-								{34.0,100.0,100.0,100.0,160.0,160.0,160.0},
-								{160.0,160.0,160.0,160.0,100.0,100.0,100.0},
-								{160.0,160.0,160.0,160.0,120.0,120.0}};//4.8;
 
 
 void servo_off_control(int can_channel, int id)
@@ -1028,17 +1008,6 @@ void view (void *n)
 					printf("prepare_find_home\n");
 				break;
 
-				case '0':
-					motion_mode = TURN_MOTION;
-					printf("turn motion\n");
-				break;
-
-				case 'a':
-				case 'A':
-					motion_mode = TURN_MOTION2;
-					printf("turn motion\n");
-				break;
-
 			}
 
 		}
@@ -1109,7 +1078,7 @@ void view (void *n)
 	XCloseDisplay(MyDisplay);
 	printf("close windows\n");
 //	timer_delete(timerid);
-//	high_stop_flag = 1;
+
 }
 
 
@@ -1199,8 +1168,8 @@ void SYNC_Receive(void)
 	int ret;
 	int i, j;
 	int canRecvStatus[4];
-
-
+	int motor_current_feedback[4][7] = {0};
+	int Encoder_Count_FB[4][7] = {0};
 	now2 = rt_timer_read();
 
 	// receive Motor Driver data
@@ -1224,6 +1193,17 @@ void SYNC_Receive(void)
 	sleeptime.tv_nsec = 5000;
 	sleeptime.tv_sec = 0;
 
+	// 保存上次状态
+	for(i=0; i<can_channel_number; i++)
+	{
+		for(j=0; j< can_node_number[i]; j++)
+		{
+			Joint_Angle_LastFB[i][j] = Joint_Angle_FB[i][j];
+			Joint_Angle_LastFB_degree[i][j] = Joint_Angle_FB_degree[i][j];
+		}
+	}
+
+	// 获取最新状态
 	for(i=0; i<can_channel_number; i++)
 	{
 		for(j=0; j< can_node_number[i]; j++)
@@ -1315,6 +1295,7 @@ void SYNC_Receive(void)
 	}
 	else
 	{
+		int HeadEncoder_Count_FB[2] = {0, 0};
 		HeadEncoder_Count_FB[0] = frame.data[0]*256 + frame.data[1];
 		HeadEncoder_Count_FB[1] = frame.data[2]*256 + frame.data[3];
 		Head_Angle_FB[0] = (double)HeadEncoder_Count_FB[0]/Rad2Count[2][6];		// moyang602  zero
@@ -1358,8 +1339,8 @@ void SYNC_Receive(void)
 	}
 	else
 	{
-		VoltageAll = ((frame.data[0]& 0x1f)*32 + frame.data[1])/1.0;
-		CurrentAll = ((frame.data[2]& 0x1f)*32 + frame.data[3])/1.0;
+		VoltageFB = ((frame.data[0]& 0x1f)*32 + frame.data[1])/1.0;
+		CurrentFB = ((frame.data[2]& 0x1f)*32 + frame.data[3])/1.0;
 	}
 */
 
@@ -1385,7 +1366,33 @@ void rad_send(int can_channel_num, int id, double angle_in)
 	sleeptime.tv_sec = 0;
 	nanosleep(&sleeptime,NULL);
 
+	// 发送数据位置限位
+	if (angle_in>AngleMax_deg[can_channel_num][id]*Degree2Rad)
+	{
+		angle_in=AngleMax_deg[can_channel_num][id]*Degree2Rad;
+		JointError[can_channel_num][id] = 1;
+	}
+	else if(angle_in<AngleMin_deg[can_channel_num][id]*Degree2Rad)
+	{
+		angle_in=AngleMin_deg[can_channel_num][id]*Degree2Rad;
+		JointError[can_channel_num][id] = -1;
+	}
+
+	// 发送数据速度限制
+	if ((angle_in - Joint_Angle_FB[can_channel_num][id])/time_interval*Rad2Degree > VelocityLimit_deg[can_channel_num][id])
+	{
+		angle_in=Joint_Angle_FB[can_channel_num][id] + VelocityLimit_deg[can_channel_num][id]*time_interval*Rad2Degree;
+		JointError[can_channel_num][id] = 2;
+	}
+	else if ((angle_in - Joint_Angle_FB[can_channel_num][id])/time_interval*Rad2Degree < -VelocityLimit_deg[can_channel_num][id])
+	{
+		angle_in=Joint_Angle_FB[can_channel_num][id] - VelocityLimit_deg[can_channel_num][id]*time_interval*Rad2Degree;
+		JointError[can_channel_num][id] = -2;
+	}
+
+
 	Encoder_Count_EP2 = (angle_in * joint_direction[can_channel_num][id] + zero_comp[can_channel_num][id])* Rad2Count[can_channel_num][id] * reduction_ratio[can_channel_num][id];
+
 	Encoder_Count_EP_Send2 = Encoder_Count_EP2;
 
 	count_out[0] = 0X1F;
@@ -1609,14 +1616,6 @@ void current_position(int channel_num, double Joint_Angle_FB2[4])
 				Joint_Angle_FB_degree[channel_num][(frame.can_id & 0xf)-1] = Joint_Angle_FB2[(frame.can_id & 0xf)-1]*Rad2Degree;
 			//	printf("test5\n");
 			}
-			else
-			{
-			//	printf("test6\n");
-				Encoder_Count_FB[(frame.can_id & 0xf)-1] = *(int*)frame.data;
-				Joint_Angle_FB2[(frame.can_id & 0xf)-1] = (((double)Encoder_Count_FB[(frame.can_id & 0xf)-1])/line_2count[(frame.can_id & 0xf)-1] - zero_comp[channel_num][(frame.can_id & 0xf)-1]) * joint_direction[channel_num][(frame.can_id & 0xf)-1];
-				Joint_Angle_FB_degree[channel_num][(frame.can_id & 0xf)-1] = Joint_Angle_FB2[(frame.can_id & 0xf)-1];
-			//	printf("test7\n");
-			}
 
 			printf("current position %d %d is %02x  %02x	 %02x  %02x  %02x  %02x  %02x  %02x    %f   %d\n",channel_num, (frame.can_id & 0xf)-1, frame.data[0], frame.data[1],frame.data[2],frame.data[3],frame.data[4],frame.data[5],frame.data[6],frame.data[7],  Joint_Angle_FB2[(frame.can_id & 0xf)-1], Encoder_Count_FB[(frame.can_id & 0xf)-1]);
 		//	printf("size of int = %d\n", sizeof(int));
@@ -1743,39 +1742,46 @@ void rt_can_recv(void *arg)
 				printf("power on by UDP\n");
 				power_on();
 				power_on_flag = 1;
+				control_mode = 0;
 			break;
 
 			case CMD_POWER_OFF:
 				printf("power off by UDP\n");
 				power_off();
 				power_on_flag = 0;
+				control_mode = 0;
 			break;
 
 			case CMD_ELMO_INIT:
 				elmo_init();
 				printf("elmo init by UDP\n");
+				control_mode = 0;
 			break;
 
-			case CMD_SERV0_ON:
+			case CMD_SERVO_ON:
 				printf("servo on by UDP\n");
      			servo_on();
 				servo_on_flag = 1;
+				control_mode = 0;
 			break;
 
-			case CMD_SERV0_OFF:
+			case CMD_SERVO_OFF:
 				printf("servo off by UDP\n");
 				servo_off();
 				servo_on_flag  = 0;
+				control_mode = 0;
 			break;
 
-			case CMD_CTR_ENABLE：
+			case CMD_CTR_ENABLE:
 				motion_enable_flag =1;
 				printf("motion_enable_flag = 1 by UDP\n");
+				control_mode = 0;
 			break;
 
 			case CMD_CTR_DISENABLE:
 				motion_enable_flag = 0;
 				printf("motion_enable_flag = 0 by UDP\n");
+				control_mode = 0;
 			break;
 
 			case CMD_HOMEZERO:
@@ -1899,21 +1905,7 @@ void rt_can_recv(void *arg)
 
 					if(first_time_TWO_ARMS_MOTION == 0)
 					{
-				/*		Joint_Angle_FB[2][0] = 0.5;
-						Joint_Angle_FB[2][1] = 0.0;
-						Joint_Angle_FB[2][2] = 0.2;
-						Joint_Angle_FB[2][3] = 0.0;
 
-						Joint_Angle_FB[0][0] = 0.0;
-						Joint_Angle_FB[0][1] = 0.0;
-						Joint_Angle_FB[0][2] = 0.0;
-						Joint_Angle_FB[0][3] = 0.0;
-
-						Joint_Angle_FB[1][0] = -0.5;
-						Joint_Angle_FB[1][1] = 0.0;
-						Joint_Angle_FB[1][2] = -0.2;
-						Joint_Angle_FB[1][3] = 0.0;
-					*/
 						for(i=0; i<3; i++)
 						{
 							for(j=0; j<4; j++)
@@ -1930,12 +1922,6 @@ void rt_can_recv(void *arg)
 
 
 						matrix_multiply(T_END_main, T_hand_end, T_Now2);
-				//		InvCham(T_Now2, anglein, 0.0, angle_out);
-				//		joint_angle_last[i] =
-
-				//		InvCham(T_Now2, joint_angle_last, 0.0, angle_out2);
-
-					//	InvCham(T_END_main, anglein, 0.0, angle_out);
 
 						printf("T_END_main = \n");
 
@@ -1954,15 +1940,7 @@ void rt_can_recv(void *arg)
 
 						if(End_Numb == ARM1)
 						{
-					/*		anglein[0] =  start_position[1][0];
-							anglein[1] =  start_position[1][1];
-							anglein[2] =  start_position[1][2];
-							anglein[3] =  start_position[1][3];
-							anglein[4] =  start_position[0][0];
-							anglein[5] =  start_position[0][1];
-							anglein[6] =  start_position[0][2];
-							anglein[7] =  start_position[0][3];
-				*/
+
 							InvCham(T_Now2, anglein, 0.0, angle_out2);
 
 
@@ -1984,67 +1962,7 @@ void rt_can_recv(void *arg)
 							printf("ARM1 end\n");
 							printf("expect agnle  %f   %f   %f   %f   %f   %f   %f   %f   %f   %f   %f   %f\n", end_position[0][0]*Rad2Degree, end_position[0][1]*Rad2Degree,end_position[0][2]*Rad2Degree,end_position[0][3]*Rad2Degree,end_position[1][0]*Rad2Degree, end_position[1][1]*Rad2Degree, end_position[1][2]*Rad2Degree,end_position[1][3]*Rad2Degree, end_position[2][0]*Rad2Degree, end_position[2][1]*Rad2Degree, end_position[2][2]*Rad2Degree,end_position[2][3]*Rad2Degree);
 						}
-						else if(End_Numb == ARM2)
-						{
-					/*		anglein[0] =  start_position[2][0];
-							anglein[1] =  start_position[2][1];
-							anglein[2] =  start_position[2][2];
-							anglein[3] =  start_position[2][3];
-							anglein[4] =  start_position[1][0];
-							anglein[5] =  start_position[1][1];
-							anglein[6] =  start_position[1][2];
-							anglein[7] =  start_position[1][3];
-				*/
-							InvCham(T_Now2, anglein, 0.0, angle_out2);
 
-							end_position[2][0] = angle_out2[0];
-							end_position[2][1] = angle_out2[1];
-							end_position[2][2] = angle_out2[2];
-							end_position[2][3] = angle_out2[3];
-
-							end_position[1][0] = angle_out2[4];
-							end_position[1][1] = angle_out2[5];
-							end_position[1][2] = angle_out2[6];
-							end_position[1][3] = angle_out2[7];
-
-							end_position[0][0] = start_position[0][0];
-							end_position[0][1] = start_position[0][1];
-							end_position[0][2] = start_position[0][2];
-							end_position[0][3] = start_position[0][3];
-							printf("ARM2 end\n");
-							printf("expect agnle  %f   %f   %f   %f   %f   %f   %f   %f   %f   %f   %f   %f\n", end_position[0][0]*Rad2Degree,end_position[0][1]*Rad2Degree,end_position[0][2]*Rad2Degree,end_position[0][3]*Rad2Degree,end_position[1][0]*Rad2Degree, end_position[1][1]*Rad2Degree, end_position[1][2]*Rad2Degree,end_position[1][3]*Rad2Degree, end_position[2][0]*Rad2Degree, end_position[2][1]*Rad2Degree, end_position[2][2]*Rad2Degree,end_position[2][3]*Rad2Degree);
-						}
-						else if(End_Numb == ARM3)
-						{
-
-					/*		anglein[0] =  start_position[0][0];
-							anglein[1] =  start_position[0][1];
-							anglein[2] =  start_position[0][2];
-							anglein[3] =  start_position[0][3];
-							anglein[4] =  start_position[2][0];
-							anglein[5] =  start_position[2][1];
-							anglein[6] =  start_position[2][2];
-							anglein[7] =  start_position[2][3];
-				*/
-							InvCham(T_Now2, anglein, 0.0, angle_out2);
-
-							end_position[0][0] = angle_out2[0];
-							end_position[0][1] = angle_out2[1];
-							end_position[0][2] = angle_out2[2];
-							end_position[0][3] = angle_out2[3];
-
-							end_position[2][0] = angle_out2[4];
-							end_position[2][1] = angle_out2[5];
-							end_position[2][2] = angle_out2[6];
-							end_position[2][3] = angle_out2[7];
-
-							end_position[1][0] = start_position[1][0];
-							end_position[1][1] = start_position[1][1];
-							end_position[1][2] = start_position[1][2];
-							end_position[1][3] = start_position[1][3];
-							printf("ARM3 end\n");
-							printf("expect agnle  %f   %f   %f   %f   %f   %f   %f   %f   %f   %f   %f   %f\n", end_position[0][0]*Rad2Degree,end_position[0][1]*Rad2Degree,end_position[0][2]*Rad2Degree,end_position[0][3]*Rad2Degree,end_position[1][0]*Rad2Degree, end_position[1][1]*Rad2Degree, end_position[1][2]*Rad2Degree,end_position[1][3]*Rad2Degree, end_position[2][0]*Rad2Degree, end_position[2][1]*Rad2Degree, end_position[2][2]*Rad2Degree,end_position[2][3]*Rad2Degree);
-						}
 
 						first_time_TWO_ARMS_MOTION = 1;
 						t = 0;
@@ -2092,334 +2010,6 @@ void rt_can_recv(void *arg)
 					}
 
 					break;
-
-					case TURN_MOTION:
-
-					if(first_time_TURN_MOTION == 0)
-					{
-						for(i=0; i<3; i++)
-						{
-							for(j=0; j<4; j++)
-							{
-								start_position[i][j] = Joint_Angle_FB[i][j];
-							}
-						}
-
-						printf("present agnle  %f   %f   %f   %f   %f   %f   %f   %f    %f   %f   %f   %f\n", start_position[0][0]*Rad2Degree,start_position[0][1]*Rad2Degree,start_position[0][2]*Rad2Degree,start_position[0][3]*Rad2Degree,start_position[1][0]*Rad2Degree, start_position[1][1]*Rad2Degree, start_position[1][2]*Rad2Degree,start_position[1][3]*Rad2Degree, start_position[2][0]*Rad2Degree, start_position[2][1]*Rad2Degree, start_position[2][2]*Rad2Degree,start_position[2][3]*Rad2Degree);
-
-						motion_mode_control	= 1;
-				/*		matrix_multiply(T_TURN, T_hand_end, T_Now2);
-
-						printf("\nT_Now2 = ");
-							for(i=0; i<4; i++)
-							{
-								for(j=0; j<4;j++)
-									printf("%f   ",T_Now2[i][j]);
-								printf("\n");
-							}
-						*/
-				/*
-						start_position[2][0] = 0.70763;
-						start_position[2][1] = -0.0;
-						start_position[2][2] = 0.2;
-						start_position[2][3] = -0.0;
-						start_position[1][0] = -0.70763;
-						start_position[1][1] = -0;
-						start_position[1][2] = -0.478664;
-						start_position[1][3] = -0.0;
-						start_position[0][1] = 20.0/Rad2Degree;
-				*/
-						printf("MOTION_MODE: TURN_MOTION\n");
-
-
-				//		InvCham(T_Now2, anglein2, 0.0, angle_out2);
-
-						end_position[2][0] = anglein2[0];
-						end_position[2][1] = anglein2[1];
-						end_position[2][2] = anglein2[2];
-						end_position[2][3] = anglein2[3];
-
-						end_position[1][0] = anglein2[4];
-						end_position[1][1] = anglein2[5];
-						end_position[1][2] = anglein2[6];
-						end_position[1][3] = anglein2[7];
-
-						end_position2[2][0] = anglein3[0];
-						end_position2[2][1] = anglein3[1];
-						end_position2[2][2] = anglein3[2];
-						end_position2[2][3] = anglein3[3] ;
-
-						end_position2[1][0] = anglein3[4];
-						end_position2[1][1] = anglein3[5] ;
-						end_position2[1][2] = anglein3[6] ;
-						end_position2[1][3] = anglein3[7] ;
-
-
-						end_position[0][0] = start_position[0][0];
-						end_position[0][1] = start_position[0][1];
-						end_position[0][2] = start_position[0][2];
-						end_position[0][3] = start_position[0][3];
-
-						end_position2[0][0] = start_position[0][0];
-						end_position2[0][1] = start_position[0][1];
-						end_position2[0][2] = start_position[0][2];
-						end_position2[0][3] = start_position[0][3];
-
-
-						printf("ARM2 end\n");
-						printf("expect agnle  %f   %f   %f   %f   %f   %f   %f   %f   %f   %f   %f   %f\n", end_position[0][0]*Rad2Degree,end_position[0][1]*Rad2Degree,end_position[0][2]*Rad2Degree,end_position[0][3]*Rad2Degree,end_position[1][0]*Rad2Degree, end_position[1][1]*Rad2Degree, end_position[1][2]*Rad2Degree,end_position[1][3]*Rad2Degree, end_position[2][0]*Rad2Degree, end_position[2][1]*Rad2Degree, end_position[2][2]*Rad2Degree,end_position[2][3]*Rad2Degree);
-
-
-						first_time_TURN_MOTION = 1;
-						t = 0;
-					}
-					else
-					{
-						if(t <= turn_time/2.0)
-						{
-							t = t + time_interval;
-							for(j=0; j<4; j++)
-							{
-								for(i=0; i<3; i++)
-								{
-
-
-									Joint_Angle_EP[i][j] = Five_Interpolation(start_position[i][j],0,0, end_position2[i][j],0,0,turn_time/2.0,t);
-									if(i==2 && j==3)
-									{
-										Joint_Angle_EP[i][j] = Five_Interpolation(start_position[i][j],0,0, end_position2[i][j],-pi/turn_time,0,turn_time/2.0,t);
-									}
-
-
-									if(t > turn_time/2.0)
-									{
-										Joint_Angle_EP[i][j] = end_position2[i][j];
-									}
-
-									if(motion_enable_flag == 1)
-									{
-										rad_send(i,j,Joint_Angle_EP[i][j]);
-									}
-									sleeptime.tv_nsec = 5000;
-									sleeptime.tv_sec = 0;
-									nanosleep(&sleeptime,NULL);
-								}
-								sleeptime.tv_nsec = 250000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-							}
-						}
-						else if(t < turn_time)
-						{
-							t = t + time_interval;
-							for(j=0; j<4; j++)
-							{
-								for(i=0; i<3; i++)
-								{
-
-
-										Joint_Angle_EP[i][j] = Five_Interpolation(end_position2[i][j],0,0, end_position[i][j],0,0,turn_time/2.0,t-turn_time/2.0);
-									if(i==2 && j==3)
-									{
-										Joint_Angle_EP[i][j] = Five_Interpolation(end_position2[i][j],-pi/turn_time,0, end_position[i][j],0,0,turn_time/2.0,t-turn_time/2.0);
-									}
-
-									if(t > turn_time)
-									{
-										Joint_Angle_EP[i][j] = end_position[i][j];
-									}
-
-									if(motion_enable_flag == 1)
-									{
-										rad_send(i,j,Joint_Angle_EP[i][j]);
-									}
-									sleeptime.tv_nsec = 5000;
-									sleeptime.tv_sec = 0;
-									nanosleep(&sleeptime,NULL);
-								}
-								sleeptime.tv_nsec = 250000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-							}
-						}
-						else
-						{
-							t = 0;
-							motion_mode = 100;
-							first_time_TURN_MOTION = 0;
-							motion_mode_control	= 0;
-						}
-					}
-
-					break;
-
-
-					case TURN_MOTION2:
-
-					if(first_time_TURN_MOTION2 == 0)
-					{
-						for(i=0; i<3; i++)
-						{
-							for(j=0; j<4; j++)
-							{
-								start_position[i][j] = Joint_Angle_FB[i][j];
-							}
-						}
-
-						printf("present agnle  %f   %f   %f   %f   %f   %f   %f   %f    %f   %f   %f   %f\n", start_position[0][0]*Rad2Degree,start_position[0][1]*Rad2Degree,start_position[0][2]*Rad2Degree,start_position[0][3]*Rad2Degree,start_position[1][0]*Rad2Degree, start_position[1][1]*Rad2Degree, start_position[1][2]*Rad2Degree,start_position[1][3]*Rad2Degree, start_position[2][0]*Rad2Degree, start_position[2][1]*Rad2Degree, start_position[2][2]*Rad2Degree,start_position[2][3]*Rad2Degree);
-
-						motion_mode_control	= 1;
-				/*		matrix_multiply(T_TURN, T_hand_end, T_Now2);
-
-						printf("\nT_Now2 = ");
-							for(i=0; i<4; i++)
-							{
-
-								for(j=0; j<4;j++)
-									printf("%f   ",T_Now2[i][j]);
-								printf("\n");
-							}
-
-						*/
-				/*
-						start_position[2][0] = 0.698;
-						start_position[2][1] = -0.0;
-						start_position[2][2] = 0.151;
-						start_position[2][3] = -pi;
-
-						start_position[1][0] = -0.698;
-						start_position[1][1] = -0;
-						start_position[1][2] = -0.546;
-						start_position[1][3] = -0.0;
-
-						start_position[0][0] = 20.0/Rad2Degree;
-					*/
-
-						printf("MOTION_MODE: TURN_MOTION2\n");
-
-
-				//		InvCham(T_Now2, anglein2, 0.0, angle_out2);
-
-						end_position[2][0] = anglein4[0];
-						end_position[2][1] = anglein4[1];
-						end_position[2][2] = anglein4[2];
-						end_position[2][3] = anglein4[3];
-
-						end_position[1][0] = anglein4[4];
-						end_position[1][1] = anglein4[5];
-						end_position[1][2] = anglein4[6];
-						end_position[1][3] = anglein4[7];
-
-						end_position2[2][0] = anglein3[0];
-						end_position2[2][1] = anglein3[1];
-						end_position2[2][2] = anglein3[2];
-						end_position2[2][3] = anglein3[3] ;
-
-						end_position2[1][0] = anglein3[4];
-						end_position2[1][1] = anglein3[5] ;
-						end_position2[1][2] = anglein3[6] ;
-						end_position2[1][3] = anglein3[7] ;
-
-
-						end_position[0][0] = start_position[0][0];
-						end_position[0][1] = start_position[0][1];
-						end_position[0][2] = start_position[0][2];
-						end_position[0][3] = start_position[0][3];
-
-						end_position2[0][0] = start_position[0][0];
-						end_position2[0][1] = start_position[0][1];
-						end_position2[0][2] = start_position[0][2];
-						end_position2[0][3] = start_position[0][3];
-
-
-						printf("ARM2 end\n");
-						printf("expect agnle  %f   %f   %f   %f   %f   %f   %f   %f   %f   %f   %f   %f\n", end_position[0][0]*Rad2Degree,end_position[0][1]*Rad2Degree,end_position[0][2]*Rad2Degree,end_position[0][3]*Rad2Degree,end_position[1][0]*Rad2Degree, end_position[1][1]*Rad2Degree, end_position[1][2]*Rad2Degree,end_position[1][3]*Rad2Degree, end_position[2][0]*Rad2Degree, end_position[2][1]*Rad2Degree, end_position[2][2]*Rad2Degree,end_position[2][3]*Rad2Degree);
-
-
-						first_time_TURN_MOTION2 = 1;
-						t = 0;
-					}
-					else
-					{
-						if(t <= turn_time/2.0)
-						{
-							t = t + time_interval;
-							for(j=0; j<4; j++)
-							{
-								for(i=0; i<3; i++)
-								{
-
-
-									Joint_Angle_EP[i][j] = Five_Interpolation(start_position[i][j],0,0, end_position2[i][j],0,0,turn_time/2.0,t);
-									if(i==2 && j==3)
-									{
-										Joint_Angle_EP[i][j] = Five_Interpolation(start_position[i][j],0,0, end_position2[i][j],pi/turn_time,0,turn_time/2.0,t);
-									}
-
-
-									if(t > turn_time/2.0)
-									{
-										Joint_Angle_EP[i][j] = end_position2[i][j];
-									}
-
-									if(motion_enable_flag == 1)
-									{
-										rad_send(i,j,Joint_Angle_EP[i][j]);
-									}
-									sleeptime.tv_nsec = 5000;
-									sleeptime.tv_sec = 0;
-									nanosleep(&sleeptime,NULL);
-								}
-								sleeptime.tv_nsec = 250000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-							}
-						}
-						else if(t < turn_time)
-						{
-							t = t + time_interval;
-							for(j=0; j<4; j++)
-							{
-								for(i=0; i<3; i++)
-								{
-
-
-										Joint_Angle_EP[i][j] = Five_Interpolation(end_position2[i][j],0,0, end_position[i][j],0,0,turn_time/2.0,t-turn_time/2.0);
-									if(i==2 && j==3)
-									{
-										Joint_Angle_EP[i][j] = Five_Interpolation(end_position2[i][j],pi/turn_time,0, end_position[i][j],0,0,turn_time/2.0,t-turn_time/2.0);
-									}
-
-									if(t > turn_time)
-									{
-										Joint_Angle_EP[i][j] = end_position[i][j];
-									}
-
-									if(motion_enable_flag == 1)
-									{
-										rad_send(i,j,Joint_Angle_EP[i][j]);
-									}
-									sleeptime.tv_nsec = 5000;
-									sleeptime.tv_sec = 0;
-									nanosleep(&sleeptime,NULL);
-								}
-								sleeptime.tv_nsec = 250000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-							}
-						}
-						else
-						{
-							t = 0;
-							motion_mode = 100;
-							first_time_TURN_MOTION2 = 0;
-							motion_mode_control	= 0;
-						}
-					}
-
-					break;
-
-
 
 					case HOMEBACK:
 
@@ -2526,21 +2116,6 @@ void rt_can_recv(void *arg)
 							t = 0.0;
 							printf("MOTION_MODE = VISION_MOTION\n");
 
-					/*		Joint_Angle_FB[2][0] = 40.793/Rad2Degree;
-							Joint_Angle_FB[2][1] = 0.0;
-							Joint_Angle_FB[2][2] = 13.496/Rad2Degree;
-							Joint_Angle_FB[2][3] = 0.0;
-
-							Joint_Angle_FB[0][0] = 0;
-							Joint_Angle_FB[0][1] = 0.0;
-							Joint_Angle_FB[0][2] = 0;
-							Joint_Angle_FB[0][3] = 0.0;
-
-							Joint_Angle_FB[1][0] = -40.793/Rad2Degree;
-							Joint_Angle_FB[1][1] = 0.0;
-							Joint_Angle_FB[1][2] = -24.917/Rad2Degree;
-							Joint_Angle_FB[1][3] = 0.0;
-						*/
 							for(i=0; i<3; i++)
 							{
 								for(j=0; j<4; j++)
@@ -2564,35 +2139,6 @@ void rt_can_recv(void *arg)
 								angle_2leg[7] = start_position[0][3];
 
 								printf("ARM1 end\n");
-								printf("present agnle  %f   %f   %f   %f   %f   %f   %f   %f\n", angle_2leg[0]*Rad2Degree, angle_2leg[1]*Rad2Degree, angle_2leg[2]*Rad2Degree, angle_2leg[3]*Rad2Degree, angle_2leg[4]*Rad2Degree, angle_2leg[5]*Rad2Degree, angle_2leg[6]*Rad2Degree, angle_2leg[7]*Rad2Degree);
-							}
-							else if(End_Numb == ARM2)
-							{
-								angle_2leg[0] = start_position[2][0];
-								angle_2leg[1] = start_position[2][1];
-								angle_2leg[2] = start_position[2][2];
-								angle_2leg[3] = start_position[2][3];
-
-								angle_2leg[4] = start_position[1][0];
-								angle_2leg[5] = start_position[1][1];
-								angle_2leg[6] = start_position[1][2];
-								angle_2leg[7] = start_position[1][3];
-								printf("ARM2 end\n");
-								printf("present agnle  %f   %f   %f   %f   %f   %f   %f   %f\n", angle_2leg[0]*Rad2Degree, angle_2leg[1]*Rad2Degree, angle_2leg[2]*Rad2Degree, angle_2leg[3]*Rad2Degree, angle_2leg[4]*Rad2Degree, angle_2leg[5]*Rad2Degree, angle_2leg[6]*Rad2Degree, angle_2leg[7]*Rad2Degree);
-							}
-							else if(End_Numb == ARM3)
-							{
-								angle_2leg[0] = start_position[0][0];
-								angle_2leg[1] = start_position[0][1];
-								angle_2leg[2] = start_position[0][2];
-								angle_2leg[3] = start_position[0][3];
-
-								angle_2leg[4] = start_position[2][0];
-								angle_2leg[5] = start_position[2][1];
-								angle_2leg[6] = start_position[2][2];
-								angle_2leg[7] = start_position[2][3];
-
-								printf("ARM3 end\n");
 								printf("present agnle  %f   %f   %f   %f   %f   %f   %f   %f\n", angle_2leg[0]*Rad2Degree, angle_2leg[1]*Rad2Degree, angle_2leg[2]*Rad2Degree, angle_2leg[3]*Rad2Degree, angle_2leg[4]*Rad2Degree, angle_2leg[5]*Rad2Degree, angle_2leg[6]*Rad2Degree, angle_2leg[7]*Rad2Degree);
 							}
 
@@ -2647,9 +2193,6 @@ void rt_can_recv(void *arg)
 
 							InvCham(T_END2, angle_2leg, 0.0, angle_out2);
 
-					//		InvCham(T_END2, anglein, 0.0, angle_out);
-					//		InvCham(T_Now2, joint_angle_last, 0.0, angle_out2);
-
 							if(End_Numb == ARM1)
 							{
 
@@ -2670,70 +2213,6 @@ void rt_can_recv(void *arg)
 
 								printf("ARM1 end\n");
 								printf("expect agnle  %f   %f   %f   %f   %f   %f   %f   %f   %f   %f   %f   %f\n", end_position[0][0]*Rad2Degree,end_position[0][1]*Rad2Degree,end_position[0][2]*Rad2Degree, end_position[0][3]*Rad2Degree, end_position[1][0]*Rad2Degree, end_position[1][1]*Rad2Degree, end_position[1][2]*Rad2Degree, end_position[1][3]*Rad2Degree, end_position[2][0]*Rad2Degree, end_position[2][1]*Rad2Degree, end_position[2][2]*Rad2Degree, end_position[2][3]*Rad2Degree);
-							}
-							else if(End_Numb == ARM2)
-							{
-
-
-								end_position[2][0] = angle_out2[0];
-								end_position[2][1] = angle_out2[1];
-								end_position[2][2] = angle_out2[2];
-								end_position[2][3] = angle_out2[3];
-
-								end_position[1][0] = angle_out2[4];
-								end_position[1][1] = angle_out2[5];
-								end_position[1][2] = angle_out2[6];
-								end_position[1][3] = angle_out2[7];
-
-								end_position[0][0] = start_position[0][0];
-								end_position[0][1] = start_position[0][1];
-								end_position[0][2] = start_position[0][2];
-								end_position[0][3] = start_position[0][3];
-
-								printf("ARM2 end\n");
-								printf("expect agnle  %f   %f   %f   %f   %f   %f   %f   %f   %f   %f   %f   %f\n", end_position[0][0]*Rad2Degree,end_position[0][1]*Rad2Degree,end_position[0][2]*Rad2Degree,end_position[0][3]*Rad2Degree,end_position[1][0]*Rad2Degree, end_position[1][1]*Rad2Degree, end_position[1][2]*Rad2Degree,end_position[1][3]*Rad2Degree, end_position[2][0]*Rad2Degree, end_position[2][1]*Rad2Degree, end_position[2][2]*Rad2Degree,end_position[2][3]*Rad2Degree);
-
-								angle_2leg[0] = angle_out2[0];
-								angle_2leg[1] = angle_out2[1];
-								angle_2leg[2] = angle_out2[2];
-								angle_2leg[3] = angle_out2[3];
-
-								angle_2leg[4] = angle_out2[4];
-								angle_2leg[5] = angle_out2[5];
-								angle_2leg[6] = angle_out2[6];
-								angle_2leg[7] = angle_out2[7];
-
-								KinTwoLegR(angle_2leg,  T_Now);
-								matrix_multiply(T_Now, T_hand_end_inv, T_Now1);
-
-								printf("\nT_expcet = ");
-								for(i=0; i<4; i++)
-								{
-									for(j=0; j<4;j++)
-										printf("%f   ",T_Now1[i][j]);
-									printf("\n");
-								}
-
-							}
-							else if(End_Numb == ARM3)
-							{
-								end_position[0][0] = angle_out2[0];
-								end_position[0][1] = angle_out2[1];
-								end_position[0][2] = angle_out2[2];
-								end_position[0][3] = angle_out2[3];
-
-								end_position[2][0] = angle_out2[4];
-								end_position[2][1] = angle_out2[5];
-								end_position[2][2] = angle_out2[6];
-								end_position[2][3] = angle_out2[7];
-
-								end_position[1][0] = start_position[1][0];
-								end_position[1][1] = start_position[1][1];
-								end_position[1][2] = start_position[1][2];
-								end_position[1][3] = start_position[1][3];
-
-								printf("ARM3 end\n");
-								printf("expect agnle  %f   %f   %f   %f   %f   %f   %f   %f   %f   %f   %f   %f\n", end_position[0][0]*Rad2Degree,end_position[0][1]*Rad2Degree,end_position[0][2]*Rad2Degree,end_position[0][3]*Rad2Degree,end_position[1][0]*Rad2Degree, end_position[1][1]*Rad2Degree, end_position[1][2]*Rad2Degree, end_position[1][3]*Rad2Degree, end_position[2][0]*Rad2Degree, end_position[2][1]*Rad2Degree, end_position[2][2]*Rad2Degree, end_position[2][3]*Rad2Degree);
 							}
 						}
 						else
@@ -2784,13 +2263,8 @@ void rt_can_recv(void *arg)
 
 			}
 
-			if(servo_on_off_flag == 0)
-			{
-				SYNC_Receive();
-		//		printf("servo_on_off_flag = %d\n", servo_on_off_flag);
-		//		printf("sync 0x80\n");
-
-			}
+			// 数据同步接收
+			SYNC_Receive();
 		}
 
 		/********************** UDP通讯相关 Start ***************************/
@@ -2800,7 +2274,7 @@ void rt_can_recv(void *arg)
 			UDPTimes = 0;
 			struct RobotDataUDP_Struct UploadData;
 			memset(&UploadData,0,sizeof(UploadData));
-			void CanDef2RealRobot(double CanDef[4][7], struct RealRobot_Struct* RealRobot)
+
 			UploadData.TrustFlag = 0x5555;
 			if(motion_enable_flag)
 			{
@@ -2832,6 +2306,14 @@ void rt_can_recv(void *arg)
 					{
 						control_mode = GetControlCMD();
 					}
+					break;
+
+					case REMOTE_MOTION:
+					{
+						GetRemoteData(RemoteMotionData);
+					}
+					break;
+
 					default:
 					break;
 				}
@@ -2841,7 +2323,7 @@ void rt_can_recv(void *arg)
 			{
 				printf("Motion has not completed!\n");
 			}
-			
+
 		}
 
 		/********************** UDP通讯相关 End ***************************/
@@ -2861,21 +2343,21 @@ void rt_can_recv(void *arg)
 		CanDef2RealRobot(Joint_Angle_ER_degree, &AngleERDeg);
 		CanDef2RealRobot(motor_current, &RealCurrent);
 
-		sprintf(buf2, "Voltage:  %8.3f    Current:  %8.3f",VoltageAll,CurrentAll);
+		sprintf(buf2, "Voltage:  %8.3f    Current:  %8.3f",VoltageFB,CurrentFB);
 		sprintf(buf3, "******************************  Robot Joint Angle  ******************************");
 
-		sprintf(buf4, "LArmRecv %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f  %8.3f",
+		sprintf(buf4, "LArmRecv  %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f  %8.3f",
 		AngleFBDeg.LeftArm[0], AngleFBDeg.LeftArm[1], AngleFBDeg.LeftArm[2], AngleFBDeg.LeftArm[3], AngleFBDeg.LeftArm[4], AngleFBDeg.LeftArm[5], AngleFBDeg.LeftArm[6]);
-		sprintf(buf5, "LArmSend %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f  %8.3f",
+		sprintf(buf5, "LArmSend  %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f  %8.3f",
 		AngleEPDeg.LeftArm[0], AngleEPDeg.LeftArm[1], AngleEPDeg.LeftArm[2], AngleEPDeg.LeftArm[3], AngleEPDeg.LeftArm[4], AngleEPDeg.LeftArm[5], AngleEPDeg.LeftArm[6]);
-		sprintf(buf6, "LArmErr  %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f  %8.3f",
+		sprintf(buf6, "LArmErr   %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f  %8.3f",
 		AngleERDeg.LeftArm[0], AngleERDeg.LeftArm[1], AngleERDeg.LeftArm[2], AngleERDeg.LeftArm[3], AngleERDeg.LeftArm[4], AngleERDeg.LeftArm[5], AngleERDeg.LeftArm[6]);
 
-		sprintf(buf7, "RArmRecv %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f  %8.3f",
+		sprintf(buf7, "RArmRecv  %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f  %8.3f",
 		AngleFBDeg.RightArm[0], AngleFBDeg.RightArm[1], AngleFBDeg.RightArm[2], AngleFBDeg.RightArm[3], AngleFBDeg.RightArm[4], AngleFBDeg.RightArm[5], AngleFBDeg.RightArm[6]);
-		sprintf(buf8, "RArmSend %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f  %8.3f",
+		sprintf(buf8, "RArmSend  %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f  %8.3f",
 		AngleEPDeg.RightArm[0], AngleEPDeg.RightArm[1], AngleEPDeg.RightArm[2], AngleEPDeg.RightArm[3], AngleEPDeg.RightArm[4], AngleEPDeg.RightArm[5], AngleEPDeg.RightArm[6]);
-		sprintf(buf9, "RArmErr  %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f  %8.3f",
+		sprintf(buf9, "RArmErr   %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f  %8.3f",
 		AngleERDeg.RightArm[0], AngleERDeg.RightArm[1], AngleERDeg.RightArm[2], AngleERDeg.RightArm[3], AngleERDeg.RightArm[4], AngleERDeg.RightArm[5], AngleERDeg.RightArm[6]);
 
 		sprintf(buf10, "LHandRecv %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f",
@@ -2893,14 +2375,15 @@ void rt_can_recv(void *arg)
 		AngleERDeg.RightHand[0], AngleERDeg.RightHand[1], AngleERDeg.RightHand[2], AngleERDeg.RightHand[3], AngleERDeg.Waist[0], AngleERDeg.Waist[1]);
 
 		sprintf(buf16, "*********************************  Robot current *********************************");
-		sprintf(buf17, "LArmCur %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f  %8.3f",
+		sprintf(buf17, "LArmCur  %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f  %8.3f",
 		RealCurrent.LeftArm[0], RealCurrent.LeftArm[1], RealCurrent.LeftArm[2], RealCurrent.LeftArm[3], RealCurrent.LeftArm[4], RealCurrent.LeftArm[5], RealCurrent.LeftArm[6]);
-		sprintf(buf18, "RArmCur %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f  %8.3f",
+		sprintf(buf18, "RArmCur  %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f  %8.3f",
 		RealCurrent.RightArm[0], RealCurrent.RightArm[1], RealCurrent.RightArm[2], RealCurrent.RightArm[3], RealCurrent.RightArm[4], RealCurrent.RightArm[5], RealCurrent.RightArm[6]);
 		sprintf(buf19, "LHandCur %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f",
 		RealCurrent.LeftHand[0], RealCurrent.LeftHand[1], RealCurrent.LeftHand[2], RealCurrent.LeftHand[3], RealCurrent.Head[0], RealCurrent.Head[1]);
 		sprintf(buf20, "RHandCur %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f",
 		RealCurrent.RightHand[0], RealCurrent.RightHand[1], RealCurrent.RightHand[2], RealCurrent.RightHand[3], RealCurrent.Waist[0], RealCurrent.Waist[1]);
+
 	}
 }
 
@@ -2970,7 +2453,6 @@ int can_rt_init(char channal[4][16], long baudrate_set)
 
 	/////////////////// receive config/////////////////////////
 	/* Get CAN interface name */
-	//    strncpy(ifname, argv[optind], IFNAMSIZ);task
 
 	for(i=0; i<4; i++)
 	{
@@ -3078,6 +2560,7 @@ int main(int argc, char* argv[])
 	mlockall(MCL_CURRENT|MCL_FUTURE);
 	char channal[4][16] = {"rtcan0","rtcan1","rtcan2","rtcan3"};
 	int i =0;
+	int s1;
 
 	RobotUDPComm_init();
 	can_rt_init(channal, 1000000);

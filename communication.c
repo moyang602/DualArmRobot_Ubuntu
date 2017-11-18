@@ -1,5 +1,6 @@
 #include "communication.h"
 #include "global_def.h"
+#include <errno.h>
 
 struct SingleJointCMD_Struct SingleJointData;
 struct SingleArmCMD_Struct SignleArmData;
@@ -9,6 +10,92 @@ struct ControlCMD_Struct ControlCMD;
 
 int UDP_Sock;
 struct sockaddr_in DestPCAddr;
+
+int ForceClientSock = -1;
+struct sockaddr_in ForceServerAddr;
+
+int ForceSensorTCP_init(void)
+{
+	ForceClientSock = socket(AF_INET, SOCK_STREAM, 0);
+	if (ForceClientSock<0)
+	{
+		perror("ForceClient created failed!\n");
+		return -1;
+	}
+	printf("ForceClient create successfully\n");
+
+	memset(&ForceServerAddr,0,sizeof(ForceServerAddr));
+	ForceServerAddr.sin_family=AF_INET;
+    ForceServerAddr.sin_port=htons(ForceServer_Port);
+    ForceServerAddr.sin_addr.s_addr=inet_addr(ForceServer_IP);
+
+    if (connect(ForceClientSock,&ForceServerAddr,sizeof(struct sockaddr_in))<0)
+    {
+    	perror("Connect failed!\n");
+    	return -1;
+    }
+    printf("ForceServer connect successfully\n");
+    return 0;
+}
+
+int TCPSend(void *buffer, int length)
+{
+	int bytes_left;
+	int sended_bytes;
+	char *ptr;
+
+	ptr = buffer;
+	bytes_left = length;
+	while(bytes_left>0)
+	{
+		sended_bytes = send(ForceClientSock,ptr,bytes_left,MSG_DONTWAIT);
+		if (sended_bytes <=0)
+		{
+			if(errno == EINTR)
+				sended_bytes = 0;
+			else
+				return -1;
+		}
+		bytes_left -=sended_bytes;
+		ptr += sended_bytes;
+	}
+	return 0;
+
+/*	struct my_struct my_struct_client;
+	write(fd,(void *)&my_struct_client,sizeof(struct my_struct);
+
+
+	char buffer[sizeof(struct my_struct)];
+	struct *my_struct_server;
+	read(fd,(void *)buffer,sizeof(struct my_struct));
+	my_struct_server=(struct my_struct *)buffer;    */
+}
+
+int TCPRecv(void *buffer, int length)
+{
+	int bytes_left;
+	int Received_bytes;
+	char *ptr;
+
+	bytes_left = length;
+	while(bytes_left>0)
+	{
+		Received_bytes = recv(ForceClientSock,ptr,bytes_left,MSG_DONTWAIT);
+		if (Received_bytes<0)
+		{
+			if (errno == EINTR)
+				Received_bytes = 0;
+			else
+				return -1;
+		}
+		else if(Received_bytes == 0)
+			break;
+		bytes_left -= Received_bytes;
+		ptr += Received_bytes;
+
+	}
+	return (length - bytes_left);
+}
 
 int RobotUDPComm_init(void)
 {
@@ -114,6 +201,25 @@ int UDPRecv()
 
 			break;
 
+			case REMOTE_MOTION:
+			{
+				unsigned char sum = 0;
+				for (i = 0; i < (sizeof(RemoteData) -1); ++i)
+				{
+					sum += recvbuff[i];
+				}
+				if (sum != recvbuff[sizeof(RemoteData) -1])	//校验和不正确直接退出
+				{
+					printf("recv %d bytes wrong data!\n",n);
+					return 0;
+				}
+
+				memcpy(&RemoteData,recvbuff,sizeof(RemoteData));
+
+				return REMOTE_MOTION;
+			}
+			break;
+
 			default:
 			break;
 		}
@@ -197,14 +303,7 @@ int UDPRecv(int motion_mode_control,long* can_channel_main,long* can_id_main,flo
 
 		switch(DownloadData.Mode)
 		{
-			case 01:
-				motion_mode = SINGLE_JOINT_MOTION;
-				*can_channel_main = DownloadData.CANCH;
-				*can_id_main = DownloadData.CANID;
-				*JointMoveData = DownloadData.Data * 1.0;
 
-				printf("motion_mode = SINGLE_JOINT_MOTION  CH %ld  CANID %ld,  MOVE %f DEGREE\n", *can_channel_main+1,*can_id_main+1, DownloadData.Data);
-			break;
 /*
 			case 02:
 				motion_mode = ONE_ARM_MOTION;

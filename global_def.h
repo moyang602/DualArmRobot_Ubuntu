@@ -53,6 +53,7 @@
 #define HAND_CURRENT 70
 #define HAND1_AUTOMATIC_CLOSE 71
 
+// 机器人运动模式
 #define SINGLE_JOINT_MOTION 101
 #define ONE_ARM_MOTION    102
 #define TWO_ARMS_MOTION 103
@@ -60,6 +61,7 @@
 #define MANIPULATE_MOTION 105
 #define FIND_HOME_MOTION  106
 #define ROBOT_CONTROL 107
+#define REMOTE_MOTION		109
 
 #define ARM1 0
 #define ARM2 1
@@ -68,18 +70,20 @@
 #define FIND_HOME_NEW      110
 #define RETURN_ORIGIN_POSITION	 111
 #define PREPARE_FIND_HOME 112
-#define TURN_MOTION   113
-#define TURN_MOTION2   114
  
+//工控机控制指令
 #define CMD_POWER_ON 		0xA1
 #define CMD_POWER_OFF 		0xA2
 #define CMD_ELMO_INIT 		0xA3
-#define CMD_SERV0_ON 		0xA4
-#define CMD_SERV0_OFF 		0xA5
+#define CMD_SERVO_ON 		0xA4
+#define CMD_SERVO_OFF 		0xA5
 #define CMD_CTR_ENABLE 		0xA6
 #define CMD_CTR_DISENABLE 	0xA7
 #define CMD_HOMEZERO 		0xA8
 #define CMD_RESET			0xA9
+
+//力传感器控制指令
+#define FORCE_INIT   		0xB1
  
 #define GLOABL_DEF
 #endif

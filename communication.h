@@ -12,7 +12,9 @@
 #define DESTPC_IP "192.168.1.2"
 #define UDPCYCLE 30			// UDPCYCLE*程序运行周期 = UDP通讯周期
 
-
+// 与力传感器TCP通讯变量声明
+#define ForceServer_Port 4008
+#define ForceServer_IP "192.168.0.108"
 /***********************************************************
                       定义实际机器人数据结构
 ************************************************************/
@@ -127,5 +129,12 @@ int GetSingleArmData(int* ArmSelect,float ArmMoveData[7], double* ArmMoveTime);
 int GetEndData(int* ArmSelect,float EndData[12], double* EndMoveTime);
 int GetRemoteData(float RemoteMotionData[14]);
 int GetControlCMD(void);
+
+// 力传感器信号读取
+int ForceSensorTCP_init(void);
+int TCPSend(void *buffer, int length);
+int TCPRecv(void *buffer, int length);
+int ConfigSystem(int step);
+
 
 #endif
