@@ -8,3 +8,4 @@ makefile~
 .gitignore~
 control_backup.c
 global_def.h.gch
+data.txt

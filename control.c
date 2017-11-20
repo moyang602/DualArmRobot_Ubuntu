@@ -171,15 +171,15 @@ int can_channel_number = 4;
 //						{1, 1, 1, 1, 1, 1, 1},
 //						{1, 1, 1, 1, 1, 1, 1},
 //						{1, 1, 1, 1, 1, 1, 1}};
-int can_switch[4][7] = {{0, 0, 0, 0, 1, 1, 1},
+int can_switch[4][7] = {{0, 0, 0, 0, 0, 0, 0},
+						{1, 1, 1, 1, 0, 0, 0},
 						{0, 0, 0, 0, 0, 0, 0},
-						{0, 1, 0, 0, 0, 0, 0},
 						{0, 0, 0, 0, 0, 0, 1}};
 
 // 各节点速度方向
-double joint_direction[4][7] = {{1, -1, 1, 1, 1, -1, 1},		// 456 OK
-								{1, 1, 1, 1, 1, -1, 1},		// 456 OK
-								{1, -1, 1, -1, -1, -1},		// 123456 OK
+double joint_direction[4][7] = {{1, 1, 1, 1, 1, -1, 1},		// 456 OK
+								{1, 1, 1, 1, 1, -1, 1},			// 456 OK
+								{1, -1, 1, -1, -1, -1},			// 123456 OK
 								{-1, 1, -1, 1, -1, -1}};		// 123456 OK
 
 // 各节点初始零位值
@@ -189,22 +189,22 @@ double home_offset[4][7] = {{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
 							{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0}};
 
 // 各节点最大位置限位
-double AngleMax_deg[4][7] = {{1, -1, 1, 1, 90, 60, 90},
-							 {1, 1, 1, 1, 90, 60, 90},
-							 {0, 15, 90, 80, 80, 80},
-							 {0, 90, 0, 90, 30, 30}};
+double AngleMax_deg[4][7] = {{90, 90, 90, 90, 90, 60, 90},
+							 {85, 60, 60, 60, 90, 60, 90},
+							 {60, 15, 90, 80, 80, 80},
+							 {15, 90, 15, 90, 30, 30}};
 
 // 各节点最小位置限位
-double AngleMin_deg[4][7] = {{1, -1, 1, 1, -90, -60, -90},
-							 {1, 1, 1, 1, -90, -60, -90},
-							 {-90, -60, 0, -15, -80, -80},
+double AngleMin_deg[4][7] = {{-90, -90, -90, -90, -90, -60, -90},
+							 {0.0, 0.0, 0.0, 0.0, -90, -60, -90},
+							 {-90, -80, -60, -15, -80, -80},
 							 {-90, -90, -90, -90, -30, -30}};
 
 // 各节点最大运动速度限制	deg/s
-double VelocityLimit_deg[4][7] = {{1, 1, 1, 1, 50, 50, 50},
-							  	  {1, 1, 1, 1, 50, 50, 50},
-							  	  {30, 40, 30, 40, 40, 40},
-							  	  {30, 30, 30, 30, 20, 20}};
+double VelocityLimit_deg[4][7] = {{60, 60, 60, 60, 60, 60, 60},
+							  	  {60, 60, 60, 60, 60, 60, 60},
+							  	  {40, 60, 40, 60, 40, 40},
+							  	  {40, 30, 40, 30, 20, 20}};
 // 各节点运动错误指示
 // 1——正向位置超限
 // -1——反向位置超限
@@ -233,10 +233,10 @@ int can_work_states[27] = {0};
 // 各节点电流值
 double motor_current[4][7] = {0.0};
 // 各节点电流参考值
-double motor_current_refrence[4][7] = {	{5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0},
-										{5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0},
-										{5.0, 5.0, 5.0, 5.0, 5.0, 5.0},
-										{5.0, 5.0, 5.0, 5.0, 5.0, 5.0}};
+double motor_current_refrence[4][7] = {{5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0},
+									   {5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0},
+									   {5.0, 5.0, 5.0, 5.0, 5.0, 5.0},
+									   {5.0, 5.0, 5.0, 5.0, 5.0, 5.0}};
 // 各节点速度限制设定值
 long motor_sp[4][7] = {{40, 	5500,	5500,	5500, 	50000,	50000,	50000},
 					   {40, 	5500,	5500,	5500, 	50000,	50000,	50000},
@@ -1856,9 +1856,9 @@ void rt_can_recv(void *arg)
 						{
 							memset(&cubic[i_R],0,sizeof(cubic[i_R]));
 							cubic[i_R].needNextPoint = 1;
-							cubic[i_R].segmentTime = 0.06;
-							cubic[i_R].interpolationRate = 0.06/time_interval + 1;
-							cubic[i_R].interpolationIncrement = 0.06/(double)(cubic[i_R].interpolationRate - 1);
+							cubic[i_R].segmentTime = 0.24;
+							cubic[i_R].interpolationRate = 0.24/time_interval + 1;
+							cubic[i_R].interpolationIncrement = 0.24/(double)(cubic[i_R].interpolationRate - 1);
 						}
 
 					}
@@ -1925,7 +1925,7 @@ void rt_can_recv(void *arg)
 						Joint_Angle_EP[1][5] = JointDetect(1, 5, RemoteRobotPos_deg.RightArm[5]*Degree2Rad);
 						Joint_Angle_EP[1][6] = JointDetect(1, 6, RemoteRobotPos_deg.RightArm[6]*Degree2Rad);
 
-						fprintf(fp, "%f,  %f\n", RemoteMotionData[3],RemoteRobotPos_deg.LeftArm[3]);
+				//		fprintf(fp, "%f,  %f\n", Joint_Angle_EP[2][1],RemoteRobotPos_deg.LeftArm[3]);
 						if(motion_enable_flag == 1)
 						{
 							rad_send(0, 4, Joint_Angle_EP[0][4]);
