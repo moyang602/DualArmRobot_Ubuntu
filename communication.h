@@ -9,8 +9,8 @@
 #define CTRLHOST_PORT 8000
 #define CTRLHOST_IP "192.168.1.3"
 #define DESTPC_PORT 8001
-#define DESTPC_IP "192.168.1.2"
-#define UDPCYCLE 30			// UDPCYCLE*程序运行周期 = UDP通讯周期
+#define DESTPC_IP "192.168.1.4"
+#define UDPCYCLE 1			// UDPCYCLE*程序运行周期 = UDP通讯周期
 
 // 与力传感器TCP通讯变量声明
 #define ForceServer_Port 4008
@@ -98,13 +98,26 @@ struct EndCMD_Struct
 ************************************************************/
 #pragma pack(push)
 #pragma pack(1)
-struct RemoteCMD_Struct
+struct RemoteDATA_Struct
 {
 	unsigned char Mode;
 	float Data[14];
 	unsigned char CheckSum;
 };
 #pragma pack(pop)
+/***********************************************************
+                      定义遥操作控制指令
+************************************************************/
+#pragma pack(push)
+#pragma pack(1)
+struct RemoteCMD_Struct
+{
+	unsigned char Mode;
+	unsigned char Command;
+	unsigned char CheckSum;
+};
+#pragma pack(pop)
+
 
 /***********************************************************
                       定义控制指令
@@ -120,6 +133,7 @@ struct ControlCMD_Struct
 #pragma pack(pop)
 
 
+
 //函数声明
 int RobotUDPComm_init(void);
 int RobotFBSend(struct RobotDataUDP_Struct RobotFBData);
@@ -128,6 +142,7 @@ int GetSingleJointData(long* can_channel_main,long* can_id_main,float* JointMove
 int GetSingleArmData(int* ArmSelect,float ArmMoveData[7], double* ArmMoveTime);
 int GetEndData(int* ArmSelect,float EndData[12], double* EndMoveTime);
 int GetRemoteData(float RemoteMotionData[14]);
+int GetRemoteCMD(void);
 int GetControlCMD(void);
 
 // 力传感器信号读取

@@ -62,6 +62,8 @@
 #define FIND_HOME_MOTION  106
 #define ROBOT_CONTROL 107
 #define REMOTE_MOTION		109
+#define REMOTE_CONTROL		110
+#define REMOTE_DATA			111
 
 #define ARM1 0
 #define ARM2 1
@@ -84,6 +86,12 @@
 
 //力传感器控制指令
 #define FORCE_INIT   		0xB1
- 
+
+// 遥操作控制指令
+#define REMOTE_START		0xC1
+#define REMOTE_STOP			0xC2
+#define REMOTE_ENABLE		0xC3
+#define REMOTE_DISABLE		0xC4
+
 #define GLOABL_DEF
 #endif

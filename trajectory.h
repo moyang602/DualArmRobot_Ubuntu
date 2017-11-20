@@ -27,4 +27,30 @@ double parabolic_interpolation(double x0, double xf, double vb, double acc, doub
 double parabolic_interpolation_time(double x0, double xf, double vb, double acc);
 void select_inv(double angle_last[8], double angle_in[4][8], double angle_out[8]);
 
+//
+struct Cubic_Struct
+{
+	int filled;
+	int needNextPoint;
+	float segmentTime;
+	int interpolationRate;
+	float interpolationTime;
+	float interpolationIncrement;
+	float x0;
+	float x1;
+	float x2;
+	float x3;
+	float wp0;
+	float wp1;
+	float vel0;
+	float vel1;
+	float coeffa;
+	float coeffb;
+	float coeffc;
+	float coeffd;
+};
+int cubicAddPoint(int index, float point);
+float cubicInterpolate(int index);
+
+extern struct Cubic_Struct cubic[14];
 #endif

@@ -5,7 +5,8 @@
 struct SingleJointCMD_Struct SingleJointData;
 struct SingleArmCMD_Struct SignleArmData;
 struct EndCMD_Struct EndData;
-struct RemoteCMD_Struct RemoteData;
+struct RemoteDATA_Struct RemoteData;
+struct RemoteCMD_Struct RemoteCMD;
 struct ControlCMD_Struct ControlCMD;
 
 int UDP_Sock;
@@ -201,7 +202,27 @@ int UDPRecv()
 
 			break;
 
-			case REMOTE_MOTION:
+			case REMOTE_CONTROL:
+			{
+				unsigned char sum = 0;
+				for (i = 0; i < (sizeof(RemoteCMD) -1); ++i)
+				{
+					sum += recvbuff[i];
+				}
+				if (sum != recvbuff[sizeof(RemoteCMD) -1])	//校验和不正确直接退出
+				{
+					printf("recv %d bytes wrong data!\n",n);
+					return 0;
+				}
+
+				memcpy(&RemoteCMD,recvbuff,sizeof(RemoteCMD));
+
+				return REMOTE_CONTROL;
+			}
+
+			break;
+
+			case REMOTE_DATA:
 			{
 				unsigned char sum = 0;
 				for (i = 0; i < (sizeof(RemoteData) -1); ++i)
@@ -216,7 +237,7 @@ int UDPRecv()
 
 				memcpy(&RemoteData,recvbuff,sizeof(RemoteData));
 
-				return REMOTE_MOTION;
+				return REMOTE_DATA;
 			}
 			break;
 
@@ -281,12 +302,16 @@ int GetRemoteData(float RemoteMotionData[14])
 	{
 		RemoteMotionData[i] = RemoteData.Data[i];
 	}
-	printf("motion_mode = REMOTE_MOTION\n");
+//	printf("Recv RemoteData\n");
 }
-
+int GetRemoteCMD(void)
+{
+	printf("RemoteControlMode = %02x\n",RemoteCMD.Command);
+	return RemoteCMD.Command;
+}
 int GetControlCMD(void)
 {
-	printf("ControlMode = %d\n",ControlCMD.Command);
+	printf("ControlMode = %02x\n",ControlCMD.Command);
 	return ControlCMD.Command;
 }
 /*

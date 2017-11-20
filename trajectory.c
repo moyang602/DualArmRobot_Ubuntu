@@ -40,13 +40,13 @@ void cross(double in1[3], double in2[3], double out[3])
 // 新矩阵相乘
 void matrix_multiply(double in1[4][4], double in2[4][4], double out[4][4])
 {
-	int i, j; 
+	int i, j;
 
 	for (i = 0; i < 4; i++)
 	{
 		for (j = 0; j < 4; j++)
 		{
-			out[i][j] = in1[i][0]*in2[0][j] + in1[i][1]*in2[1][j] + in1[i][2]*in2[2][j] + in1[i][3]*in2[3][j]; 
+			out[i][j] = in1[i][0]*in2[0][j] + in1[i][1]*in2[1][j] + in1[i][2]*in2[2][j] + in1[i][3]*in2[3][j];
 	//		printf("out[%d][%d]=%f in1=%f in2= %f\n", i,j,out[i][j], in1[i][j], in2[i][j]);
 		}
 	}
@@ -195,12 +195,12 @@ double betaCal(double x[8])
 	beta_p4p[0] = beta_T08[0][3];
 	beta_p4p[1] = beta_T08[1][3];
 	beta_p4p[2] = beta_T08[2][3];
-	
+
 	UnitVector(beta_p4p,beta_p4p_unit);
 
 	cross(beta_x_unit,beta_p4p_unit,beta_k);
 	UnitVector(beta_k,beta_k_unit);
-	
+
 	cross(beta_k_unit,beta_x_unit,beta_x_vertical);
 	UnitVector(beta_x_vertical,beta_x_vertical_unit);
 
@@ -231,7 +231,7 @@ double betaCal(double x[8])
 	for(i=0;i<3;i++)
 		beta_y1 = beta_y1 + beta_z1[i]*beta_z1_origin_vertical_unit[i];
 
-	
+
 	beta = atan2(beta_y1,beta_x1);
 
 	return beta;
@@ -287,12 +287,12 @@ double betaCal_Left(double x[8])
 	beta_p4p[0] = beta_T08[0][3];
 	beta_p4p[1] = beta_T08[1][3];
 	beta_p4p[2] = beta_T08[2][3];
-	
+
 	UnitVector(beta_p4p,beta_p4p_unit);
 
 	cross(beta_p4p_unit,beta_x_unit,beta_k);
 	UnitVector(beta_k,beta_k_unit);
-	
+
 	cross(beta_x_unit,beta_k_unit,beta_x_vertical);
 	UnitVector(beta_x_vertical,beta_x_vertical_unit);
 
@@ -323,7 +323,7 @@ double betaCal_Left(double x[8])
 	for(i=0;i<3;i++)
 		beta_y1 = beta_y1 + beta_z1[i]*beta_z1_origin_vertical_unit[i];
 
-	
+
 	beta = atan2(beta_y1,beta_x1);
 
 	return beta;
@@ -390,7 +390,7 @@ int InvCham(double T08[4][4],double anglein[8],double beta,double angle_out2[8])
 
 //	for (i=0;i<4;i++)
 //		angle_out[i][0] = anglein[0];
-	
+
 	an1 = asin((L-L2)/(2.0*L1)) + pi/2.0;
 	an2 = an1;
 
@@ -542,7 +542,7 @@ int InvCham(double T08[4][4],double anglein[8],double beta,double angle_out2[8])
 	Inv_angle3[3] = angle_out[2][3];
 
 	KinOneLeg(Inv_angle3,T14);
-	
+
 	for (i=0;i<4;i++)
 	{
 		for (j=0;j<4;j++)
@@ -607,7 +607,7 @@ int InvCham(double T08[4][4],double anglein[8],double beta,double angle_out2[8])
 		}
 		printf("\n");
 	}
-	
+
 
 	select_inv(anglein, angle_out, angle_out2);
 
@@ -676,7 +676,7 @@ int InvCham_Left(double T08[4][4],double anglein[8],double beta,double angle_out
 
 //	for (i=0;i<4;i++)
 //		angle_out[i][0] = anglein[0];
-	
+
 	an1 = asin((L-L2)/(2.0*L1)) + pi/2.0;
 	an2 = an1;
 
@@ -828,7 +828,7 @@ int InvCham_Left(double T08[4][4],double anglein[8],double beta,double angle_out
 	Inv_angle3[3] = angle_out[2][3];
 
 	KinOneLeg(Inv_angle3,T14);
-	
+
 	for (i=0;i<4;i++)
 	{
 		for (j=0;j<4;j++)
@@ -941,22 +941,22 @@ double Five_Interpolation(double x0,double v0,double a0,double x1,double v1,doub
 double parabolic_interpolation(double x0, double xf, double vb, double acc, double t)
 {
 	double out, t_total, tb, pb, pb2,  tb2, t1, delta_x, vb2;
-	
+
 	if(xf < x0)
 	{
 		acc = -acc;
 		vb = -vb;
 	}
-	
+
 	delta_x = fabs(vb*vb / acc);
-	
+
 	if(fabs(xf - x0) >= delta_x)
 	{
 		t1 = (xf - x0 - vb*vb/acc)/vb;
 		tb = vb/acc;
 		pb = 0.5*acc*tb*tb;
 		pb2 = pb + vb*t1;
-		t_total = 2.0*tb + t1; 
+		t_total = 2.0*tb + t1;
 		tb2 = t_total - tb;
 		vb2= vb;
 	}
@@ -970,16 +970,16 @@ double parabolic_interpolation(double x0, double xf, double vb, double acc, doub
 		tb2 = t_total - tb;
 		vb2 = acc*tb;
 	}
-	
+
 //	printf("tb=%f,  t1=%f,  pb=%f, pb2=%f, t_total= %f, tb2=%f\n", tb,  t1,  pb, pb2, t_total, tb2);
-	
-	
-	
-	
-	
+
+
+
+
+
 //	vb = acc*tb;
-	
-	
+
+
 	if(t < tb)
 	{
 		out = 0.5*acc*t*t + x0;
@@ -998,15 +998,15 @@ double parabolic_interpolation(double x0, double xf, double vb, double acc, doub
 double parabolic_interpolation_time(double x0, double xf, double vb, double acc)
 {
 	double out, t_total, tb, pb, pb2,  tb2, t1, delta_x;
-	
+
 	if(xf < x0)
 	{
 		acc = -acc;
 		vb = -vb;
 	}
-	
+
 	delta_x = fabs(vb*vb / acc);
-	
+
 	if(fabs(xf - x0) >= delta_x)
 	{
 		t1 = (xf - x0 - vb*vb/acc)/vb;
@@ -1017,9 +1017,72 @@ double parabolic_interpolation_time(double x0, double xf, double vb, double acc)
 		t1 = 0.0;
 		tb = sqrt((xf -x0)/acc);
 	}
-	
-	
-	t_total = 2.0*tb + t1; 
-	
+
+
+	t_total = 2.0*tb + t1;
+
 	return t_total;
+}
+
+
+struct Cubic_Struct cubic[14];
+int cubicAddPoint(int index, float point)
+{
+	if (cubic[index].needNextPoint == 0)
+	{
+		return -1;
+	}
+
+
+	if (cubic[index].filled == 0)
+	{
+		cubic[index].x0 = point;
+		cubic[index].x1 = point;
+		cubic[index].x2 = point;
+		cubic[index].x3 = point;
+		cubic[index].filled = 1;
+	}
+	else
+	{
+		cubic[index].x0 = cubic[index].x1;
+		cubic[index].x1 = cubic[index].x2;
+		cubic[index].x2 = cubic[index].x3;
+		cubic[index].x3 = point;
+	}
+
+	cubic[index].wp0 = (cubic[index].x0 + 4*cubic[index].x1 + cubic[index].x2)/6.0;
+	cubic[index].wp1 = (cubic[index].x1 + 4*cubic[index].x2 + cubic[index].x3)/6.0;
+	cubic[index].vel0 = (cubic[index].x2 - cubic[index].x0)/(2.0*cubic[index].segmentTime);
+	cubic[index].vel1 = (cubic[index].x3 - cubic[index].x1)/(2.0*cubic[index].segmentTime);
+	cubic[index].coeffd = cubic[index].wp0;
+	cubic[index].coeffc = cubic[index].vel0;
+	cubic[index].coeffb = 3*(cubic[index].wp1 - cubic[index].wp0)/cubic[index].segmentTime/cubic[index].segmentTime - (2*cubic[index].vel0 + cubic[index].vel1)/cubic[index].segmentTime;
+	cubic[index].coeffa = (cubic[index].vel1 - cubic[index].vel0)/(3*cubic[index].segmentTime*cubic[index].segmentTime) - (2*cubic[index].coeffb)/(3*cubic[index].segmentTime);
+
+	cubic[index].interpolationTime = 0;
+	cubic[index].needNextPoint = 0;
+
+	return 1;
+}
+
+float cubicInterpolate(int index)
+{
+	if (cubic[index].needNextPoint == 1)
+	{
+		cubicAddPoint(index, cubic[index].x3);
+	}
+
+	cubic[index].interpolationTime = cubic[index].interpolationTime + cubic[index].interpolationIncrement;
+
+	if (fabs(cubic[index].segmentTime - cubic[index].interpolationTime)<0.5*cubic[index].interpolationIncrement)
+	{
+		cubic[index].needNextPoint = 1;
+	}
+
+	float out = 0.0;
+	out = cubic[index].coeffa*cubic[index].interpolationTime*cubic[index].interpolationTime*cubic[index].interpolationTime + cubic[index].coeffb*cubic[index].interpolationTime*cubic[index].interpolationTime + cubic[index].coeffc*cubic[index].interpolationTime + cubic[index].coeffd;
+//	if(index == 0)
+//	printf("cubictime = %f  out = %f\n", cubic[index].interpolationTime, out);
+//	printf("cubictime = %f  x1 = %f  x2 = %f  x3 = %f  x4 = %f\n", cubic[index].interpolationTime, cubic[index].x0, cubic[index].x1, cubic[index].x2,cubic[index].x3);
+	return out;
 }
