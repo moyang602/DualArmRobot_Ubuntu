@@ -37,11 +37,11 @@
 #define ARM3_SERVO_ON   52
 #define ARM3_SERVO_OFF   62
 
-#define HAND1_SERVO_ON   53 
-#define HAND1_SERVO_OFF   63 
-#define HAND2_SERVO_ON   54 
-#define HAND2_SERVO_OFF   64 
-#define HAND3_SERVO_ON   55 
+#define HAND1_SERVO_ON   53
+#define HAND1_SERVO_OFF   63
+#define HAND2_SERVO_ON   54
+#define HAND2_SERVO_OFF   64
+#define HAND3_SERVO_ON   55
 #define HAND3_SERVO_OFF   65
 
 #define HOMEBACK		80
@@ -64,15 +64,16 @@
 #define REMOTE_MOTION		109
 #define REMOTE_CONTROL		110
 #define REMOTE_DATA			111
+#define HAND_MOTION		115
 
 #define ARM1 0
 #define ARM2 1
 #define ARM3 2
 
-#define FIND_HOME_NEW      110
-#define RETURN_ORIGIN_POSITION	 111
-#define PREPARE_FIND_HOME 112
- 
+#define FIND_HOME_NEW      120
+#define RETURN_ORIGIN_POSITION	 121
+#define PREPARE_FIND_HOME 122
+
 //工控机控制指令
 #define CMD_POWER_ON 		0xA1
 #define CMD_POWER_OFF 		0xA2
@@ -92,6 +93,13 @@
 #define REMOTE_STOP			0xC2
 #define REMOTE_ENABLE		0xC3
 #define REMOTE_DISABLE		0xC4
+
+// 手部操作控制指令
+#define HANDCMD_ZERO			0xD1
+#define HANDCMD_CYLINDER		0xD2
+#define HANDCMD_SPHERE			0xD3
+#define HANDCMD_CYLINDER_PRE	0xD4
+#define HANDCMD_SPHERE_PRE		0xD5
 
 #define GLOABL_DEF
 #endif

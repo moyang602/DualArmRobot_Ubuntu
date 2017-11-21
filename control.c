@@ -171,7 +171,7 @@ int can_channel_number = 4;
 //						{1, 1, 1, 1, 1, 1, 1},
 //						{1, 1, 1, 1, 1, 1, 1},
 //						{1, 1, 1, 1, 1, 1, 1}};
-int can_switch[4][7] = {{0, 0, 0, 0, 0, 0, 0},
+int can_switch[4][7] = {{1, 1, 1, 1, 0, 0, 0},
 						{1, 1, 1, 1, 0, 0, 0},
 						{0, 0, 0, 0, 0, 0, 0},
 						{0, 0, 0, 0, 0, 0, 1}};
@@ -189,13 +189,13 @@ double home_offset[4][7] = {{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
 							{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0}};
 
 // 各节点最大位置限位
-double AngleMax_deg[4][7] = {{90, 90, 90, 90, 90, 60, 90},
+double AngleMax_deg[4][7] = {{85, 60, 60, 60, 90, 60, 90},
 							 {85, 60, 60, 60, 90, 60, 90},
 							 {60, 15, 90, 80, 80, 80},
 							 {15, 90, 15, 90, 30, 30}};
 
 // 各节点最小位置限位
-double AngleMin_deg[4][7] = {{-90, -90, -90, -90, -90, -60, -90},
+double AngleMin_deg[4][7] = {{0.0, 0.0, 0.0, 0.0, -90, -60, -90},
 							 {0.0, 0.0, 0.0, 0.0, -90, -60, -90},
 							 {-90, -80, -60, -15, -80, -80},
 							 {-90, -90, -90, -90, -30, -30}};
@@ -292,12 +292,18 @@ int servo_on_flag = 0;
 int motion_enable_flag= 0;
 int RemoteMotion_enable_flag = 0;
 
-// 单关节运动量
+// UDP通信数据
 float JointMoveData = 0.0;
 float RemoteMotionData[14] = {0.0};
 float RemoteMotionDataLast[14] = {0.0};
 int RemoteNewData = 0;
 int RemoteStep = 0;
+
+float HandAngleL = 0.0;
+float HandAngleR = 0.0;
+int HandSelect = 0;
+int HandNewData = 0;
+
 double deltaL_deg[7],deltaR_deg[7];
 /********************** UDP通讯相关 Start ***************************/
 int UDPTimes = 0;	// UDP 周期计数
@@ -307,7 +313,6 @@ int UDPTimes = 0;	// UDP 周期计数
 struct Cubic_Struct cubic[14];
 /**********************  VisionControl Start ***********************/
 float DeltaMatrix[4][4] = {0.0};
-
 /**********************  VisionControl End ***********************/
 
 
@@ -1663,6 +1668,12 @@ void rt_can_recv(void *arg)
 	int first_time_HOMEBACK = 0;
 	int first_time_VISION_MOTION = 0;
 
+	int first_time_HANDCMD_ZERO = 0;
+	int first_time_HANDCMD_CYLINDER = 0;
+	int first_time_HANDCMD_CYLINDER_PRE = 0;
+	int first_time_HANDCMD_SPHERE = 0;
+	int first_time_HANDCMD_SPHERE_PRE = 0;
+
 	double singe_joint_time = 5.0;
 	double one_arm_time = 15.0;
 	double two_arms_time = 30.0;
@@ -1990,6 +2001,539 @@ void rt_can_recv(void *arg)
 						}
 
 					}
+				}
+				break;
+
+				case HANDCMD_ZERO:
+				{
+					int i_H = 0;
+					if(first_time_HANDCMD_ZERO == 0)
+					{
+						for (i_H = 0; i_H < 4; i_H++)
+						{
+							start_position[0][i_H] = Joint_Angle_FB[0][i_H];
+							start_position[1][i_H] = Joint_Angle_FB[1][i_H];
+						}
+						first_time_HANDCMD_ZERO = 1;
+						t = 0;
+						motion_mode_control = 1;
+					}
+					else
+					{
+						if(t <= 5.0)
+						{
+							t = t+time_interval;
+							float angleplan[2][4] = {0.0};
+							if(t > 5.0)
+							{
+								for (i_H = 0; i_H < 4; i_H++)
+								{
+									angleplan[0][i_H] = 0.0;
+									angleplan[1][i_H] = 0.0;
+								}
+							}
+							else
+							{
+								for (i_H = 0; i_H < 4; i_H++)
+								{
+									angleplan[0][i_H] = Five_Interpolation(start_position[0][i_H],0,0, 0,0,0, 5.0,t);
+									angleplan[1][i_H] = Five_Interpolation(start_position[1][i_H],0,0, 0,0,0, 5.0,t);
+								}
+
+							}
+
+							for (i_H = 0; i_H < 4; i_H++)
+							{
+								Joint_Angle_EP[0][i_H] = JointDetect(0, i_H, angleplan[0][i_H]);
+								Joint_Angle_EP[1][i_H] = JointDetect(1, i_H, angleplan[1][i_H]);
+							}
+
+							if(motion_enable_flag == 1)
+							{
+								for (i_H = 0; i_H < 4; i_H++)
+								{
+									rad_send(0,i_H,Joint_Angle_EP[0][i_H]);
+									rad_send(1,i_H,Joint_Angle_EP[1][i_H]);
+									sleeptime.tv_nsec = 250000;
+									sleeptime.tv_sec = 0;
+									nanosleep(&sleeptime,NULL);
+								}
+							}
+
+						}
+						else
+						{
+							t = 0;
+							motion_mode = 100;
+							first_time_HANDCMD_ZERO = 0;
+							motion_mode_control =0;
+						}
+
+					}
+
+				}
+				break;
+
+				case HANDCMD_CYLINDER:
+				{
+					int i_H = 0;
+					if(first_time_HANDCMD_CYLINDER == 0)
+					{
+						for (i_H = 0; i_H < 4; i_H++)
+						{
+							start_position[0][i_H] = Joint_Angle_FB[0][i_H];
+							start_position[1][i_H] = Joint_Angle_FB[1][i_H];
+						}
+						first_time_HANDCMD_CYLINDER = 1;
+						t = 0;
+						motion_mode_control = 1;
+					}
+					else
+					{
+						if(t <= 5.0)
+						{
+							t = t+time_interval;
+							float angleplan[2][4] = {0.0};
+							if(t > 5.0)
+							{
+								angleplan[0][0] = 0.0;
+								angleplan[1][0] = 0.0;
+								for (i_H = 1; i_H < 4; i_H++)
+								{
+									angleplan[0][i_H] = HandAngleL;
+									angleplan[1][i_H] = HandAngleR;
+								}
+							}
+							else
+							{
+								angleplan[0][0] = Five_Interpolation(start_position[0][0],0,0, 0,0,0, 5.0,t);
+								angleplan[1][0] = Five_Interpolation(start_position[1][0],0,0, 0,0,0, 5.0,t);
+								for (i_H = 1; i_H < 4; i_H++)
+								{
+									angleplan[0][i_H] = Five_Interpolation(start_position[0][i_H],0,0, HandAngleL,0,0, 5.0,t);
+									angleplan[1][i_H] = Five_Interpolation(start_position[1][i_H],0,0, HandAngleR,0,0, 5.0,t);
+								}
+
+							}
+
+
+							switch(HandSelect)
+							{
+								case 0xA0:
+									for (i_H = 0; i_H < 4; i_H++)
+									{
+										Joint_Angle_EP[0][i_H] = JointDetect(0, i_H, angleplan[0][i_H]);
+									}
+									if(motion_enable_flag == 1)
+									{
+										for (i_H = 0; i_H < 4; i_H++)
+										{
+											rad_send(0,i_H,Joint_Angle_EP[0][i_H]);
+											sleeptime.tv_nsec = 250000;
+											sleeptime.tv_sec = 0;
+											nanosleep(&sleeptime,NULL);
+										}
+										printf("%lf %lf %lf %lf \n",Joint_Angle_EP[0][0],Joint_Angle_EP[0][1],Joint_Angle_EP[0][2],Joint_Angle_EP[0][3]);
+									}
+
+								break;
+
+								case 0x0A:
+									for (i_H = 0; i_H < 4; i_H++)
+									{
+										Joint_Angle_EP[1][i_H] = JointDetect(1, i_H, angleplan[1][i_H]);
+									}
+									if(motion_enable_flag == 1)
+									{
+										for (i_H = 0; i_H < 4; i_H++)
+										{
+											rad_send(1,i_H,Joint_Angle_EP[1][i_H]);
+											sleeptime.tv_nsec = 250000;
+											sleeptime.tv_sec = 0;
+											nanosleep(&sleeptime,NULL);
+										}
+									}
+								break;
+
+								case 0xAA:
+									for (i_H = 0; i_H < 4; i_H++)
+									{
+										Joint_Angle_EP[0][i_H] = JointDetect(0, i_H, angleplan[0][i_H]);
+										Joint_Angle_EP[1][i_H] = JointDetect(1, i_H, angleplan[1][i_H]);
+									}
+									if(motion_enable_flag == 1)
+									{
+										for (i_H = 0; i_H < 4; i_H++)
+										{
+											rad_send(0,i_H,Joint_Angle_EP[0][i_H]);
+											rad_send(1,i_H,Joint_Angle_EP[1][i_H]);
+											sleeptime.tv_nsec = 250000;
+											sleeptime.tv_sec = 0;
+											nanosleep(&sleeptime,NULL);
+										}
+									}
+								break;
+
+								default:
+								break;
+							}
+
+						}
+						else
+						{
+							t = 0;
+							motion_mode = 100;
+							first_time_HANDCMD_CYLINDER = 0;
+							motion_mode_control =0;
+						}
+
+					}
+
+				}
+				break;
+
+				case HANDCMD_CYLINDER_PRE:
+				{
+					int i_H = 0;
+					if(first_time_HANDCMD_CYLINDER_PRE == 0)
+					{
+						for (i_H = 0; i_H < 4; i_H++)
+						{
+							start_position[0][i_H] = Joint_Angle_FB[0][i_H];
+							start_position[1][i_H] = Joint_Angle_FB[1][i_H];
+						}
+						first_time_HANDCMD_CYLINDER_PRE = 1;
+						t = 0;
+						motion_mode_control = 1;
+					}
+					else
+					{
+						if(t <= 5.0)
+						{
+							t = t+time_interval;
+							float angleplan[2][4] = {0.0};
+
+							if(t > 5.0)
+							{
+								for (i_H = 0; i_H < 4; i_H++)
+								{
+									angleplan[0][i_H] = 0;
+									angleplan[1][i_H] = 0;
+								}
+							}
+							else
+							{
+								for (i_H = 0; i_H < 4; i_H++)
+								{
+									angleplan[0][i_H] = Five_Interpolation(start_position[0][i_H],0,0, 0,0,0, 5.0,t);
+									angleplan[1][i_H] = Five_Interpolation(start_position[1][i_H],0,0, 0,0,0, 5.0,t);
+								}
+
+							}
+
+							switch(HandSelect)
+							{
+								case 0xA0:
+									for (i_H = 0; i_H < 4; i_H++)
+									{
+										Joint_Angle_EP[0][i_H] = JointDetect(0, i_H, angleplan[0][i_H]);
+									}
+
+									if(motion_enable_flag == 1)
+									{
+										for (i_H = 0; i_H < 4; i_H++)
+										{
+											rad_send(0,i_H,Joint_Angle_EP[0][i_H]);
+											sleeptime.tv_nsec = 250000;
+											sleeptime.tv_sec = 0;
+											nanosleep(&sleeptime,NULL);
+										}
+									}
+								break;
+
+								case 0x0A:
+									for (i_H = 0; i_H < 4; i_H++)
+									{
+										Joint_Angle_EP[1][i_H] = JointDetect(1, i_H, angleplan[1][i_H]);
+									}
+									if(motion_enable_flag == 1)
+									{
+										for (i_H = 0; i_H < 4; i_H++)
+										{
+											rad_send(1,i_H,Joint_Angle_EP[1][i_H]);
+											sleeptime.tv_nsec = 250000;
+											sleeptime.tv_sec = 0;
+											nanosleep(&sleeptime,NULL);
+										}
+									}
+								break;
+
+								case 0xAA:
+									for (i_H = 0; i_H < 4; i_H++)
+									{
+										Joint_Angle_EP[0][i_H] = JointDetect(0, i_H, angleplan[0][i_H]);
+										Joint_Angle_EP[1][i_H] = JointDetect(1, i_H, angleplan[1][i_H]);
+									}
+									if(motion_enable_flag == 1)
+									{
+										for (i_H = 0; i_H < 4; i_H++)
+										{
+											rad_send(0,i_H,Joint_Angle_EP[0][i_H]);
+											rad_send(1,i_H,Joint_Angle_EP[1][i_H]);
+											sleeptime.tv_nsec = 250000;
+											sleeptime.tv_sec = 0;
+											nanosleep(&sleeptime,NULL);
+										}
+									}
+								break;
+
+								default:
+								break;
+							}
+
+						}
+						else
+						{
+							t = 0;
+							motion_mode = 100;
+							first_time_HANDCMD_CYLINDER_PRE = 0;
+							motion_mode_control =0;
+						}
+
+					}
+
+				}
+				break;
+
+				case HANDCMD_SPHERE:
+				{
+					int i_H = 0;
+					if(first_time_HANDCMD_SPHERE == 0)
+					{
+						for (i_H = 0; i_H < 4; i_H++)
+						{
+							start_position[0][i_H] = Joint_Angle_FB[0][i_H];
+							start_position[1][i_H] = Joint_Angle_FB[1][i_H];
+						}
+						first_time_HANDCMD_SPHERE = 1;
+						t = 0;
+						motion_mode_control = 1;
+					}
+					else
+					{
+						if(t <= 5.0)
+						{
+							t = t+time_interval;
+							float angleplan[2][4] = {0.0};
+							if(t > 5.0)
+							{
+								angleplan[0][0] = 60.0*Degree2Rad;
+								angleplan[1][0] = 60.0*Degree2Rad;
+								for (i_H = 1; i_H < 4; i_H++)
+								{
+									angleplan[0][i_H] = HandAngleL;
+									angleplan[1][i_H] = HandAngleR;
+								}
+							}
+							else
+							{
+								angleplan[0][0] = Five_Interpolation(start_position[0][0],0,0, 60*Degree2Rad,0,0, 5.0,t);
+								angleplan[1][0] = Five_Interpolation(start_position[1][0],0,0, 60*Degree2Rad,0,0, 5.0,t);
+								for (i_H = 1; i_H < 4; i_H++)
+								{
+									angleplan[0][i_H] = Five_Interpolation(start_position[0][i_H],0,0, HandAngleL,0,0, 5.0,t);
+									angleplan[1][i_H] = Five_Interpolation(start_position[1][i_H],0,0, HandAngleR,0,0, 5.0,t);
+								}
+
+							}
+
+
+							switch(HandSelect)
+							{
+								case 0xA0:
+									for (i_H = 0; i_H < 4; i_H++)
+									{
+										Joint_Angle_EP[0][i_H] = JointDetect(0, i_H, angleplan[0][i_H]);
+									}
+									if(motion_enable_flag == 1)
+									{
+										for (i_H = 0; i_H < 4; i_H++)
+										{
+											rad_send(0,i_H,Joint_Angle_EP[0][i_H]);
+											sleeptime.tv_nsec = 250000;
+											sleeptime.tv_sec = 0;
+											nanosleep(&sleeptime,NULL);
+										}
+									}
+								break;
+
+								case 0x0A:
+									for (i_H = 0; i_H < 4; i_H++)
+									{
+										Joint_Angle_EP[1][i_H] = JointDetect(1, i_H, angleplan[1][i_H]);
+									}
+									if(motion_enable_flag == 1)
+									{
+										for (i_H = 0; i_H < 4; i_H++)
+										{
+											rad_send(1,i_H,Joint_Angle_EP[1][i_H]);
+											sleeptime.tv_nsec = 250000;
+											sleeptime.tv_sec = 0;
+											nanosleep(&sleeptime,NULL);
+										}
+									}
+								break;
+
+								case 0xAA:
+									for (i_H = 0; i_H < 4; i_H++)
+									{
+										Joint_Angle_EP[0][i_H] = JointDetect(0, i_H, angleplan[0][i_H]);
+										Joint_Angle_EP[1][i_H] = JointDetect(1, i_H, angleplan[1][i_H]);
+									}
+									if(motion_enable_flag == 1)
+									{
+										for (i_H = 0; i_H < 4; i_H++)
+										{
+											rad_send(0,i_H,Joint_Angle_EP[0][i_H]);
+											rad_send(1,i_H,Joint_Angle_EP[1][i_H]);
+											sleeptime.tv_nsec = 250000;
+											sleeptime.tv_sec = 0;
+											nanosleep(&sleeptime,NULL);
+										}
+									}
+								break;
+
+								default:
+								break;
+							}
+
+						}
+						else
+						{
+							t = 0;
+							motion_mode = 100;
+							first_time_HANDCMD_SPHERE = 0;
+							motion_mode_control =0;
+						}
+
+					}
+
+				}
+				break;
+
+				case HANDCMD_SPHERE_PRE:
+				{
+					int i_H = 0;
+					if(first_time_HANDCMD_SPHERE_PRE == 0)
+					{
+						for (i_H = 0; i_H < 4; i_H++)
+						{
+							start_position[0][i_H] = Joint_Angle_FB[0][i_H];
+							start_position[1][i_H] = Joint_Angle_FB[1][i_H];
+						}
+						first_time_HANDCMD_SPHERE_PRE = 1;
+						t = 0;
+						motion_mode_control = 1;
+					}
+					else
+					{
+						if(t <= 5.0)
+						{
+							t = t+time_interval;
+							float angleplan[2][4] = {0.0};
+							if(t > 5.0)
+							{
+								angleplan[0][0] = 60.0*Degree2Rad;
+								angleplan[1][0] = 60.0*Degree2Rad;
+								for (i_H = 1; i_H < 4; i_H++)
+								{
+									angleplan[0][i_H] = 0;
+									angleplan[1][i_H] = 0;
+								}
+							}
+							else
+							{
+								angleplan[0][0] = Five_Interpolation(start_position[0][i_H],0,0, 60.0*Degree2Rad,0,0, 5.0,t);
+								angleplan[1][0] = Five_Interpolation(start_position[1][i_H],0,0, 60.0*Degree2Rad,0,0, 5.0,t);
+								for (i_H = 1; i_H < 4; i_H++)
+								{
+									angleplan[0][i_H] = Five_Interpolation(start_position[0][i_H],0,0, HandAngleL,0,0, 5.0,t);
+									angleplan[1][i_H] = Five_Interpolation(start_position[1][i_H],0,0, HandAngleR,0,0, 5.0,t);
+								}
+
+							}
+
+
+							switch(HandSelect)
+							{
+								case 0xA0:
+									for (i_H = 0; i_H < 4; i_H++)
+									{
+										Joint_Angle_EP[0][i_H] = JointDetect(0, i_H, angleplan[0][i_H]);
+									}
+									if(motion_enable_flag == 1)
+									{
+										for (i_H = 0; i_H < 4; i_H++)
+										{
+											rad_send(0,i_H,Joint_Angle_EP[0][i_H]);
+											sleeptime.tv_nsec = 250000;
+											sleeptime.tv_sec = 0;
+											nanosleep(&sleeptime,NULL);
+										}
+									}
+								break;
+
+								case 0x0A:
+									for (i_H = 0; i_H < 4; i_H++)
+									{
+										Joint_Angle_EP[1][i_H] = JointDetect(1, i_H, angleplan[1][i_H]);
+									}
+									if(motion_enable_flag == 1)
+									{
+										for (i_H = 0; i_H < 4; i_H++)
+										{
+											rad_send(1,i_H,Joint_Angle_EP[1][i_H]);
+											sleeptime.tv_nsec = 250000;
+											sleeptime.tv_sec = 0;
+											nanosleep(&sleeptime,NULL);
+										}
+									}
+								break;
+
+								case 0xAA:
+									for (i_H = 0; i_H < 4; i_H++)
+									{
+										Joint_Angle_EP[0][i_H] = JointDetect(0, i_H, angleplan[0][i_H]);
+										Joint_Angle_EP[1][i_H] = JointDetect(1, i_H, angleplan[1][i_H]);
+									}
+									if(motion_enable_flag == 1)
+									{
+										for (i_H = 0; i_H < 4; i_H++)
+										{
+											rad_send(0,i_H,Joint_Angle_EP[0][i_H]);
+											rad_send(1,i_H,Joint_Angle_EP[1][i_H]);
+											sleeptime.tv_nsec = 250000;
+											sleeptime.tv_sec = 0;
+											nanosleep(&sleeptime,NULL);
+										}
+									}
+								break;
+
+								default:
+								break;
+							}
+
+						}
+						else
+						{
+							t = 0;
+							motion_mode = 100;
+							first_time_HANDCMD_SPHERE_PRE = 0;
+							motion_mode_control =0;
+						}
+
+					}
+
 				}
 				break;
 
@@ -2488,6 +3032,16 @@ void rt_can_recv(void *arg)
 							break;
 						}
 					}
+
+					case HAND_MOTION:
+					{
+						motion_mode = GetHandCMD(&HandSelect, &HandAngleL, &HandAngleR);
+						HandAngleL = HandAngleL*Degree2Rad;
+						HandAngleR = HandAngleR*Degree2Rad;
+						HandNewData = 1;
+
+					}
+					break;
 
 					default:
 					break;
@@ -3735,13 +4289,13 @@ double JointDetect(int Can_CH, int Can_ID, double angle_in)		// input: rad    ou
 	{
 		out = angle_in;
 	}
-	
+
 
 //	printf("velocity = %lf\n", (angle_in - Joint_Angle_FB[Can_CH][Can_ID])/time_interval*Rad2Degree);
 	// 发送数据速度限制
 	if ((angle_in - Joint_Angle_LastEP[Can_CH][Can_ID])/time_interval*Rad2Degree > VelocityLimit_deg[Can_CH][Can_ID])
 	{
-		printf("over speed 2222222222  %f %f %f\n",angle_in,Joint_Angle_LastEP[Can_CH][Can_ID],(angle_in - Joint_Angle_LastEP[Can_CH][Can_ID])/time_interval*Rad2Degree);
+	//	printf("over speed 2222222222  %f %f %f\n",angle_in,Joint_Angle_LastEP[Can_CH][Can_ID],(angle_in - Joint_Angle_LastEP[Can_CH][Can_ID])/time_interval*Rad2Degree);
 		out=Joint_Angle_LastEP[Can_CH][Can_ID] + VelocityLimit_deg[Can_CH][Can_ID]*time_interval*Degree2Rad;
 		JointError[Can_CH][Can_ID] = 2;
 		return out;
@@ -3749,7 +4303,7 @@ double JointDetect(int Can_CH, int Can_ID, double angle_in)		// input: rad    ou
 	}
 	else if ((angle_in - Joint_Angle_LastEP[Can_CH][Can_ID])/time_interval*Rad2Degree < -VelocityLimit_deg[Can_CH][Can_ID])
 	{
-		printf("over speed --------2  %f %f %f\n",angle_in,Joint_Angle_LastEP[Can_CH][Can_ID],(angle_in - Joint_Angle_LastEP[Can_CH][Can_ID])/time_interval*Rad2Degree);
+	//	printf("over speed --------2  %f %f %f\n",angle_in,Joint_Angle_LastEP[Can_CH][Can_ID],(angle_in - Joint_Angle_LastEP[Can_CH][Can_ID])/time_interval*Rad2Degree);
 		out=Joint_Angle_LastEP[Can_CH][Can_ID] - VelocityLimit_deg[Can_CH][Can_ID]*time_interval*Degree2Rad;
 		JointError[Can_CH][Can_ID] = -2;
 		return out;

@@ -8,6 +8,7 @@ struct EndCMD_Struct EndData;
 struct RemoteDATA_Struct RemoteData;
 struct RemoteCMD_Struct RemoteCMD;
 struct ControlCMD_Struct ControlCMD;
+struct HandCMD_Struct HandCMD;
 
 int UDP_Sock;
 struct sockaddr_in DestPCAddr;
@@ -241,6 +242,25 @@ int UDPRecv()
 			}
 			break;
 
+			case HAND_MOTION:
+			{
+				unsigned char sum = 0;
+				for (i = 0; i < (sizeof(HandCMD) -1); ++i)
+				{
+					sum += recvbuff[i];
+				}
+				if (sum != recvbuff[sizeof(HandCMD) -1])	//校验和不正确直接退出
+				{
+					printf("recv %d bytes wrong data!\n",n);
+					return 0;
+				}
+
+				memcpy(&HandCMD,recvbuff,sizeof(HandCMD));
+
+				return HAND_MOTION;
+			}
+			break;
+
 			default:
 			break;
 		}
@@ -313,6 +333,15 @@ int GetControlCMD(void)
 {
 	printf("ControlMode = %02x\n",ControlCMD.Command);
 	return ControlCMD.Command;
+}
+
+int GetHandCMD(int* HandSelect, float* HandAngleL, float* HandAngleR)
+{
+	*HandSelect = HandCMD.HandSelect;
+	*HandAngleL = HandCMD.DataL;
+	*HandAngleR = HandCMD.DataR;
+	printf("HandCMD = %02x\n",HandCMD.Command);
+	return HandCMD.Command;
 }
 /*
 int UDPRecv(int motion_mode_control,long* can_channel_main,long* can_id_main,float* JointMoveData)

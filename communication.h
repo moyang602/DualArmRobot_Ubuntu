@@ -132,6 +132,21 @@ struct ControlCMD_Struct
 };
 #pragma pack(pop)
 
+/***********************************************************
+                      定义手部控制指令
+************************************************************/
+#pragma pack(push)
+#pragma pack(1)
+struct HandCMD_Struct
+{
+	unsigned char Mode;
+	unsigned char Command;
+	unsigned char HandSelect;
+	float DataL;
+	float DataR;
+	unsigned char CheckSum;
+};
+#pragma pack(pop)
 
 
 //函数声明
@@ -144,6 +159,7 @@ int GetEndData(int* ArmSelect,float EndData[12], double* EndMoveTime);
 int GetRemoteData(float RemoteMotionData[14]);
 int GetRemoteCMD(void);
 int GetControlCMD(void);
+int GetHandCMD(int* HandSelect, float* HandAngleL, float* HandAngleR);
 
 // 力传感器信号读取
 int ForceSensorTCP_init(void);
