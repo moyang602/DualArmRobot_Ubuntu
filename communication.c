@@ -147,17 +147,17 @@ int UDPRecv()
 		switch(recvbuff[0])
 		{
 			case SINGLE_JOINT_MOTION:
-			{	
+			{
 				unsigned char sum = 0;
 				for (i = 0; i < (sizeof(SingleJointData) -1); ++i)
 				{
 					sum += recvbuff[i];
 				}
-			//	if (sum != recvbuff[sizeof(SingleJointData) -1])	//校验和不正确直接退出
-			//	{
-			//		printf("recv %d bytes wrong data!\n",n);
-			//		return 0;
-			//	}
+				if (sum != recvbuff[sizeof(SingleJointData) -1])	//校验和不正确直接退出
+				{
+					printf("recv %d bytes wrong data!\n",n);
+					return 0;
+				}
 				memcpy(&SingleJointData,recvbuff,sizeof(SingleJointData));
 				return SINGLE_JOINT_MOTION;
 			}
