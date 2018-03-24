@@ -963,8 +963,6 @@ void view (void *n)
 					printf("power off\n");
 					power_off();
 					power_on_flag = 0;
-         		//	motion_mode = HOMEBACK;
-         		//	home_flag = 1;
 
 				break;
 
@@ -1785,7 +1783,9 @@ void rt_can_recv(void *arg)
 			break;
 
 			case CMD_HOMEZERO:
-
+				motion_mode = HOMEBACK;	
+				printf("home offset\n");
+				control_mode = 0;
 			break;
 
 			case CMD_RESET:
@@ -2802,48 +2802,115 @@ void rt_can_recv(void *arg)
 				break;
 
 				case HOMEBACK:
-
+				{
+					int i_j;
 					if(first_time_HOMEBACK == 0)
 		 			{
+		 				memset(&OneArmStart,0,sizeof(OneArmStart));
+						CanDef2RealRobot(Joint_Angle_FB, &OneArmStart);
+
 		 				first_time_HOMEBACK = 1;
 						t = 0.0;
 						motion_mode_control	= 1;
-
-						for(i=0; i<3; i++)
-						{
-							for(j=0; j<4; j++)
-							{
-								start_position[i][j] = Joint_Angle_FB[i][j];
-							}
-						}
 						printf("MOTION_MODE = HOMEBACK\n");
 		 			}
 					else
 					{
 						if(t < homeback_time)
 						{
-
-
 							t = t + time_interval;
-							for(j=0; j<4; j++)
+							float plan[2][7]= {0.0};
+							struct RealRobot_Struct RobotHomeSet;
+							memset(&RobotHomeSet,0,sizeof(RobotHomeSet));
+							CanDef2RealRobot(home_offset, &RobotHomeSet);
+
+							for(i_j=0;i_j<7;i_j++)
 							{
-								for(i=0; i<3; i++)
+								plan[0][i_j] = Five_Interpolation(OneArmStart.LeftArm[i_j], 0, 0, RobotHomeSet.LeftArm[i_j], 0, 0, homeback_time,t);
+								plan[1][i_j] = Five_Interpolation(OneArmStart.RightArm[i_j], 0, 0, RobotHomeSet.RightArm[i_j], 0, 0, homeback_time,t);
+							}
+							if (t>homeback_time)
+							{
+								for(i_j=0;i_j<7;i_j++)
 								{
-									Joint_Angle_EP[i][j] = Five_Interpolation(start_position[i][j],0,0,home_offset[i][j],0,0,homeback_time,t);
-
-									if(t > homeback_time)
-									{
-										Joint_Angle_EP[i][j] = home_offset[i][j];
-									}
-
-									if(motion_enable_flag == 1)
-									{
-										rad_send(i,j,Joint_Angle_EP[i][j]);
-									}
-									sleeptime.tv_nsec = 5000;
-									sleeptime.tv_sec = 0;
-									nanosleep(&sleeptime,NULL);  //wait for 50us
+									plan[0][i_j] = RobotHomeSet.LeftArm[i_j];
+									plan[1][i_j] = RobotHomeSet.RightArm[i_j];
 								}
+							}
+
+							Joint_Angle_EP[2][0] = JointDetect(2, 0, plan[0][0]);
+							Joint_Angle_EP[3][0] = JointDetect(3, 0, plan[0][1]);
+							Joint_Angle_EP[3][1] = JointDetect(3, 1, plan[0][2]);
+							Joint_Angle_EP[2][1] = JointDetect(2, 1, plan[0][3]);
+							Joint_Angle_EP[0][4] = JointDetect(0, 4, plan[0][4]);
+							Joint_Angle_EP[0][5] = JointDetect(0, 5, plan[0][5]);
+							Joint_Angle_EP[0][6] = JointDetect(0, 6, plan[0][6]);
+
+							Joint_Angle_EP[2][2] = JointDetect(2, 2, plan[1][0]);
+							Joint_Angle_EP[3][2] = JointDetect(3, 2, plan[1][1]);
+							Joint_Angle_EP[3][3] = JointDetect(3, 3, plan[1][2]);
+							Joint_Angle_EP[2][3] = JointDetect(2, 3, plan[1][3]);
+							Joint_Angle_EP[1][4] = JointDetect(1, 4, plan[1][4]);
+							Joint_Angle_EP[1][5] = JointDetect(1, 5, plan[1][5]);
+							Joint_Angle_EP[1][6] = JointDetect(1, 6, plan[1][6]);
+
+
+							if(motion_enable_flag == 1)
+							{
+								rad_send(0, 4, Joint_Angle_EP[0][4]);		//moyang602 	可根据通道发送减少时间
+								sleeptime.tv_nsec = 250000;
+								sleeptime.tv_sec = 0;
+								nanosleep(&sleeptime,NULL);
+								rad_send(0, 5, Joint_Angle_EP[0][5]);
+								sleeptime.tv_nsec = 250000;
+								sleeptime.tv_sec = 0;
+								nanosleep(&sleeptime,NULL);
+								rad_send(0, 6, Joint_Angle_EP[0][6]);
+								sleeptime.tv_nsec = 250000;
+								sleeptime.tv_sec = 0;
+								nanosleep(&sleeptime,NULL);
+								rad_send(2, 0, Joint_Angle_EP[2][0]);
+								sleeptime.tv_nsec = 250000;
+								sleeptime.tv_sec = 0;
+								nanosleep(&sleeptime,NULL);
+								rad_send(2, 1, Joint_Angle_EP[2][1]);
+								sleeptime.tv_nsec = 250000;
+								sleeptime.tv_sec = 0;
+								nanosleep(&sleeptime,NULL);
+								rad_send(3, 0, Joint_Angle_EP[3][0]);
+								sleeptime.tv_nsec = 250000;
+								sleeptime.tv_sec = 0;
+								nanosleep(&sleeptime,NULL);
+								rad_send(3, 1, Joint_Angle_EP[3][1]);
+								sleeptime.tv_nsec = 250000;
+								sleeptime.tv_sec = 0;
+								nanosleep(&sleeptime,NULL);
+
+								rad_send(1, 4, Joint_Angle_EP[1][4]);
+								sleeptime.tv_nsec = 250000;
+								sleeptime.tv_sec = 0;
+								nanosleep(&sleeptime,NULL);
+								rad_send(1, 5, Joint_Angle_EP[1][5]);
+								sleeptime.tv_nsec = 250000;
+								sleeptime.tv_sec = 0;
+								nanosleep(&sleeptime,NULL);
+								rad_send(1, 6, Joint_Angle_EP[1][6]);
+								sleeptime.tv_nsec = 250000;
+								sleeptime.tv_sec = 0;
+								nanosleep(&sleeptime,NULL);
+								rad_send(2, 2, Joint_Angle_EP[2][2]);
+								sleeptime.tv_nsec = 250000;
+								sleeptime.tv_sec = 0;
+								nanosleep(&sleeptime,NULL);
+								rad_send(2, 3, Joint_Angle_EP[2][3]);
+								sleeptime.tv_nsec = 250000;
+								sleeptime.tv_sec = 0;
+								nanosleep(&sleeptime,NULL);
+								rad_send(3, 2, Joint_Angle_EP[3][2]);
+								sleeptime.tv_nsec = 250000;
+								sleeptime.tv_sec = 0;
+								nanosleep(&sleeptime,NULL);
+								rad_send(3, 3, Joint_Angle_EP[3][3]);
 								sleeptime.tv_nsec = 250000;
 								sleeptime.tv_sec = 0;
 								nanosleep(&sleeptime,NULL);
@@ -2866,6 +2933,8 @@ void rt_can_recv(void *arg)
 			 				}
 						}
 					}
+				}
+					
 		 		break;
 
 		 		case FIND_HOME_NEW:
@@ -3135,6 +3204,7 @@ void rt_can_recv(void *arg)
 						}
 					}
 					break;
+
 					case HAND_MOTION:
 					{
 						motion_mode = GetHandCMD(&HandSelect, &HandAngleL, &HandAngleR);
@@ -3142,6 +3212,13 @@ void rt_can_recv(void *arg)
 						HandAngleR = HandAngleR*Degree2Rad;
 						HandNewData = 1;
 
+					}
+					break;
+
+					case FIND_HOME_MOTION:
+					{
+						GetFindHomeData(&can_channel_main,&can_id_main);
+						motion_mode = FIND_HOME_MOTION;
 					}
 					break;
 

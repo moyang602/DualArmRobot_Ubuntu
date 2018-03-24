@@ -15,6 +15,13 @@
 // 与力传感器TCP通讯变量声明
 #define ForceServer_Port 4008
 #define ForceServer_IP "192.168.0.108"
+#define ForceHOST_PORT 5008
+#define ForceHOST_IP	"192.168.0.2"
+#define RX_BUFFER_SIZE	16384
+#define dataBufferLen 8192
+#define M812X_CHN_NUMBER 6
+
+
 /***********************************************************
                       定义实际机器人数据结构
 ************************************************************/
@@ -148,6 +155,20 @@ struct HandCMD_Struct
 };
 #pragma pack(pop)
 
+/***********************************************************
+                      定义单关节找零指令
+************************************************************/
+#pragma pack(push)
+#pragma pack(1)
+struct FindHomeCMD_Struct
+{
+	unsigned char Mode;
+	unsigned char CANCH;
+	unsigned char CANID;
+	unsigned char CheckSum;
+};
+#pragma pack(pop)
+
 
 //函数声明
 int RobotUDPComm_init(void);
@@ -163,9 +184,13 @@ int GetHandCMD(int* HandSelect, float* HandAngleL, float* HandAngleR);
 
 // 力传感器信号读取
 int ForceSensorTCP_init(void);
+int ForceSensorTCP_end(void);
 int TCPSend(void *buffer, int length);
 int TCPRecv(void *buffer, int length);
-int ConfigSystem(int step);
-
-
+int ConfigSystem(int *nStatus, int *bIsSendFlag, int *bReceived);
+int GetChParameter(char *pInstr,double *pdBuffer);
+int GetData(int* bReceived, , double* m_dDecouplingValue);
+int GetADCounts(void);
+int ShowAlgorithmData(double* m_dDecouplingValue);
+int ForceSensorRecv(void);
 #endif

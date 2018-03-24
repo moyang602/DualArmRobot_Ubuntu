@@ -9,6 +9,7 @@ struct RemoteDATA_Struct RemoteData;
 struct RemoteCMD_Struct RemoteCMD;
 struct ControlCMD_Struct ControlCMD;
 struct HandCMD_Struct HandCMD;
+struct FindHomeCMD_Struct FindHomeData;
 
 int UDP_Sock;
 struct sockaddr_in DestPCAddr;
@@ -161,7 +162,6 @@ int UDPRecv()
 				memcpy(&SingleJointData,recvbuff,sizeof(SingleJointData));
 				return SINGLE_JOINT_MOTION;
 			}
-
 			break;
 
 			case ONE_ARM_MOTION:
@@ -261,6 +261,23 @@ int UDPRecv()
 			}
 			break;
 
+			case FIND_HOME_MOTION:
+			{
+				unsigned char sum = 0;
+				for (i = 0; i < (sizeof(FindHomeData) -1); ++i)
+				{
+					sum += recvbuff[i];
+				}
+				if (sum != recvbuff[sizeof(FindHomeData) -1])	//校验和不正确直接退出
+				{
+					printf("recv %d bytes wrong data!\n",n);
+					return 0;
+				}
+				memcpy(&FindHomeData,recvbuff,sizeof(FindHomeData));
+				return FIND_HOME_MOTION;
+			}
+			break;
+
 			default:
 			break;
 		}
@@ -342,6 +359,13 @@ int GetHandCMD(int* HandSelect, float* HandAngleL, float* HandAngleR)
 	*HandAngleR = HandCMD.DataR;
 	printf("HandCMD = %02x\n",HandCMD.Command);
 	return HandCMD.Command;
+}
+
+int GetFindHomeData(long* can_channel_main,long* can_id_main)
+{
+	*can_channel_main = FindHomeData.CANCH;
+	*can_id_main = FindHomeData.CANID;
+	printf("motion_mode = FIND_HOME_MOTION  CH %ld CANID %ld\n", *can_channel_main+1,*can_id_main+1);
 }
 /*
 int UDPRecv(int motion_mode_control,long* can_channel_main,long* can_id_main,float* JointMoveData)

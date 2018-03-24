@@ -44,7 +44,7 @@
 #define HAND3_SERVO_ON   55
 #define HAND3_SERVO_OFF   65
 
-#define HOMEBACK		80
+
 
 #define ARM1_ENDZ_MOVE 99
 #define ARM2_ENDZ_MOVE 98
@@ -65,6 +65,8 @@
 #define REMOTE_CONTROL		110
 #define REMOTE_DATA			111
 #define HAND_MOTION		115
+#define HOMEBACK		80
+
 
 #define ARM1 0
 #define ARM2 1
