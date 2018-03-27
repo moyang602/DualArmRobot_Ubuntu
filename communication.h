@@ -189,7 +189,7 @@ int TCPSend(void *buffer, int length);
 int TCPRecv(void *buffer, int length);
 int ConfigSystem(int *nStatus, int *bIsSendFlag, int *bReceived);
 int GetChParameter(char *pInstr,double *pdBuffer);
-int GetData(int* bReceived, , double* m_dDecouplingValue);
+int GetData(int* bReceived, double* m_dDecouplingValue);
 int GetADCounts(void);
 int ShowAlgorithmData(double* m_dDecouplingValue);
 int ForceSensorRecv(void);
