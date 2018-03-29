@@ -86,10 +86,12 @@ void servo_on_off(int on_off, int channel, int id);
 int find_home_new(void);
 int return_origin_position(void);
 int prepare_find_home(void);
+int AllJointMove(struct RealRobot_Struct RealPos, double time, int joint, int hand, int head, int waist);
 
 // CAN定义到实际机器人数据结构转换
 void CanDef2RealRobot(double CanDef[4][7], struct RealRobot_Struct* RealRobot);
-
+// 实际机器人数据结构到CAN定义转换
+void RealRobot2CanDef(struct RealRobot_Struct RealRobot, double CanDef[4][7]);
 
 /*********************************变量声明**********************************/
 /////////////// 系统变量
@@ -677,6 +679,131 @@ int return_origin_position(void)
 
 }
 
+
+int AllJointMove(struct RealRobot_Struct RealPos, double time, int joint, int hand, int head, int waist)
+{
+	static double start_position[4][7];
+	double TargetPos[4][7];
+	double PlanPos[4][7];
+	int i, j;
+	static int first_time_AllJointMove = 0;
+	double move_time;
+	static double t = 0.0;
+	struct timespec sleeptime;
+
+	memset(&PlanPos,0,sizeof(PlanPos));
+	memset(&TargetPos,0,sizeof(TargetPos));
+	RealRobot2CanDef(RealPos, TargetPos);
+	move_time = time;
+
+	if(first_time_AllJointMove == 0)
+	{
+		for(i=0; i<4; i++)
+		{
+			for(j=0; j<7; j++)
+			{
+				start_position[i][j] = Joint_Angle_FB[i][j];
+
+			}
+		}
+		first_time_AllJointMove = 1;
+		t = 0.0;
+		return 1;
+	}
+	else
+	{
+		if(t <= move_time)
+		{
+			t = t + time_interval;
+			for(i=0; i<4; i++)
+			{
+				for(j=0; j<7; j++)
+				{
+					PlanPos[i][j] = Five_Interpolation(start_position[i][j], 0, 0, TargetPos[i][j], 0, 0, move_time,t);
+
+					if(t > move_time)
+					{
+						PlanPos[i][j] = TargetPos[i][j];
+					}
+
+				}
+			}
+
+			if (joint)
+			{
+				for(i=0; i<2; i++)
+				{
+					Joint_Angle_EP[i][4] = JointDetect(i, 4, PlanPos[i][4]);
+					Joint_Angle_EP[i][5] = JointDetect(i, 5, PlanPos[i][5]);
+					Joint_Angle_EP[i][6] = JointDetect(i, 6, PlanPos[i][6]);
+					Joint_Angle_EP[i+2][0] = JointDetect(i+2, 0, PlanPos[i+2][0]);
+					Joint_Angle_EP[i+2][1] = JointDetect(i+2, 1, PlanPos[i+2][1]);
+					Joint_Angle_EP[i+2][2] = JointDetect(i+2, 2, PlanPos[i+2][2]);
+					Joint_Angle_EP[i+2][3] = JointDetect(i+2, 3, PlanPos[i+2][3]);
+				}
+			}
+
+			if(hand)
+			{
+				for (i=0; i<2; i++)
+				{
+					Joint_Angle_EP[i][0] = JointDetect(i, 0, PlanPos[i][0]);
+					Joint_Angle_EP[i][1] = JointDetect(i, 1, PlanPos[i][1]);
+					Joint_Angle_EP[i][2] = JointDetect(i, 2, PlanPos[i][2]);
+					Joint_Angle_EP[i][3] = JointDetect(i, 3, PlanPos[i][3]);
+				}
+			}
+
+			if (head)
+			{
+				Joint_Angle_EP[2][4] = JointDetect(2, 4, PlanPos[2][4]);
+				Joint_Angle_EP[2][5] = JointDetect(2, 5, PlanPos[2][5]);
+			}
+
+			if (waist)
+			{
+				Joint_Angle_EP[3][4] = JointDetect(3, 4, PlanPos[3][4]);
+				Joint_Angle_EP[3][5] = JointDetect(3, 5, PlanPos[3][5]);
+			}
+
+			if(motion_enable_flag == 1)
+			{
+				for(j=0; j<6; j++)
+				{
+					for(i=0; i<4; i++)
+					{
+						rad_send(i, j, Joint_Angle_EP[i][j]);
+						sleeptime.tv_nsec = 8000;
+						sleeptime.tv_sec = 0;
+						nanosleep(&sleeptime,NULL);
+					}
+					sleeptime.tv_nsec = 200000;
+					sleeptime.tv_sec = 0;
+					nanosleep(&sleeptime,NULL);
+				}
+				sleeptime.tv_nsec = 150000;
+				sleeptime.tv_sec = 0;
+				nanosleep(&sleeptime,NULL);
+				rad_send(2, 6, Joint_Angle_EP[2][6]);
+				sleeptime.tv_nsec = 250000;
+				sleeptime.tv_sec = 0;
+				nanosleep(&sleeptime,NULL);
+				rad_send(3, 6, Joint_Angle_EP[3][6]);
+				sleeptime.tv_nsec = 100000;
+				sleeptime.tv_sec = 0;
+				nanosleep(&sleeptime,NULL);
+			}
+
+			return 1;
+		}
+		else
+		{
+			first_time_AllJointMove = 0;
+			return 0;
+		}
+	}
+
+}
 
 void servo_on_control(int can_channel, int id)
 {
@@ -1689,7 +1816,6 @@ void current_position(int channel_num, double Joint_Angle_FB2[4])
 	}
 }
 
-FILE* fp;
 void rt_can_recv(void *arg)
 {
 	// trajectory planning var
@@ -1722,6 +1848,7 @@ void rt_can_recv(void *arg)
 	float RemotePlanPos_deg[14];
 
 	struct RealRobot_Struct OneArmStart;
+	struct RealRobot_Struct RealTargetPos;
 
 	double end_position[4][4] = {{-0.510793, 0, 0.701553, 0.0},{0.510793, 0.0, 0.371256, 0.0},{pi/10, pi/10, pi/10, pi/10},{pi/10, pi/10, pi/10, pi/10}};
 	double end_position2[4][4] = {{-0.510793, 0, 0.701553, 0.0},{0.510793, 0.0, 0.371256, 0.0},{pi/10, pi/10, pi/10, pi/10},{pi/10, pi/10, pi/10, pi/10}};
@@ -1789,7 +1916,7 @@ void rt_can_recv(void *arg)
 	sleeptime.tv_nsec = 20000000;
 	sleeptime.tv_sec = 0;
 
-	fp = fopen("data.txt","a");
+	int first_move_flag = 1;	// used for move CMD
 	rt_task_set_periodic(NULL, TM_NOW, 6000000);
 /**********************************************************************************/
 	//    开始循环
@@ -1872,12 +1999,20 @@ void rt_can_recv(void *arg)
 			break;
 
 			case CMD_RESET:
-
+				motion_mode = RETURN_ZERO;
+				printf("return to zero postion\n");
+				control_mode = 0;
 			break;
 
 			case CMD_BACKORIGIN:
 				motion_mode = RETURN_ORIGIN_POSITION;
 				printf("return origin position\n");
+				control_mode = 0;
+			break;
+
+			case CMD_MOVEPRE:
+				motion_mode = MOVE_PRE_POSITION;
+				printf("move to prepare position\n");
 				control_mode = 0;
 			break;
 
@@ -2624,8 +2759,26 @@ void rt_can_recv(void *arg)
 				break;
 
 				case FIND_HOME_MOTION:
-
-					find_home(can_channel_main,can_id_main);
+					if (can_id_main == 9)
+					{
+						find_home(0,9);
+						sleeptime.tv_nsec = 8000;
+						sleeptime.tv_sec = 0;
+						nanosleep(&sleeptime,NULL);
+						find_home(1,9);
+						sleeptime.tv_nsec = 8000;
+						sleeptime.tv_sec = 0;
+						nanosleep(&sleeptime,NULL);
+						find_home(2,9);
+						sleeptime.tv_nsec = 8000;
+						sleeptime.tv_sec = 0;
+						nanosleep(&sleeptime,NULL);
+						find_home(3,9);
+					}
+					else
+					{
+						find_home(can_channel_main,can_id_main);
+					}
 					motion_mode = 100;
 					printf("MOTION_MODE: FIND_HOME_MOTION\n");
 				break;
@@ -3027,26 +3180,138 @@ void rt_can_recv(void *arg)
 		 		break;
 
 		 		case FIND_HOME_NEW:
-		 			return_value = find_home_new();
+		 		/*	return_value = find_home_new();
 		 			motion_mode_control	= 1;
 		 	//		printf("return_value = %d\n", return_value );
 		 			if(return_value == 0)
 		 			{
 		 				motion_mode = 100;
 		 				motion_mode_control	= 0;
+		 			}*/
+		 		{
+		 			if (first_move_flag)
+		 			{
+		 				first_move_flag = 0;
+		 				motion_mode_control	= 1;
+
+		 				memset(&RealTargetPos,0,sizeof(RealTargetPos));
+						CanDef2RealRobot(Joint_Angle_FB, &RealTargetPos);
+						RealTargetPos.LeftArm[0] = -8*Degree2Rad;
+						RealTargetPos.LeftArm[1] = -65*Degree2Rad;
+						RealTargetPos.LeftArm[2] = 8*Degree2Rad;
+						RealTargetPos.LeftArm[3] = 8*Degree2Rad;
+						RealTargetPos.LeftArm[4] = 10*Degree2Rad;
+						RealTargetPos.LeftArm[5] = 8*Degree2Rad;
+						RealTargetPos.RightArm[0] = -8*Degree2Rad;
+						RealTargetPos.RightArm[1] = 85*Degree2Rad;
+						RealTargetPos.RightArm[2] = 6*Degree2Rad;
+						RealTargetPos.RightArm[3] = 8*Degree2Rad;
+						RealTargetPos.RightArm[4] = -16*Degree2Rad;
+						RealTargetPos.RightArm[5] = 8*Degree2Rad;
 		 			}
+		 			else
+		 			{
+			 			return_value = AllJointMove(RealTargetPos,30,1,0,0,0);
+			 			if(return_value == 0)
+			 			{
+			 				motion_mode = 100;
+			 				motion_mode_control	= 0;
+			 				first_move_flag = 1;
+			 			}
+		 			}
+
+		 		}
 		 		break;
 
 		 		case RETURN_ORIGIN_POSITION:
 
-		 			return_value = return_origin_position();
+		 	/*		return_value = return_origin_position();
 		 			motion_mode_control	= 1;
-		 		//	printf("return_value = %d\n", return_value);
 		 			if(return_value == 0)
 		 			{
 		 				motion_mode = 100;
 		 				motion_mode_control	= 0;
+		 			}*/
+		 		{
+		 			if (first_move_flag)
+		 			{
+		 				first_move_flag = 0;
+		 				motion_mode_control	= 1;
+
+		 				memset(&RealTargetPos,0,sizeof(RealTargetPos));
+						CanDef2RealRobot(Joint_Angle_FB, &RealTargetPos);
+						RealTargetPos.LeftArm[1] = 73.5*Degree2Rad;
+						RealTargetPos.RightArm[1] = -73.5*Degree2Rad;
 		 			}
+		 			else
+		 			{
+			 			return_value = AllJointMove(RealTargetPos,20,1,0,0,0);
+			 			if(return_value == 0)
+			 			{
+			 				motion_mode = 100;
+			 				motion_mode_control	= 0;
+			 				first_move_flag = 1;
+			 			}
+		 			}
+
+		 		}
+		 		break;
+
+				case RETURN_ZERO:
+				{
+					if (first_move_flag)
+		 			{
+		 				first_move_flag = 0;
+		 				motion_mode_control	= 1;
+
+		 				memset(&RealTargetPos,0,sizeof(RealTargetPos));
+		 			}
+		 			else
+		 			{
+			 			return_value = AllJointMove(RealTargetPos,30,1,0,0,0);
+			 			if(return_value == 0)
+			 			{
+			 				motion_mode = 100;
+			 				motion_mode_control	= 0;
+			 				first_move_flag = 1;
+			 			}
+		 			}
+				}
+		 		break;
+
+		 		case MOVE_PRE_POSITION:
+	 			{
+	 				if (first_move_flag)
+		 			{
+		 				first_move_flag = 0;
+		 				motion_mode_control	= 1;
+
+		 				memset(&RealTargetPos,0,sizeof(RealTargetPos));
+						CanDef2RealRobot(Joint_Angle_FB, &RealTargetPos);
+						RealTargetPos.LeftArm[0] = -45*Degree2Rad;
+						RealTargetPos.LeftArm[1] = 60*Degree2Rad;
+						RealTargetPos.LeftArm[2] = 0*Degree2Rad;
+						RealTargetPos.LeftArm[3] = 30*Degree2Rad;
+						RealTargetPos.LeftArm[4] = 0*Degree2Rad;
+						RealTargetPos.LeftArm[5] = 30*Degree2Rad;
+						RealTargetPos.RightArm[0] = 45*Degree2Rad;
+						RealTargetPos.RightArm[1] = -60*Degree2Rad;
+						RealTargetPos.RightArm[2] = 0*Degree2Rad;
+						RealTargetPos.RightArm[3] = -30*Degree2Rad;
+						RealTargetPos.RightArm[4] = 0*Degree2Rad;
+						RealTargetPos.RightArm[5] = -30*Degree2Rad;
+		 			}
+		 			else
+		 			{
+			 			return_value = AllJointMove(RealTargetPos,30,1,0,0,0);
+			 			if(return_value == 0)
+			 			{
+			 				motion_mode = 100;
+			 				motion_mode_control	= 0;
+			 				first_move_flag = 1;
+			 			}
+		 			}
+				}
 		 		break;
 
 		 		case PREPARE_FIND_HOME:
@@ -3361,28 +3626,28 @@ void rt_can_recv(void *arg)
 		sprintf(buf9, "RArmErr   %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f  %8.3f",
 		AngleERDeg.RightArm[0], AngleERDeg.RightArm[1], AngleERDeg.RightArm[2], AngleERDeg.RightArm[3], AngleERDeg.RightArm[4], AngleERDeg.RightArm[5], AngleERDeg.RightArm[6]);
 
-		sprintf(buf10, "LHandRecv %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f",
+		sprintf(buf10, "LHandRecv %8.3f  %8.3f  %8.3f  %8.3f    HeadRecv:%8.3f  %8.3f",
 		AngleFBDeg.LeftHand[0], AngleFBDeg.LeftHand[1], AngleFBDeg.LeftHand[2], AngleFBDeg.LeftHand[3], AngleFBDeg.Head[0], AngleFBDeg.Head[1]);
-		sprintf(buf11, "LHandSend %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f",
+		sprintf(buf11, "LHandSend %8.3f  %8.3f  %8.3f  %8.3f    HeadSend:%8.3f  %8.3f",
 		AngleEPDeg.LeftHand[0], AngleEPDeg.LeftHand[1], AngleEPDeg.LeftHand[2], AngleEPDeg.LeftHand[3], AngleEPDeg.Head[0], AngleEPDeg.Head[1]);
-		sprintf(buf12, "LHandErr  %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f",
+		sprintf(buf12, "LHandErr  %8.3f  %8.3f  %8.3f  %8.3f    HeadErr: %8.3f  %8.3f",
 		AngleERDeg.LeftHand[0], AngleERDeg.LeftHand[1], AngleERDeg.LeftHand[2], AngleERDeg.LeftHand[3], AngleERDeg.Head[0], AngleERDeg.Head[1]);
 
-		sprintf(buf13, "RHandRecv %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f",
+		sprintf(buf13, "RHandRecv %8.3f  %8.3f  %8.3f  %8.3f    WaistRecv:%7.3f  %8.3f",
 		AngleFBDeg.RightHand[0], AngleFBDeg.RightHand[1], AngleFBDeg.RightHand[2], AngleFBDeg.RightHand[3], AngleFBDeg.Waist[0], AngleFBDeg.Waist[1]);
-		sprintf(buf14, "RHandSend %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f",
+		sprintf(buf14, "RHandSend %8.3f  %8.3f  %8.3f  %8.3f    WaistSend:%7.3f  %8.3f",
 		AngleEPDeg.RightHand[0], AngleEPDeg.RightHand[1], AngleEPDeg.RightHand[2], AngleEPDeg.RightHand[3], AngleEPDeg.Waist[0], AngleEPDeg.Waist[1]);
-		sprintf(buf15, "RHandErr  %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f",
+		sprintf(buf15, "RHandErr  %8.3f  %8.3f  %8.3f  %8.3f    WaistErr: %7.3f  %8.3f",
 		AngleERDeg.RightHand[0], AngleERDeg.RightHand[1], AngleERDeg.RightHand[2], AngleERDeg.RightHand[3], AngleERDeg.Waist[0], AngleERDeg.Waist[1]);
 
 		sprintf(buf16, "*********************************  Robot current *********************************");
-		sprintf(buf17, "LArmCur  %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f  %8.3f",
+		sprintf(buf17, "LArmCur   %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f  %8.3f",
 		RealCurrent.LeftArm[0], RealCurrent.LeftArm[1], RealCurrent.LeftArm[2], RealCurrent.LeftArm[3], RealCurrent.LeftArm[4], RealCurrent.LeftArm[5], RealCurrent.LeftArm[6]);
-		sprintf(buf18, "RArmCur  %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f  %8.3f",
+		sprintf(buf18, "RArmCur   %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f  %8.3f",
 		RealCurrent.RightArm[0], RealCurrent.RightArm[1], RealCurrent.RightArm[2], RealCurrent.RightArm[3], RealCurrent.RightArm[4], RealCurrent.RightArm[5], RealCurrent.RightArm[6]);
-		sprintf(buf19, "LHandCur %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f",
+		sprintf(buf19, "LHandCur  %8.3f  %8.3f  %8.3f  %8.3f    HeadCur: %8.3f  %8.3f",
 		RealCurrent.LeftHand[0], RealCurrent.LeftHand[1], RealCurrent.LeftHand[2], RealCurrent.LeftHand[3], RealCurrent.Head[0], RealCurrent.Head[1]);
-		sprintf(buf20, "RHandCur %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f",
+		sprintf(buf20, "RHandCur  %8.3f  %8.3f  %8.3f  %8.3f    WaistCur:%8.3f  %8.3f",
 		RealCurrent.RightHand[0], RealCurrent.RightHand[1], RealCurrent.RightHand[2], RealCurrent.RightHand[3], RealCurrent.Waist[0], RealCurrent.Waist[1]);
 
 	}
@@ -4539,6 +4804,42 @@ void CanDef2RealRobot(double CanDef[4][7], struct RealRobot_Struct* RealRobot)
 
 	RealRobot->Waist[0] = CanDef[3][4];
 	RealRobot->Waist[1] = CanDef[3][5];
+}
+
+// 实际机器人数据结构到CAN定义转换
+void RealRobot2CanDef(struct RealRobot_Struct RealRobot, double CanDef[4][7])
+{
+	CanDef[2][0] = RealRobot.LeftArm[0];
+	CanDef[3][0] = RealRobot.LeftArm[1];
+	CanDef[3][1] = RealRobot.LeftArm[2];
+	CanDef[2][1] = RealRobot.LeftArm[3];
+	CanDef[0][4] = RealRobot.LeftArm[4];
+	CanDef[0][5] = RealRobot.LeftArm[5];
+	CanDef[0][6] = RealRobot.LeftArm[6];
+
+	CanDef[2][2] = RealRobot.RightArm[0];
+	CanDef[3][2] = RealRobot.RightArm[1];
+	CanDef[3][3] = RealRobot.RightArm[2];
+	CanDef[2][3] = RealRobot.RightArm[3];
+	CanDef[1][4] = RealRobot.RightArm[4];
+	CanDef[1][5] = RealRobot.RightArm[5];
+	CanDef[1][6] = RealRobot.RightArm[6];
+
+	CanDef[0][0] = RealRobot.LeftHand[0];
+	CanDef[0][1] = RealRobot.LeftHand[1];
+	CanDef[0][2] = RealRobot.LeftHand[2];
+	CanDef[0][3] = RealRobot.LeftHand[3];
+
+	CanDef[1][0] = RealRobot.RightHand[0];
+	CanDef[1][1] = RealRobot.RightHand[1];
+	CanDef[1][2] = RealRobot.RightHand[2];
+	CanDef[1][3] = RealRobot.RightHand[3];
+
+	CanDef[2][4] = RealRobot.Head[0];
+	CanDef[2][5] = RealRobot.Head[1];
+
+	CanDef[3][4] = RealRobot.Waist[0];
+	CanDef[3][5] = RealRobot.Waist[1];
 }
 
 double JointDetect(int Can_CH, int Can_ID, double angle_in)		// input: rad    output: rad

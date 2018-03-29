@@ -68,12 +68,12 @@
 #define HOMEBACK			80
 #define FIND_HOME_NEW      	120
 #define RETURN_ORIGIN_POSITION	 121
+#define RETURN_ZERO			119
+#define MOVE_PRE_POSITION	 123
 
 #define ARM1 0
 #define ARM2 1
 #define ARM3 2
-
-
 
 #define PREPARE_FIND_HOME 122
 
@@ -89,6 +89,7 @@
 #define CMD_HOMEZERO 		0xA9
 #define CMD_RESET			0xAA
 #define CMD_BACKORIGIN		0xAB
+#define CMD_MOVEPRE			0xAC
 
 //力传感器控制指令
 #define FORCE_INIT   		0xB1
