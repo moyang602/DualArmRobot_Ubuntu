@@ -108,6 +108,7 @@ struct EndCMD_Struct
 struct RemoteDATA_Struct
 {
 	unsigned char Mode;
+	short rocker[2];
 	float Data[14];
 	unsigned char CheckSum;
 };
@@ -177,7 +178,7 @@ int UDPRecv(void);
 int GetSingleJointData(long* can_channel_main,long* can_id_main,float* JointMoveData,double* JointMoveTime);
 int GetSingleArmData(int* ArmSelect,float ArmMoveData[7], double* ArmMoveTime);
 int GetEndData(int* ArmSelect,float EndData[12], double* EndMoveTime);
-int GetRemoteData(float RemoteMotionData[14]);
+int GetRemoteData(short *rockerL, short *rockerR, float RemoteMotionData[14]);
 int GetRemoteCMD(void);
 int GetControlCMD(void);
 int GetHandCMD(int* HandSelect, float* HandAngleL, float* HandAngleR);

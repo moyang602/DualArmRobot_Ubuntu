@@ -332,13 +332,16 @@ int GetEndData(int* ArmSelect,float EndMoveData[12], double* EndMoveTime)
 	printf("motion_mode = END_MOTION  ARM %d TIME  %8.3f s\n", *ArmSelect, *EndMoveTime);
 
 }
-int GetRemoteData(float RemoteMotionData[14])
+int GetRemoteData(short *rockerL, short *rockerR, float RemoteMotionData[14])
 {
 	int i = 0;
 	for(i=0;i<14;i++)
 	{
 		RemoteMotionData[i] = RemoteData.Data[i];
 	}
+	*rockerL = RemoteData.rocker[0];
+	*rockerR = RemoteData.rocker[1];
+
 //	printf("Recv RemoteData\n");
 }
 int GetRemoteCMD(void)

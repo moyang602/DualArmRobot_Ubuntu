@@ -57,6 +57,7 @@
 #include "trajectory.h"
 #include "global_def.h"
 #include "communication.h"
+#include "HandControl.h"
 
 #define hand2base 300.0
 
@@ -92,7 +93,8 @@ int AllJointMove(struct RealRobot_Struct RealPos, double time, int joint, int ha
 void CanDef2RealRobot(double CanDef[4][7], struct RealRobot_Struct* RealRobot);
 // 实际机器人数据结构到CAN定义转换
 void RealRobot2CanDef(struct RealRobot_Struct RealRobot, double CanDef[4][7]);
-
+int  control_handL(short u16_sig, double I_f1, double I_f2, double I_f3,double * output);
+int  control_handR(short u16_sig, double I_f1, double I_f2, double I_f3,double * output);
 /*********************************变量声明**********************************/
 /////////////// 系统变量
 RT_TASK demo_task_rvcan;
@@ -173,10 +175,14 @@ int can_channel_number = 4;
 //						{1, 1, 1, 1, 1, 1, 1},
 //						{1, 1, 1, 1, 1, 1, 1},
 //						{1, 1, 1, 1, 1, 1, 1}};
-int can_switch[4][7] = {{0, 0, 0, 0, 1, 1, 1},
+/*int can_switch[4][7] = {{0, 0, 0, 0, 1, 1, 1},
 						{0, 0, 0, 0, 1, 1, 1},
 						{1, 1, 1, 1, 1, 1, 0},
-						{1, 1, 1, 1, 1, 1, 1}};
+						{1, 1, 1, 1, 1, 1, 1}};*/
+int can_switch[4][7] = {{0, 0, 0, 0, 0, 0, 0},
+						{1, 1, 1, 1, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 1}};
 
 // 各节点速度方向
 double joint_direction[4][7] = {{1, 1, 1, 1, 1, -1, 1},		// 456 OK
@@ -310,6 +316,8 @@ int RemoteMotion_enable_flag = 0;
 float JointMoveData = 0.0;
 float RemoteMotionData[14] = {0.0};
 float RemoteMotionDataLast[14] = {0.0};
+short rockerL = 0;
+short rockerR = 0;
 int RemoteNewData = 0;
 int RemoteStep = 0;
 
@@ -1918,6 +1926,7 @@ void rt_can_recv(void *arg)
 
 	int first_move_flag = 1;	// used for move CMD
 	rt_task_set_periodic(NULL, TM_NOW, 6000000);
+	RTIME LastTime, NowTime;
 /**********************************************************************************/
 	//    开始循环
 /**********************************************************************************/
@@ -2169,7 +2178,7 @@ void rt_can_recv(void *arg)
 							sleeptime.tv_sec = 0;
 							nanosleep(&sleeptime,NULL);
 							rad_send(0, 6, Joint_Angle_EP[0][6]);
-							sleeptime.tv_nsec = 250000;
+							sleeptime.tv_nsec = 8000;
 							sleeptime.tv_sec = 0;
 							nanosleep(&sleeptime,NULL);
 							rad_send(2, 0, Joint_Angle_EP[2][0]);
@@ -2177,7 +2186,7 @@ void rt_can_recv(void *arg)
 							sleeptime.tv_sec = 0;
 							nanosleep(&sleeptime,NULL);
 							rad_send(2, 1, Joint_Angle_EP[2][1]);
-							sleeptime.tv_nsec = 250000;
+							sleeptime.tv_nsec = 8000;
 							sleeptime.tv_sec = 0;
 							nanosleep(&sleeptime,NULL);
 							rad_send(3, 0, Joint_Angle_EP[3][0]);
@@ -2185,13 +2194,11 @@ void rt_can_recv(void *arg)
 							sleeptime.tv_sec = 0;
 							nanosleep(&sleeptime,NULL);
 							rad_send(3, 1, Joint_Angle_EP[3][1]);
-							sleeptime.tv_nsec = 250000;
+							sleeptime.tv_nsec = 8000;
 							sleeptime.tv_sec = 0;
 							nanosleep(&sleeptime,NULL);
 
-							rad_send(1, 4, Joint_Angle_EP[1][4]);
-							sleeptime.tv_nsec = 250000;
-							sleeptime.tv_sec = 0;
+						/*	rad_send(1, 4, Joint_Angle_EP[1][4]);
 							sleeptime.tv_nsec = 250000;
 							sleeptime.tv_sec = 0;
 							nanosleep(&sleeptime,NULL);
@@ -2200,7 +2207,7 @@ void rt_can_recv(void *arg)
 							sleeptime.tv_sec = 0;
 							nanosleep(&sleeptime,NULL);
 							rad_send(1, 6, Joint_Angle_EP[1][6]);
-							sleeptime.tv_nsec = 250000;
+							sleeptime.tv_nsec = 8000;
 							sleeptime.tv_sec = 0;
 							nanosleep(&sleeptime,NULL);
 							rad_send(2, 2, Joint_Angle_EP[2][2]);
@@ -2208,7 +2215,7 @@ void rt_can_recv(void *arg)
 							sleeptime.tv_sec = 0;
 							nanosleep(&sleeptime,NULL);
 							rad_send(2, 3, Joint_Angle_EP[2][3]);
-							sleeptime.tv_nsec = 250000;
+							sleeptime.tv_nsec = 8000;
 							sleeptime.tv_sec = 0;
 							nanosleep(&sleeptime,NULL);
 							rad_send(3, 2, Joint_Angle_EP[3][2]);
@@ -2218,9 +2225,48 @@ void rt_can_recv(void *arg)
 							rad_send(3, 3, Joint_Angle_EP[3][3]);
 							sleeptime.tv_nsec = 250000;
 							sleeptime.tv_sec = 0;
-							nanosleep(&sleeptime,NULL);
+							nanosleep(&sleeptime,NULL);	*/
 						}
 
+						double AngleH[2][4] = {{0.0, 0.0, 0.0, 0.0},{0.0, 0.0, 0.0, 0.0}};
+						control_handL(rockerL, motor_current[0][1], motor_current[0][2], motor_current[0][3], AngleH[0]);
+						printf("rockerL=%04x, rockerR=%04x,AngleH = %f\n",rockerL,rockerR,AngleH[0][2]);
+						control_handR(rockerR, motor_current[1][1], motor_current[1][2], motor_current[1][3], AngleH[1]);
+
+						FILE *fp;
+						fp = fopen("test.txt","a");
+						fprintf(fp, "%8.3lf %8.3lf %8.3lf %8.3lf\n", motor_current[1][0], motor_current[1][1], motor_current[1][2], motor_current[1][3]);
+						fclose(fp);
+						for (i_R=0; i_R<2; i_R++)
+						{
+							Joint_Angle_EP[i_R][0] = JointDetect(i_R, 0, AngleH[i_R][0]*Degree2Rad);
+							Joint_Angle_EP[i_R][1] = JointDetect(i_R, 1, AngleH[i_R][1]*Degree2Rad);
+							Joint_Angle_EP[i_R][2] = JointDetect(i_R, 2, AngleH[i_R][2]*Degree2Rad);
+							Joint_Angle_EP[i_R][3] = JointDetect(i_R, 3, AngleH[i_R][3]*Degree2Rad);
+						}
+
+
+						if(motion_enable_flag == 1)
+						{
+							for (i_R = 0; i_R < 4; i_R++)
+							{
+								rad_send(0,i_R,Joint_Angle_EP[0][i_R]);
+								sleeptime.tv_nsec = 8000;
+								sleeptime.tv_sec = 0;
+								nanosleep(&sleeptime,NULL);
+								rad_send(1,i_R,Joint_Angle_EP[1][i_R]);
+								sleeptime.tv_nsec = 250000;
+								sleeptime.tv_sec = 0;
+								nanosleep(&sleeptime,NULL);
+							}
+						}
+
+
+						NowTime = rt_timer_read();
+						double period1 = 0;
+						period1 = (NowTime - LastTime) / 1000;   //us
+						LastTime = NowTime;
+						printf("period1 = %f\n", period1);
 					}
 				}
 				break;
@@ -3534,7 +3580,7 @@ void rt_can_recv(void *arg)
 
 					case REMOTE_DATA:
 					{
-						GetRemoteData(RemoteMotionData);
+						GetRemoteData(&rockerL, &rockerR, RemoteMotionData);
 						RemoteNewData = 1;
 					}
 					break;
@@ -4917,4 +4963,444 @@ double JointDetect(int Can_CH, int Can_ID, double angle_in)		// input: rad    ou
 */
 	out = angle_in;
 	return out;
+}
+
+
+
+
+//第一个输入参数为16为无符号整形u16_sig，各个位上为1代表相应按键有按下
+//第二-四个参数为三个手指采回来的电流
+//最后的参数为保存输出结果的数组1*4，数组前三个分别是三个手指的弯曲角度，最后一个为旋转角度
+int  control_handL(short u16_sig, double I_f1, double I_f2, double I_f3,double * output)
+{
+	//解析信号
+	int finger_sig = 0, theta_sig = 0;//用于解析手指弯曲、旋转角度的变化信号
+	static int s_current_mag_sig = 0;//该变量用于记录当前的档位调节信号，必须是static，因为得考虑上一次的值
+	int mag_sig = 0;//该变量用于此次档位的变化
+					//该变量用于记录上一次的档位调节信号
+	static int s_last_mag_sig;
+
+	I_f1 = fabs(I_f1);
+	I_f2 = fabs(I_f2);
+	I_f3 = fabs(I_f3);
+	s_last_mag_sig = s_current_mag_sig;//此时变量s_current_mag_sig记录的是上一次的档位调节信号
+
+									   //检查各位，设定相应的信号值
+	if ((u16_sig & 0x01) != 0) //if ((u16_sig || key_number )!=0)
+	{
+		finger_sig = -1;
+	}
+	if ((u16_sig & 0x02) != 0) //if ((u16_sig || key_number<<1 )!=0)
+	{
+		theta_sig = 1;
+	}
+	if ((u16_sig & 0x04) != 0)
+	{
+		theta_sig = -1;
+	}
+	if ((u16_sig & 0x08) != 0)
+	{
+		finger_sig = 1;
+	}
+
+	if ((u16_sig & 0x10) != 0)
+	{
+		s_current_mag_sig = 1;
+	}
+	else
+	{
+		s_current_mag_sig = 0;
+	}
+
+	//电流档位调节的按键检测
+	if (s_last_mag_sig == 1 && s_current_mag_sig == 0)//如果按键上一次处于按下状态，这一次处于弹起状态
+	{
+		mag_sig = 1;//此时电流档位才可以改变
+	}
+
+
+	//以下定义计算平均电流用的变量
+	double d_I[3] = { 0 };//三个手指平均电流值
+	static double sd_I_sink[3][num_sample] = { 0 };
+	static int s_pointer = 0, s_period_flag = 0;
+	static double sd_last_If1 = 0, sd_last_If2 = 0, sd_last_If3 = 0;//用于记录上一次的电流值
+
+
+	int i, j, k;//循环用的数
+	double td_Itemp_sum[3] = { 0 };
+
+	//第一阶段：计算平均电流
+	{
+		if (I_f1==0)
+		{
+			I_f1 = sd_last_If1;
+		}
+		if (I_f2 == 0)
+		{
+			I_f2 = sd_last_If2;
+		}
+		if (I_f3 == 0)
+		{
+			I_f3 = sd_last_If3;
+		}
+
+		sd_I_sink[0][s_pointer] = I_f1;//填入输入的电流值
+		sd_I_sink[1][s_pointer] = I_f2;
+		sd_I_sink[2][s_pointer] = I_f3;
+
+		sd_last_If1 = I_f1;//保存函数这次调用时的电流值
+		sd_last_If2 = I_f2;
+		sd_last_If3 = I_f3;
+
+		for (j = 0; j < 3; j++)//求一段时间内的电流和
+		{
+			for (td_Itemp_sum[j] = 0, i = 0; i < num_sample; i++)
+			{
+				td_Itemp_sum[j] += sd_I_sink[j][i];
+			}
+		}
+
+		//求平均得3个手指电流值
+		if (s_period_flag == 1)//电流的采样数是否大于num_sample
+		{
+			for (k = 0; k < 3; k++)
+			{
+				d_I[k] = td_Itemp_sum[k] / num_sample;
+			}
+		}
+		else
+		{
+			for (k = 0; k < 3; k++)
+			{
+				d_I[k] = td_Itemp_sum[k] / (s_pointer + 1);
+			}
+		}
+
+		s_pointer++;
+		if (s_pointer == num_sample)
+		{
+			s_pointer = 0;
+			s_period_flag = 1;
+		}
+	}
+
+	//第二阶段
+
+	//先定义相关变量
+	static double sd_Ic[Ic_mark_max] = { Ic1,Ic2,Ic3,Ic4,Ic5 };
+	static int si_Ic_mark = 1;//默认一档
+	double d_I0 = I0_benchmark;
+	static double sd_f_alpha[3] = { f_alpha_default,f_alpha_default,f_alpha_default }, theta = theta_default;//四个角度变量
+	static double sd_last_falpha[3];
+
+	for (i = 0; i < 3; i++)//上一次手指的期望角度
+	{
+		sd_last_falpha[i] = sd_f_alpha[i];
+	}
+
+	//处理档位变化信号，旋转角度变化信号
+	si_Ic_mark += mag_sig;//根据信号，档位增加、不变或减少
+	if (si_Ic_mark >= Ic_mark_max)
+	{
+		si_Ic_mark = 1;
+	}
+	else if (si_Ic_mark < 1)
+	{
+		si_Ic_mark = 5;
+	}
+
+	//处理手指的旋转
+	if (theta + delta_theta * theta_sig > theta_max)//将要超过限制
+	{
+		theta = theta_max;
+	}
+	else if (theta + delta_theta * theta_sig < theta_min)//将要低于限制
+	{
+		theta = theta_min;
+	}
+	else
+	{
+		theta += delta_theta * theta_sig;//正常变化
+	}
+
+	//暂时旋转角度保持为默认值
+	//theta = theta_default;
+
+
+	//由于手指旋转角度的问题，需要对单个手指的实际电流档位进行修正
+	//默认以拇指为基准
+	double Ic_amend[3];
+	double cof = cos(theta * pi / 180) * 2;
+	Ic_amend[0] = sd_Ic[si_Ic_mark-1];
+	Ic_amend[1] = sd_Ic[si_Ic_mark-1] / cof;
+	Ic_amend[2] = sd_Ic[si_Ic_mark-1] / cof;//食指的电流得到修正
+										  //if (Ic_amend[0]<Ic[0])//档位过小的话,直接设为最小档位.	暂时取消此句，还得考虑到拇指参不参与抓取
+										  //{
+										  //	Ic_amend[0] = Ic[0];
+										  //}
+
+	if (finger_sig == -1)//张开手指的处理
+	{
+		for (i = 0; i < 3; i++)//三个手指单独考虑
+		{
+			sd_f_alpha[i] += finger_sig * delta_falpha;
+			if (sd_f_alpha[i] < f_alpha_min)
+			{
+				sd_f_alpha[i] = f_alpha_min;
+			}
+		}
+	}
+	else
+	{
+		for (i = 0; i < 3; i++)//三个手指单独考虑
+		{
+			if (d_I[i] <= d_I0)//小于I0表示没碰到物体
+			{
+				sd_f_alpha[i] += finger_sig * delta_falpha;//继续闭合手指
+				if (sd_f_alpha[i] > f_alpha_max)
+				{
+					sd_f_alpha[i] = f_alpha_max;
+				}
+			}
+			else if (d_I[i] < Ic_amend[i])//小于Ic，接触到物体，但是未到设定的最大值
+			{
+				sd_f_alpha[i] += finger_sig * minidelta_falpha;//继续闭合手指,但是现在要缓慢
+				if (sd_f_alpha[i] > f_alpha_max)
+				{
+					sd_f_alpha[i] = f_alpha_max;
+				}
+			}
+			else 		//达到Ic后
+			{
+				sd_f_alpha[i] = sd_last_falpha[i];				//此段以后可根据需要更改为阻抗控制等
+			}
+		}
+	}
+
+	//输出参数，第一个是旋转角度，后三个分别是三个手指的弯曲角度
+	output[1] = sd_f_alpha[0];
+	output[2] = sd_f_alpha[1];
+	output[3] = sd_f_alpha[2];
+	output[0] = theta;
+
+	return 0;
+}
+
+//第一个输入参数为16为无符号整形u16_sig，各个位上为1代表相应按键有按下
+//第二-四个参数为三个手指采回来的电流
+//最后的参数为保存输出结果的数组1*4，数组前三个分别是三个手指的弯曲角度，最后一个为旋转角度
+int  control_handR(short u16_sig, double I_f1, double I_f2, double I_f3,double * output)
+{
+	//解析信号
+	int finger_sig = 0, theta_sig = 0;//用于解析手指弯曲、旋转角度的变化信号
+	static int s_current_mag_sig = 0;//该变量用于记录当前的档位调节信号，必须是static，因为得考虑上一次的值
+	int mag_sig = 0;//该变量用于此次档位的变化
+					//该变量用于记录上一次的档位调节信号
+	static int s_last_mag_sig;
+
+	I_f1 = fabs(I_f1);
+	I_f2 = fabs(I_f2);
+	I_f3 = fabs(I_f3);
+
+	s_last_mag_sig = s_current_mag_sig;//此时变量s_current_mag_sig记录的是上一次的档位调节信号
+
+									   //检查各位，设定相应的信号值
+	if ((u16_sig & 0x01) != 0) //if ((u16_sig || key_number )!=0)
+	{
+		finger_sig = -1;
+	}
+	if ((u16_sig & 0x02) != 0) //if ((u16_sig || key_number<<1 )!=0)
+	{
+		theta_sig = 1;
+	}
+	if ((u16_sig & 0x04) != 0)
+	{
+		theta_sig = -1;
+	}
+	if ((u16_sig & 0x08) != 0)
+	{
+		finger_sig = 1;
+	}
+
+	if ((u16_sig & 0x10) != 0)
+	{
+		s_current_mag_sig = 1;
+	}
+	else
+	{
+		s_current_mag_sig = 0;
+	}
+
+	//电流档位调节的按键检测
+	if (s_last_mag_sig == 1 && s_current_mag_sig == 0)//如果按键上一次处于按下状态，这一次处于弹起状态
+	{
+		mag_sig = 1;//此时电流档位才可以改变
+	}
+
+
+	//以下定义计算平均电流用的变量
+	double d_I[3] = { 0 };//三个手指平均电流值
+	static double sd_I_sink[3][num_sample] = { 0 };
+	static int s_pointer = 0, s_period_flag = 0;
+	static double sd_last_If1 = 0, sd_last_If2 = 0, sd_last_If3 = 0;//用于记录上一次的电流值
+
+
+	int i, j, k;//循环用的数
+	double td_Itemp_sum[3] = { 0 };
+
+	//第一阶段：计算平均电流
+	{
+		if (I_f1==0)
+		{
+			I_f1 = sd_last_If1;
+		}
+		if (I_f2 == 0)
+		{
+			I_f2 = sd_last_If2;
+		}
+		if (I_f3 == 0)
+		{
+			I_f3 = sd_last_If3;
+		}
+
+		sd_I_sink[0][s_pointer] = I_f1;//填入输入的电流值
+		sd_I_sink[1][s_pointer] = I_f2;
+		sd_I_sink[2][s_pointer] = I_f3;
+
+		sd_last_If1 = I_f1;//保存函数这次调用时的电流值
+		sd_last_If2 = I_f2;
+		sd_last_If3 = I_f3;
+
+		for (j = 0; j < 3; j++)//求一段时间内的电流和
+		{
+			for (td_Itemp_sum[j] = 0, i = 0; i < num_sample; i++)
+			{
+				td_Itemp_sum[j] += sd_I_sink[j][i];
+			}
+		}
+
+		//求平均得3个手指电流值
+		if (s_period_flag == 1)//电流的采样数是否大于num_sample
+		{
+			for (k = 0; k < 3; k++)
+			{
+				d_I[k] = td_Itemp_sum[k] / num_sample;
+			}
+		}
+		else
+		{
+			for (k = 0; k < 3; k++)
+			{
+				d_I[k] = td_Itemp_sum[k] / (s_pointer + 1);
+			}
+		}
+
+		s_pointer++;
+		if (s_pointer == num_sample)
+		{
+			s_pointer = 0;
+			s_period_flag = 1;
+		}
+	}
+
+	//第二阶段
+
+	//先定义相关变量
+	static double sd_Ic[Ic_mark_max] = { Ic1,Ic2,Ic3,Ic4,Ic5 };
+	static int si_Ic_mark = 1;//默认一档
+	double d_I0 = I0_benchmark;
+	static double sd_f_alpha[3] = { f_alpha_default,f_alpha_default,f_alpha_default }, theta = theta_default;//四个角度变量
+	static double sd_last_falpha[3];
+
+	for (i = 0; i < 3; i++)//上一次手指的期望角度
+	{
+		sd_last_falpha[i] = sd_f_alpha[i];
+	}
+
+	//处理档位变化信号，旋转角度变化信号
+	si_Ic_mark += mag_sig;//根据信号，档位增加、不变或减少
+	if (si_Ic_mark >= Ic_mark_max)
+	{
+		si_Ic_mark = 1;
+	}
+	else if (si_Ic_mark < 1)
+	{
+		si_Ic_mark = 5;
+	}
+	printf("si_Ic_mark = %d\n", si_Ic_mark);
+	//处理手指的旋转
+	if (theta + delta_theta * theta_sig > theta_max)//将要超过限制
+	{
+		theta = theta_max;
+	}
+	else if (theta + delta_theta * theta_sig < theta_min)//将要低于限制
+	{
+		theta = theta_min;
+	}
+	else
+	{
+		theta += delta_theta * theta_sig;//正常变化
+	}
+
+	//暂时旋转角度保持为默认值
+	//theta = theta_default;
+
+
+	//由于手指旋转角度的问题，需要对单个手指的实际电流档位进行修正
+	//默认以拇指为基准
+	double Ic_amend[3];
+	double cof = cos(theta * pi / 180) * 2;
+	Ic_amend[0] = sd_Ic[si_Ic_mark-1];
+	Ic_amend[1] = sd_Ic[si_Ic_mark-1] / cof;
+	Ic_amend[2] = sd_Ic[si_Ic_mark-1] / cof;//食指的电流得到修正
+										  //if (Ic_amend[0]<Ic[0])//档位过小的话,直接设为最小档位.	暂时取消此句，还得考虑到拇指参不参与抓取
+										  //{
+										  //	Ic_amend[0] = Ic[0];
+										  //}
+
+	if (finger_sig == -1)//张开手指的处理
+	{
+		for (i = 0; i < 3; i++)//三个手指单独考虑
+		{
+			sd_f_alpha[i] += finger_sig * delta_falpha;
+			if (sd_f_alpha[i] < f_alpha_min)
+			{
+				sd_f_alpha[i] = f_alpha_min;
+			}
+		}
+	}
+	else
+	{
+		for (i = 0; i < 3; i++)//三个手指单独考虑
+		{
+			if (d_I[i] <= d_I0)//小于I0表示没碰到物体
+			{
+				sd_f_alpha[i] += finger_sig * delta_falpha;//继续闭合手指
+				if (sd_f_alpha[i] > f_alpha_max)
+				{
+					sd_f_alpha[i] = f_alpha_max;
+				}
+			}
+			else if (d_I[i] < Ic_amend[i])//小于Ic，接触到物体，但是未到设定的最大值
+			{
+				sd_f_alpha[i] += finger_sig * minidelta_falpha;//继续闭合手指,但是现在要缓慢
+				if (sd_f_alpha[i] > f_alpha_max)
+				{
+					sd_f_alpha[i] = f_alpha_max;
+				}
+			}
+			else 		//达到Ic后
+			{
+				sd_f_alpha[i] = sd_last_falpha[i];				//此段以后可根据需要更改为阻抗控制等
+			}
+		}
+	}
+
+	//输出参数，第一个是旋转角度，后三个分别是三个手指的弯曲角度
+	output[1] = sd_f_alpha[0];
+	output[2] = sd_f_alpha[1];
+	output[3] = sd_f_alpha[2];
+	output[0] = theta;
+
+	return 0;
 }
