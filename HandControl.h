@@ -8,7 +8,7 @@
 
 #define f_alpha_default 0		//手指角度默认值
 #define f_alpha_max		90		//默认-15-30度之间
-#define f_alpha_min		-30
+#define f_alpha_min		0
 #define delta_falpha	0.045//0.18	//手指弯曲速度delta；相应的速度为30度/S
 #define minidelta_falpha	0.025//0.01//手指缓慢弯曲速度minidelta,接触到物体时的
 
@@ -18,10 +18,10 @@
 #define delta_theta		0.09//0.18		//旋转速度60度/S
 
 #define Ic_mark_max		5		//最大档位数,档位从1开始
-#define Ic1				0.4		//档位值
-#define Ic2				0.6
-#define Ic3				0.8
-#define Ic4				0.10
-#define Ic5				0.12
+#define Ic1				0.8		//档位值
+#define Ic2				0.9
+#define Ic3				1.0
+#define Ic4				1.2
+#define Ic5				1.4
 
 #endif //

@@ -166,7 +166,7 @@ int can_channel_number = 4;
 						{0, 0, 0, 0, 1, 1, 1},
 						{1, 1, 1, 1, 1, 1, 0},
 						{1, 1, 1, 1, 1, 1, 1}};*/
-int can_switch[4][7] = {{0, 0, 0, 0, 0, 0, 0},
+int can_switch[4][7] = {{1, 1, 1, 1, 0, 0, 0},
 						{1, 1, 1, 1, 0, 0, 0},
 						{0, 0, 0, 0, 0, 0, 0},
 						{0, 0, 0, 0, 0, 0, 1}};
@@ -562,7 +562,6 @@ void view (void *n)
 					XCloseDisplay(MyDisplay);
 					view_running = 0;
 					canrv_running = 0;
-					fclose(fp);
 					rt_task_delete(&rt_task_view);
 					rt_task_delete(&demo_task_rvcan);
 
@@ -1282,7 +1281,7 @@ void rt_can_recv(void *arg)
 		if(servo_on_flag == 1) // when servo on, the motion control is able
 		{
 /************************* 四通道CAN数据接收**************************/
-			switch (motion_mode)   
+			switch (motion_mode)
 			{
 				case SINGLE_JOINT_MOTION:
 
@@ -1479,12 +1478,11 @@ void rt_can_recv(void *arg)
 
 						double AngleH[2][4] = {{0.0, 0.0, 0.0, 0.0},{0.0, 0.0, 0.0, 0.0}};
 						control_handL(rockerL, motor_current[0][1], motor_current[0][2], motor_current[0][3], AngleH[0]);
-						printf("rockerL=%04x, rockerR=%04x,AngleH = %f\n",rockerL,rockerR,AngleH[0][2]);
 						control_handR(rockerR, motor_current[1][1], motor_current[1][2], motor_current[1][3], AngleH[1]);
+						printf("rockerL=%04x,AngleH1 = %f,AngleH2 = %f,AngleH3 = %f\n",rockerL,AngleH[1][1],AngleH[1][2],AngleH[1][3]);
 
-						
 						fprintf(fp, "%8.3lf %8.3lf %8.3lf %8.3lf\n", motor_current[1][0], motor_current[1][1], motor_current[1][2], motor_current[1][3]);
-						
+
 						for (i_R=0; i_R<2; i_R++)
 						{
 							Joint_Angle_EP[i_R][0] = JointDetect(i_R, 0, AngleH[i_R][0]*Degree2Rad);
@@ -1499,7 +1497,7 @@ void rt_can_recv(void *arg)
 							for (i_R = 0; i_R < 4; i_R++)
 							{
 								rad_send(0,i_R,Joint_Angle_EP[0][i_R]);
-								sleeptime.tv_nsec = 8000;
+								sleeptime.tv_nsec = 5000;
 								sleeptime.tv_sec = 0;
 								nanosleep(&sleeptime,NULL);
 								rad_send(1,i_R,Joint_Angle_EP[1][i_R]);
@@ -1514,7 +1512,7 @@ void rt_can_recv(void *arg)
 						double period1 = 0;
 						period1 = (NowTime - LastTime) / 1000;   //us
 						LastTime = NowTime;
-						printf("period1 = %f\n", period1);
+					//	printf("period1 = %f\n", period1);
 					}
 				}
 				break;
@@ -2808,6 +2806,7 @@ void rt_can_recv(void *arg)
 		RealCurrent.RightHand[0], RealCurrent.RightHand[1], RealCurrent.RightHand[2], RealCurrent.RightHand[3], RealCurrent.Waist[0], RealCurrent.Waist[1]);
 
 	}
+	fclose(fp);
 }
 
 

@@ -9,3 +9,5 @@ makefile~
 control_backup.c
 global_def.h.gch
 data.txt
+current.txt
+*.gch
