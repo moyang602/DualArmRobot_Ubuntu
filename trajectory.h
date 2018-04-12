@@ -4,11 +4,6 @@
 #define Rad2Deg 57.29578
 #define Deg2Rad 0.0174533
 
-extern double L1;
-extern double L2;
-extern double pi;
-
-extern double sqrt3c2;
 
 int UnitVector(double vec[3],double unitvec[3]);
 void cross(double in1[3], double in2[3], double out[3]);
@@ -52,5 +47,23 @@ struct Cubic_Struct
 int cubicAddPoint(int index, float point);
 float cubicInterpolate(int index);
 
-extern struct Cubic_Struct cubic[14];
+//3维向量叉乘点乘
+void VecCross(double va[3],double vb[3],double vre[3]);
+double VecMulti(double va[3],double vb[3]);
+// 矩阵相乘
+void Matrix_Multiply(int iRow1, int iCol1, int iCol2, double* MA, double* MB, double* MC);
+// 碰撞检测相关
+struct OBB_struct
+{
+// 	double x_axis[3];
+// 	double y_axis[3];
+// 	double z_axis[3];
+	double Rt[3][3];
+	double pos[3];
+	double lwh[3];
+};
+void OBB_Update(double AngleL[7],double AngleR[7],double AngleW[2]);
+int OBB_Collision(struct OBB_struct OStr1,struct OBB_struct OStr2);
+int CollisionDetection(double jL[7],double jR[7],double jW[2]);	// left_arm right_arm waist_rotate waist_pitch
+
 #endif
