@@ -58,6 +58,7 @@
 #include "global_def.h"
 #include "communication.h"
 #include "HandControl.h"
+#include "SerialComm.h"
 
 #define hand2base 300.0
 
@@ -1179,6 +1180,7 @@ void rt_can_recv(void *arg)
 /**********************************************************************************/
 	FILE *fp;
 	fp = fopen("current.txt","w");
+	float Posture[3]={0.0, 0.0, 0.0};
 	while(canrv_running)
 	{
 		rt_task_wait_period(NULL);
@@ -1195,6 +1197,12 @@ void rt_can_recv(void *arg)
 		view_time++;
 
 		runtime = runtime + time_interval;
+
+		return_value = JY901_GetData(Posture);
+		if (return_value > 0)
+		{
+			printf("rtn = %d, Pos1 = %f, Pos2 = %f, Pos3 = %f\n", return_value, Posture[0], Posture[1], Posture[2]);
+		}
 
 		switch (control_mode)
 		{
@@ -1479,7 +1487,7 @@ void rt_can_recv(void *arg)
 						double AngleH[2][4] = {{0.0, 0.0, 0.0, 0.0},{0.0, 0.0, 0.0, 0.0}};
 						control_handL(rockerL, motor_current[0][1], motor_current[0][2], motor_current[0][3], AngleH[0]);
 						control_handR(rockerR, motor_current[1][1], motor_current[1][2], motor_current[1][3], AngleH[1]);
-						printf("rockerL=%04x,AngleH1 = %f,AngleH2 = %f,AngleH3 = %f\n",rockerL,AngleH[1][1],AngleH[1][2],AngleH[1][3]);
+						printf("rockerR=%04x,AngleH1 = %f,AngleH2 = %f,AngleH3 = %f\n",rockerR,AngleH[1][1],AngleH[1][2],AngleH[1][3]);
 
 						fprintf(fp, "%8.3lf %8.3lf %8.3lf %8.3lf\n", motor_current[1][0], motor_current[1][1], motor_current[1][2], motor_current[1][3]);
 
@@ -2985,6 +2993,7 @@ int main(int argc, char* argv[])
 	int s1;
 
 	RobotUDPComm_init();
+	JY901_init();
 	can_rt_init(channal, 1000000);
 
 
@@ -3967,8 +3976,8 @@ int control_handL(short u16_sig, double I_f1, double I_f2, double I_f3,double * 
 	static int s_last_mag_sig_inc;
 	static int s_last_mag_sig_des;//同理，一个记录增加按钮，一个记录减小按钮
 	int mag_sig = 0;//该变量用于此次档位的变化
-					
-	
+	static double theta = theta_default;//四个角度变量
+	static double sd_f_alpha[3] = { f_alpha_default,f_alpha_default,f_alpha_default };
 
 	I_f1 = fabs(I_f1);
 	I_f2 = fabs(I_f2);
@@ -3995,15 +4004,15 @@ int control_handL(short u16_sig, double I_f1, double I_f2, double I_f3,double * 
 	}
 
 	//电流挡位的设置
-	if ((u16_sig & 0x100) != 0)//挡位增大键
+	if ((u16_sig & 0x010) != 0)//挡位增大键
 	{
 		s_current_mag_sig_inc = 1;
-	} 
+	}
 	else
 	{
 		s_current_mag_sig_inc = 0;
-	}	
-	if ((u16_sig & 0x40) != 0)//挡位减小键
+	}
+	if ((u16_sig & 0x100) != 0)//挡位减小键
 	{
 		s_current_mag_sig_des = 1;
 	}
@@ -4037,7 +4046,7 @@ int control_handL(short u16_sig, double I_f1, double I_f2, double I_f3,double * 
 	last_modelKeyDes = cur_modelKeyDes;
 
 	//信号解析
-	if ((u16_sig & 0x200) != 0)//模式增
+	if ((u16_sig & 0x20) != 0)//模式增
 	{
 		cur_modelKeyInc = 1;
 	}
@@ -4045,7 +4054,7 @@ int control_handL(short u16_sig, double I_f1, double I_f2, double I_f3,double * 
 	{
 		cur_modelKeyInc = 0;
 	}
-	if ((u16_sig & 0x80) != 0)//模式减
+	if ((u16_sig & 0x200) != 0)//模式减
 	{
 		cur_modelKeyDes = 1;
 	}
@@ -4213,7 +4222,6 @@ int control_handL(short u16_sig, double I_f1, double I_f2, double I_f3,double * 
 	//static int si_Ic_mark = 1;//默认一档
 	static double sd_Ic = Ic_default;
 	double d_I0 = I0_benchmark;
-	static double sd_f_alpha[3] = { f_alpha_default,f_alpha_default,f_alpha_default }, theta = theta_default;//四个角度变量
 	static double sd_last_falpha[3];
 
 	for (i = 0; i < 3; i++)//上一次手指的期望角度
@@ -4231,7 +4239,7 @@ int control_handL(short u16_sig, double I_f1, double I_f2, double I_f3,double * 
 	{
 		sd_Ic = Ic_mini;
 	}
-	
+
 	//处理手指的旋转
 	if (theta + delta_theta * theta_sig > theta_max)//将要超过限制
 	{
@@ -4364,8 +4372,8 @@ int control_handR(short u16_sig, double I_f1, double I_f2, double I_f3,double * 
 	static int s_last_mag_sig_inc;
 	static int s_last_mag_sig_des;//同理，一个记录增加按钮，一个记录减小按钮
 	int mag_sig = 0;//该变量用于此次档位的变化
-					
-	
+	static double theta = theta_default;
+	static double sd_f_alpha[3] = { f_alpha_default,f_alpha_default,f_alpha_default };
 
 	I_f1 = fabs(I_f1);
 	I_f2 = fabs(I_f2);
@@ -4395,11 +4403,11 @@ int control_handR(short u16_sig, double I_f1, double I_f2, double I_f3,double * 
 	if ((u16_sig & 0x100) != 0)//挡位增大键
 	{
 		s_current_mag_sig_inc = 1;
-	} 
+	}
 	else
 	{
 		s_current_mag_sig_inc = 0;
-	}	
+	}
 	if ((u16_sig & 0x40) != 0)//挡位减小键
 	{
 		s_current_mag_sig_des = 1;
@@ -4610,7 +4618,7 @@ int control_handR(short u16_sig, double I_f1, double I_f2, double I_f3,double * 
 	//static int si_Ic_mark = 1;//默认一档
 	static double sd_Ic = Ic_default;
 	double d_I0 = I0_benchmark;
-	static double sd_f_alpha[3] = { f_alpha_default,f_alpha_default,f_alpha_default }, theta = theta_default;//四个角度变量
+	//四个角度变量
 	static double sd_last_falpha[3];
 
 	for (i = 0; i < 3; i++)//上一次手指的期望角度
@@ -4628,7 +4636,7 @@ int control_handR(short u16_sig, double I_f1, double I_f2, double I_f3,double * 
 	{
 		sd_Ic = Ic_mini;
 	}
-	
+
 	//处理手指的旋转
 	if (theta + delta_theta * theta_sig > theta_max)//将要超过限制
 	{
