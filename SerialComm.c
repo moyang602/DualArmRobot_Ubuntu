@@ -224,6 +224,7 @@ int GPS_GetData(float *latitude, float *longitude)
     int n = 0;
     int rtn = 0;
     unsigned char buff[GPS_LEN];
+    GPRMC gprmc;
     if((n=read(fd_GPS,buff,sizeof(buff)))<0)
     {
        perror("read error\n");
@@ -231,7 +232,7 @@ int GPS_GetData(float *latitude, float *longitude)
        *longitude = 0.0;
        return -1;
     }
-
+    printf("n = %d\n",n);
     memset(&gprmc, 0 , sizeof(gprmc));
     gps_analyse(buff,&gprmc);
     *latitude = gprmc.latitude;

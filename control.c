@@ -1181,6 +1181,9 @@ void rt_can_recv(void *arg)
 	FILE *fp;
 	fp = fopen("current.txt","w");
 	float Posture[3]={0.0, 0.0, 0.0};
+	float latitude = 0;
+	float longitude = 0;
+	int n_gps;
 	while(canrv_running)
 	{
 		rt_task_wait_period(NULL);
@@ -1201,7 +1204,15 @@ void rt_can_recv(void *arg)
 		return_value = JY901_GetData(Posture);
 		if (return_value > 0)
 		{
-			printf("rtn = %d, Pos1 = %f, Pos2 = %f, Pos3 = %f\n", return_value, Posture[0], Posture[1], Posture[2]);
+		//	printf("rtn = %d, Pos1 = %f, Pos2 = %f, Pos3 = %f\n", return_value, Posture[0], Posture[1], Posture[2]);
+		}
+		n_gps++;
+		if(n_gps>333)
+		{
+		//	return_value = GPS_GetData(&latitude, &longitude);
+		//	printf("==   纬度 : 北纬:%d度%d分%d秒                              \n", ((int)latitude) / 100, (int)(latitude - ((int)latitude / 100 * 100)), (int)(((latitude - ((int)latitude / 100 * 100)) - ((int)latitude - ((int)latitude / 100 * 100))) * 60.0));
+   		//	printf("==   经度 : 东经:%d度%d分%d秒                              \n", ((int)longitude) / 100, (int)(longitude - ((int)longitude / 100 * 100)), (int)(((	longitude - ((int)longitude / 100 * 100)) - ((int)longitude - ((int)longitude / 100 * 100))) * 60.0));
+			n_gps = 0;
 		}
 
 		switch (control_mode)
@@ -2814,6 +2825,8 @@ void rt_can_recv(void *arg)
 		RealCurrent.RightHand[0], RealCurrent.RightHand[1], RealCurrent.RightHand[2], RealCurrent.RightHand[3], RealCurrent.Waist[0], RealCurrent.Waist[1]);
 
 	}
+	GPS_end();
+	JY901_end();
 	fclose(fp);
 }
 
@@ -2994,6 +3007,7 @@ int main(int argc, char* argv[])
 
 	RobotUDPComm_init();
 	JY901_init();
+	GPS_init();
 	can_rt_init(channal, 1000000);
 
 
