@@ -13,7 +13,7 @@
 #define minidelta_falpha	0.025//0.01//手指缓慢弯曲速度minidelta,接触到物体时的
 
 #define theta_default	0		//角度制；范围最大到平角
-#define theta_max		90
+#define theta_max		180
 #define theta_min		0
 #define delta_theta		0.09//0.18		//旋转速度60度/S
 
