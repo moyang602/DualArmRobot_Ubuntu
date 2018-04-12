@@ -1329,6 +1329,13 @@ void rt_can_recv(void *arg)
 
 							Joint_Angle_EP[can_channel_main][can_id_main] = JointDetect(can_channel_main, can_id_main, angleplan);
 
+							int rtnn = 0;
+							struct RealRobot_Struct SendAngle;
+							memset(&SendAngle,0,sizeof(SendAngle));
+							CanDef2RealRobot(Joint_Angle_EP, &SendAngle);
+							rtnn = CollisionDetection(SendAngle.LeftArm, SendAngle.RightArm, SendAngle.Waist);
+							printf("OBBFLAG = %d\n",rtnn);
+
 							if(motion_enable_flag == 1)
 							{
 								rad_send(can_channel_main,can_id_main,Joint_Angle_EP[can_channel_main][can_id_main]);
@@ -1434,6 +1441,7 @@ void rt_can_recv(void *arg)
 						Joint_Angle_EP[1][5] = JointDetect(1, 5, RemoteRobotPos_deg.RightArm[5]*Degree2Rad);
 						Joint_Angle_EP[1][6] = JointDetect(1, 6, RemoteRobotPos_deg.RightArm[6]*Degree2Rad);
 
+
 						if(motion_enable_flag == 1)
 						{
 							rad_send(0, 4, Joint_Angle_EP[0][4]);
@@ -1498,7 +1506,7 @@ void rt_can_recv(void *arg)
 						double AngleH[2][4] = {{0.0, 0.0, 0.0, 0.0},{0.0, 0.0, 0.0, 0.0}};
 						control_handL(rockerL, motor_current[0][1], motor_current[0][2], motor_current[0][3], AngleH[0]);
 						control_handR(rockerR, motor_current[1][1], motor_current[1][2], motor_current[1][3], AngleH[1]);
-						printf("rockerR=%04x,AngleH1 = %f,AngleH2 = %f,AngleH3 = %f\n",rockerR,AngleH[1][1],AngleH[1][2],AngleH[1][3]);
+					//	printf("rockerR=%04x,AngleH1 = %f,AngleH2 = %f,AngleH3 = %f\n",rockerR,AngleH[1][1],AngleH[1][2],AngleH[1][3]);
 
 						fprintf(fp, "%8.3lf %8.3lf %8.3lf %8.3lf\n", motor_current[1][0], motor_current[1][1], motor_current[1][2], motor_current[1][3]);
 

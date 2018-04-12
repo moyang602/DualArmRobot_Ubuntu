@@ -62,8 +62,8 @@ struct OBB_struct
 	double pos[3];
 	double lwh[3];
 };
-void OBB_Update(double AngleL[7],double AngleR[7],double AngleW[2]);
+void OBB_Update(float AngleL[7],float AngleR[7],float AngleW[2]);
 int OBB_Collision(struct OBB_struct OStr1,struct OBB_struct OStr2);
-int CollisionDetection(double jL[7],double jR[7],double jW[2]);	// left_arm right_arm waist_rotate waist_pitch
+int CollisionDetection(float jL[7],float jR[7],float jW[2]);	// left_arm right_arm waist_rotate waist_pitch
 
 #endif

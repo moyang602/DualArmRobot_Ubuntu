@@ -1140,19 +1140,19 @@ struct OBB_struct OBB_ArmL[7];
 struct OBB_struct OBB_ArmR[7];
 struct OBB_struct OBB_Base[3];
 
-void OBB_Update(double AngleL[7],double AngleR[7],double AngleW[2])
+void OBB_Update(float AngleL[7],float AngleR[7],float AngleW[2])
 {
 
 	int i,j;
 
-	for (i=0;i<7;i++)
+/*	for (i=0;i<7;i++)
 	{
 		AngleL[i] = AngleL[i]*M_PI/180;
 		AngleR[i] = AngleR[i]*M_PI/180;
 	}
 	AngleW[0] = AngleW[0]*M_PI/180;
 	AngleW[1] = -AngleW[1]*M_PI/180;
-
+*/
 	//左臂
 	double T0L[4][4] = {{1.0, 0, 0, 0}, {0, -1.0, 0, 0}, {0, 0, -1.0, -250.5}, {0, 0, 0, 1.0}};
 	double T1L[4][4] = {{cos(AngleL[0]), -sin(AngleL[0]), 0, 0}, {sin(AngleL[0]), cos(AngleL[0]), 0, 0}, {0, 0, 1.0, 0}, {0, 0, 0, 1.0}};
@@ -1427,7 +1427,7 @@ int OBB_Collision(struct OBB_struct OStr1,struct OBB_struct OStr2)
 	return OBB_Re;
 }
 
-int CollisionDetection(double jL[7],double jR[7],double jW[2])
+int CollisionDetection(float jL[7],float jR[7],float jW[2])
 {
 	int TestResult;
 	TestResult = 1;
