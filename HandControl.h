@@ -17,11 +17,10 @@
 #define theta_min		0
 #define delta_theta		0.09//0.18		//旋转速度60度/S
 
-#define Ic_mark_max		5		//最大档位数,档位从1开始
-#define Ic1				0.8		//档位值
-#define Ic2				0.9
-#define Ic3				1.0
-#define Ic4				1.2
-#define Ic5				1.4
+
+#define Ic_default		1.0		//默认的电流挡位值
+#define Ic_mini			0.08	//挡位最小值
+#define Ic_max			1.6
+#define Ic_delta		0.1		//按键一次挡位值的增量
 
 #endif //

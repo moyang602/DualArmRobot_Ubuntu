@@ -3962,18 +3962,22 @@ int control_handL(short u16_sig, double I_f1, double I_f2, double I_f3,double * 
 {
 	//解析信号
 	int finger_sig = 0, theta_sig = 0;//用于解析手指弯曲、旋转角度的变化信号
-	static int s_current_mag_sig = 0;//该变量用于记录当前的档位调节信号，必须是static，因为得考虑上一次的值
+	static int s_current_mag_sig_inc = 0;//该变量用于记录当前的档位调节信号，必须是static，因为得考虑上一次的值
+	static int s_current_mag_sig_des = 0;//上一个是记录挡位增加的按钮，这个是记录挡位减小的按钮
+	static int s_last_mag_sig_inc;
+	static int s_last_mag_sig_des;//同理，一个记录增加按钮，一个记录减小按钮
 	int mag_sig = 0;//该变量用于此次档位的变化
-					//该变量用于记录上一次的档位调节信号
-	static int s_last_mag_sig;
+					
+	
 
 	I_f1 = fabs(I_f1);
 	I_f2 = fabs(I_f2);
 	I_f3 = fabs(I_f3);
-	s_last_mag_sig = s_current_mag_sig;//此时变量s_current_mag_sig记录的是上一次的档位调节信号
+	s_last_mag_sig_inc = s_current_mag_sig_inc;//此时变量s_current_mag_sig记录的是上一次的档位调节信号
+	s_last_mag_sig_des = s_current_mag_sig_des;
 
-									   //检查各位，设定相应的信号值
-	if ((u16_sig & 0x01) != 0) //if ((u16_sig || key_number )!=0)
+//检查各位，设定相应的信号值
+	if ((u16_sig & 0x01) != 0) //手指张合与旋转
 	{
 		finger_sig = -1;
 	}
@@ -3990,20 +3994,151 @@ int control_handL(short u16_sig, double I_f1, double I_f2, double I_f3,double * 
 		finger_sig = 1;
 	}
 
-	if ((u16_sig & 0x10) != 0)
+	//电流挡位的设置
+	if ((u16_sig & 0x100) != 0)//挡位增大键
 	{
-		s_current_mag_sig = 1;
+		s_current_mag_sig_inc = 1;
+	} 
+	else
+	{
+		s_current_mag_sig_inc = 0;
+	}	
+	if ((u16_sig & 0x40) != 0)//挡位减小键
+	{
+		s_current_mag_sig_des = 1;
 	}
 	else
 	{
-		s_current_mag_sig = 0;
+		s_current_mag_sig_des = 0;
 	}
 
 	//电流档位调节的按键检测
-	if (s_last_mag_sig == 1 && s_current_mag_sig == 0)//如果按键上一次处于按下状态，这一次处于弹起状态
+	if (s_last_mag_sig_inc == 1 && s_current_mag_sig_inc == 0)//如果按键上一次处于按下状态，这一次处于弹起状态
 	{
 		mag_sig = 1;//此时电流档位才可以改变
 	}
+	if (s_last_mag_sig_des == 1 && s_current_mag_sig_des == 0)//如果按键上一次处于按下状态，这一次处于弹起状态
+	{
+		mag_sig = -1;//此时电流档位才可以改变
+	}
+
+
+	//模式设置键
+	static int cur_modelKeyInc = 0;
+	static int last_modelKeyInc = 0;
+	static int cur_modelKeyDes = 0;
+	static int last_modelKeyDes = 0;
+	int model_sig = 0;//模式变化的最终信号
+	static int model = 1;
+	static int thumb_Disable = 0;//拇指失效标志
+	static int f23_Disable = 0;
+
+	last_modelKeyInc = cur_modelKeyInc;//记录上个调用周期的按键信号
+	last_modelKeyDes = cur_modelKeyDes;
+
+	//信号解析
+	if ((u16_sig & 0x200) != 0)//模式增
+	{
+		cur_modelKeyInc = 1;
+	}
+	else
+	{
+		cur_modelKeyInc = 0;
+	}
+	if ((u16_sig & 0x80) != 0)//模式减
+	{
+		cur_modelKeyDes = 1;
+	}
+	else
+	{
+		cur_modelKeyDes = 0;
+	}
+
+	if (last_modelKeyInc==1&&cur_modelKeyInc==0)//按键的升降沿检测
+	{
+		model_sig = 1;
+		model = model + model_sig;
+		if (model == 0)				//model不能超出范围,限于1-4
+		{
+			model = 4;
+		}
+		else if (model == 5)
+		{
+			model = 1;
+		}
+		//模式设置生效
+		switch (model)
+		{
+		case 1:
+			theta = 0;
+			thumb_Disable = 0;
+			f23_Disable = 0;
+			break;
+		case 2:
+			theta = 90;
+			thumb_Disable = 0;
+			f23_Disable = 0;
+			break;
+		case 3:							//该模式下仅食指动，拇指保持张开
+			theta = 90;
+			sd_f_alpha[0] = f_alpha_min;
+			thumb_Disable = 1;
+			f23_Disable = 0;
+			break;
+		case 4:							//该模式下仅拇指动，食指收拢
+			theta = -10;
+			sd_f_alpha[1] = 60;
+			sd_f_alpha[2] = 60;
+			thumb_Disable = 0;
+			f23_Disable = 1;
+			break;
+		default:
+			break;
+		}
+	}
+	if (last_modelKeyDes == 1 && cur_modelKeyDes == 0)
+	{
+		model_sig = -1;
+		model = model + model_sig;
+		if (model == 0)				//model不能超出范围,限于1-4
+		{
+			model = 4;
+		}
+		else if (model == 5)
+		{
+			model = 1;
+		}
+		//模式设置生效
+		switch (model)
+		{
+		case 1:
+			theta = 0;
+			thumb_Disable = 0;
+			f23_Disable = 0;
+			break;
+		case 2:
+			theta = 90;
+			thumb_Disable = 0;
+			f23_Disable = 0;
+			break;
+		case 3:							//该模式下仅食指动，拇指保持张开
+			theta = 90;
+			sd_f_alpha[0] = f_alpha_min;
+			thumb_Disable = 1;
+			f23_Disable = 0;
+			break;
+		case 4:							//该模式下仅拇指动，食指收拢
+			theta = -10;
+			sd_f_alpha[1] = 60;
+			sd_f_alpha[2] = 60;
+			thumb_Disable = 0;
+			f23_Disable = 1;
+			break;
+		default:
+			break;
+		}
+	}
+
 
 
 	//以下定义计算平均电流用的变量
@@ -4018,7 +4153,7 @@ int control_handL(short u16_sig, double I_f1, double I_f2, double I_f3,double * 
 
 	//第一阶段：计算平均电流
 	{
-		if (I_f1==0)
+		if (I_f1 == 0)
 		{
 			I_f1 = sd_last_If1;
 		}
@@ -4074,8 +4209,9 @@ int control_handL(short u16_sig, double I_f1, double I_f2, double I_f3,double * 
 	//第二阶段
 
 	//先定义相关变量
-	static double sd_Ic[Ic_mark_max] = { Ic1,Ic2,Ic3,Ic4,Ic5 };
-	static int si_Ic_mark = 1;//默认一档
+	//static double sd_Ic[Ic_mark_max] = { Ic1,Ic2,Ic3,Ic4,Ic5 };
+	//static int si_Ic_mark = 1;//默认一档
+	static double sd_Ic = Ic_default;
 	double d_I0 = I0_benchmark;
 	static double sd_f_alpha[3] = { f_alpha_default,f_alpha_default,f_alpha_default }, theta = theta_default;//四个角度变量
 	static double sd_last_falpha[3];
@@ -4086,16 +4222,16 @@ int control_handL(short u16_sig, double I_f1, double I_f2, double I_f3,double * 
 	}
 
 	//处理档位变化信号，旋转角度变化信号
-	si_Ic_mark += mag_sig;//根据信号，档位增加、不变或减少
-	if (si_Ic_mark >= Ic_mark_max)
+	sd_Ic += mag_sig * Ic_delta;//根据信号，档位增加、不变或减少
+	if (sd_Ic >= Ic_max)
 	{
-		si_Ic_mark = 1;
+		sd_Ic = Ic_max;
 	}
-	else if (si_Ic_mark < 1)
+	else if (sd_Ic <= Ic_mini)
 	{
-		si_Ic_mark = 5;
+		sd_Ic = Ic_mini;
 	}
-
+	
 	//处理手指的旋转
 	if (theta + delta_theta * theta_sig > theta_max)//将要超过限制
 	{
@@ -4118,18 +4254,51 @@ int control_handL(short u16_sig, double I_f1, double I_f2, double I_f3,double * 
 	//默认以拇指为基准
 	double Ic_amend[3];
 	double cof = cos(theta * pi / 180) * 2;
-	Ic_amend[0] = sd_Ic[si_Ic_mark-1];
-	Ic_amend[1] = sd_Ic[si_Ic_mark-1] / cof;
-	Ic_amend[2] = sd_Ic[si_Ic_mark-1] / cof;//食指的电流得到修正
-										  //if (Ic_amend[0]<Ic[0])//档位过小的话,直接设为最小档位.	暂时取消此句，还得考虑到拇指参不参与抓取
-										  //{
-										  //	Ic_amend[0] = Ic[0];
-										  //}
+	Ic_amend[0] = sd_Ic;
+	Ic_amend[1] = sd_Ic / cof;
+	Ic_amend[2] = sd_Ic / cof;//食指的电流得到修正
+											  //if (Ic_amend[0]<Ic[0])//档位过小的话,直接设为最小档位.	暂时取消此句，还得考虑到拇指参不参与抓取
+											  //{
+											  //	Ic_amend[0] = Ic[0];
+											  //}
+	switch (model)
+	{
+	case 1:
+		if (Ic_amend[1]>=2.5)
+		{
+			Ic_amend[1] = 2.5;
+		}
+		break;
+	case 2:
+		Ic_amend[1] = sd_Ic;
+		Ic_amend[2] = sd_Ic;
+		break;
+	case 3:
+		Ic_amend[1] = sd_Ic;
+		Ic_amend[2] = sd_Ic;
+		break;
+	case  4:
+		//无需改变
+		break;
+	default:
+		break;
+	}
+
+
 
 	if (finger_sig == -1)//张开手指的处理
 	{
 		for (i = 0; i < 3; i++)//三个手指单独考虑
 		{
+			if ((i==0)&&thumb_Disable==1)	//拇指失效
+			{
+				continue;
+			}
+			if ((i==1||i==2)&&f23_Disable==1)//食指失效
+			{
+				continue;
+			}
+
 			sd_f_alpha[i] += finger_sig * delta_falpha;
 			if (sd_f_alpha[i] < f_alpha_min)
 			{
@@ -4141,6 +4310,15 @@ int control_handL(short u16_sig, double I_f1, double I_f2, double I_f3,double * 
 	{
 		for (i = 0; i < 3; i++)//三个手指单独考虑
 		{
+			if ((i == 0) && thumb_Disable == 1)	//拇指失效
+			{
+				continue;
+			}
+			if ((i == 1 || i == 2) && f23_Disable == 1)//食指失效
+			{
+				continue;
+			}
+
 			if (d_I[i] <= d_I0)//小于I0表示没碰到物体
 			{
 				sd_f_alpha[i] += finger_sig * delta_falpha;//继续闭合手指
@@ -4163,6 +4341,7 @@ int control_handL(short u16_sig, double I_f1, double I_f2, double I_f3,double * 
 			}
 		}
 	}
+
 
 	//输出参数，第一个是旋转角度，后三个分别是三个手指的弯曲角度
 	output[1] = sd_f_alpha[0];
@@ -4180,19 +4359,22 @@ int control_handR(short u16_sig, double I_f1, double I_f2, double I_f3,double * 
 {
 	//解析信号
 	int finger_sig = 0, theta_sig = 0;//用于解析手指弯曲、旋转角度的变化信号
-	static int s_current_mag_sig = 0;//该变量用于记录当前的档位调节信号，必须是static，因为得考虑上一次的值
+	static int s_current_mag_sig_inc = 0;//该变量用于记录当前的档位调节信号，必须是static，因为得考虑上一次的值
+	static int s_current_mag_sig_des = 0;//上一个是记录挡位增加的按钮，这个是记录挡位减小的按钮
+	static int s_last_mag_sig_inc;
+	static int s_last_mag_sig_des;//同理，一个记录增加按钮，一个记录减小按钮
 	int mag_sig = 0;//该变量用于此次档位的变化
-					//该变量用于记录上一次的档位调节信号
-	static int s_last_mag_sig;
+					
+	
 
 	I_f1 = fabs(I_f1);
 	I_f2 = fabs(I_f2);
 	I_f3 = fabs(I_f3);
+	s_last_mag_sig_inc = s_current_mag_sig_inc;//此时变量s_current_mag_sig记录的是上一次的档位调节信号
+	s_last_mag_sig_des = s_current_mag_sig_des;
 
-	s_last_mag_sig = s_current_mag_sig;//此时变量s_current_mag_sig记录的是上一次的档位调节信号
-
-									   //检查各位，设定相应的信号值
-	if ((u16_sig & 0x01) != 0) //if ((u16_sig || key_number )!=0)
+//检查各位，设定相应的信号值
+	if ((u16_sig & 0x01) != 0) //手指张合与旋转
 	{
 		finger_sig = -1;
 	}
@@ -4209,20 +4391,151 @@ int control_handR(short u16_sig, double I_f1, double I_f2, double I_f3,double * 
 		finger_sig = 1;
 	}
 
-	if ((u16_sig & 0x10) != 0)
+	//电流挡位的设置
+	if ((u16_sig & 0x100) != 0)//挡位增大键
 	{
-		s_current_mag_sig = 1;
+		s_current_mag_sig_inc = 1;
+	} 
+	else
+	{
+		s_current_mag_sig_inc = 0;
+	}	
+	if ((u16_sig & 0x40) != 0)//挡位减小键
+	{
+		s_current_mag_sig_des = 1;
 	}
 	else
 	{
-		s_current_mag_sig = 0;
+		s_current_mag_sig_des = 0;
 	}
 
 	//电流档位调节的按键检测
-	if (s_last_mag_sig == 1 && s_current_mag_sig == 0)//如果按键上一次处于按下状态，这一次处于弹起状态
+	if (s_last_mag_sig_inc == 1 && s_current_mag_sig_inc == 0)//如果按键上一次处于按下状态，这一次处于弹起状态
 	{
 		mag_sig = 1;//此时电流档位才可以改变
 	}
+	if (s_last_mag_sig_des == 1 && s_current_mag_sig_des == 0)//如果按键上一次处于按下状态，这一次处于弹起状态
+	{
+		mag_sig = -1;//此时电流档位才可以改变
+	}
+
+
+	//模式设置键
+	static int cur_modelKeyInc = 0;
+	static int last_modelKeyInc = 0;
+	static int cur_modelKeyDes = 0;
+	static int last_modelKeyDes = 0;
+	int model_sig = 0;//模式变化的最终信号
+	static int model = 1;
+	static int thumb_Disable = 0;//拇指失效标志
+	static int f23_Disable = 0;
+
+	last_modelKeyInc = cur_modelKeyInc;//记录上个调用周期的按键信号
+	last_modelKeyDes = cur_modelKeyDes;
+
+	//信号解析
+	if ((u16_sig & 0x200) != 0)//模式增
+	{
+		cur_modelKeyInc = 1;
+	}
+	else
+	{
+		cur_modelKeyInc = 0;
+	}
+	if ((u16_sig & 0x80) != 0)//模式减
+	{
+		cur_modelKeyDes = 1;
+	}
+	else
+	{
+		cur_modelKeyDes = 0;
+	}
+
+	if (last_modelKeyInc==1&&cur_modelKeyInc==0)//按键的升降沿检测
+	{
+		model_sig = 1;
+		model = model + model_sig;
+		if (model == 0)				//model不能超出范围,限于1-4
+		{
+			model = 4;
+		}
+		else if (model == 5)
+		{
+			model = 1;
+		}
+		//模式设置生效
+		switch (model)
+		{
+		case 1:
+			theta = 0;
+			thumb_Disable = 0;
+			f23_Disable = 0;
+			break;
+		case 2:
+			theta = 90;
+			thumb_Disable = 0;
+			f23_Disable = 0;
+			break;
+		case 3:							//该模式下仅食指动，拇指保持张开
+			theta = 90;
+			sd_f_alpha[0] = f_alpha_min;
+			thumb_Disable = 1;
+			f23_Disable = 0;
+			break;
+		case 4:							//该模式下仅拇指动，食指收拢
+			theta = -10;
+			sd_f_alpha[1] = 60;
+			sd_f_alpha[2] = 60;
+			thumb_Disable = 0;
+			f23_Disable = 1;
+			break;
+		default:
+			break;
+		}
+	}
+	if (last_modelKeyDes == 1 && cur_modelKeyDes == 0)
+	{
+		model_sig = -1;
+		model = model + model_sig;
+		if (model == 0)				//model不能超出范围,限于1-4
+		{
+			model = 4;
+		}
+		else if (model == 5)
+		{
+			model = 1;
+		}
+		//模式设置生效
+		switch (model)
+		{
+		case 1:
+			theta = 0;
+			thumb_Disable = 0;
+			f23_Disable = 0;
+			break;
+		case 2:
+			theta = 90;
+			thumb_Disable = 0;
+			f23_Disable = 0;
+			break;
+		case 3:							//该模式下仅食指动，拇指保持张开
+			theta = 90;
+			sd_f_alpha[0] = f_alpha_min;
+			thumb_Disable = 1;
+			f23_Disable = 0;
+			break;
+		case 4:							//该模式下仅拇指动，食指收拢
+			theta = -10;
+			sd_f_alpha[1] = 60;
+			sd_f_alpha[2] = 60;
+			thumb_Disable = 0;
+			f23_Disable = 1;
+			break;
+		default:
+			break;
+		}
+	}
+
 
 
 	//以下定义计算平均电流用的变量
@@ -4237,7 +4550,7 @@ int control_handR(short u16_sig, double I_f1, double I_f2, double I_f3,double * 
 
 	//第一阶段：计算平均电流
 	{
-		if (I_f1==0)
+		if (I_f1 == 0)
 		{
 			I_f1 = sd_last_If1;
 		}
@@ -4293,8 +4606,9 @@ int control_handR(short u16_sig, double I_f1, double I_f2, double I_f3,double * 
 	//第二阶段
 
 	//先定义相关变量
-	static double sd_Ic[Ic_mark_max] = { Ic1,Ic2,Ic3,Ic4,Ic5 };
-	static int si_Ic_mark = 1;//默认一档
+	//static double sd_Ic[Ic_mark_max] = { Ic1,Ic2,Ic3,Ic4,Ic5 };
+	//static int si_Ic_mark = 1;//默认一档
+	static double sd_Ic = Ic_default;
 	double d_I0 = I0_benchmark;
 	static double sd_f_alpha[3] = { f_alpha_default,f_alpha_default,f_alpha_default }, theta = theta_default;//四个角度变量
 	static double sd_last_falpha[3];
@@ -4305,16 +4619,16 @@ int control_handR(short u16_sig, double I_f1, double I_f2, double I_f3,double * 
 	}
 
 	//处理档位变化信号，旋转角度变化信号
-	si_Ic_mark += mag_sig;//根据信号，档位增加、不变或减少
-	if (si_Ic_mark >= Ic_mark_max)
+	sd_Ic += mag_sig * Ic_delta;//根据信号，档位增加、不变或减少
+	if (sd_Ic >= Ic_max)
 	{
-		si_Ic_mark = 1;
+		sd_Ic = Ic_max;
 	}
-	else if (si_Ic_mark < 1)
+	else if (sd_Ic <= Ic_mini)
 	{
-		si_Ic_mark = 5;
+		sd_Ic = Ic_mini;
 	}
-	printf("si_Ic_mark = %d\n", si_Ic_mark);
+	
 	//处理手指的旋转
 	if (theta + delta_theta * theta_sig > theta_max)//将要超过限制
 	{
@@ -4337,18 +4651,51 @@ int control_handR(short u16_sig, double I_f1, double I_f2, double I_f3,double * 
 	//默认以拇指为基准
 	double Ic_amend[3];
 	double cof = cos(theta * pi / 180) * 2;
-	Ic_amend[0] = sd_Ic[si_Ic_mark-1];
-	Ic_amend[1] = sd_Ic[si_Ic_mark-1] / cof;
-	Ic_amend[2] = sd_Ic[si_Ic_mark-1] / cof;//食指的电流得到修正
-										  //if (Ic_amend[0]<Ic[0])//档位过小的话,直接设为最小档位.	暂时取消此句，还得考虑到拇指参不参与抓取
-										  //{
-										  //	Ic_amend[0] = Ic[0];
-										  //}
+	Ic_amend[0] = sd_Ic;
+	Ic_amend[1] = sd_Ic / cof;
+	Ic_amend[2] = sd_Ic / cof;//食指的电流得到修正
+											  //if (Ic_amend[0]<Ic[0])//档位过小的话,直接设为最小档位.	暂时取消此句，还得考虑到拇指参不参与抓取
+											  //{
+											  //	Ic_amend[0] = Ic[0];
+											  //}
+	switch (model)
+	{
+	case 1:
+		if (Ic_amend[1]>=2.5)
+		{
+			Ic_amend[1] = 2.5;
+		}
+		break;
+	case 2:
+		Ic_amend[1] = sd_Ic;
+		Ic_amend[2] = sd_Ic;
+		break;
+	case 3:
+		Ic_amend[1] = sd_Ic;
+		Ic_amend[2] = sd_Ic;
+		break;
+	case  4:
+		//无需改变
+		break;
+	default:
+		break;
+	}
+
+
 
 	if (finger_sig == -1)//张开手指的处理
 	{
 		for (i = 0; i < 3; i++)//三个手指单独考虑
 		{
+			if ((i==0)&&thumb_Disable==1)	//拇指失效
+			{
+				continue;
+			}
+			if ((i==1||i==2)&&f23_Disable==1)//食指失效
+			{
+				continue;
+			}
+
 			sd_f_alpha[i] += finger_sig * delta_falpha;
 			if (sd_f_alpha[i] < f_alpha_min)
 			{
@@ -4360,6 +4707,15 @@ int control_handR(short u16_sig, double I_f1, double I_f2, double I_f3,double * 
 	{
 		for (i = 0; i < 3; i++)//三个手指单独考虑
 		{
+			if ((i == 0) && thumb_Disable == 1)	//拇指失效
+			{
+				continue;
+			}
+			if ((i == 1 || i == 2) && f23_Disable == 1)//食指失效
+			{
+				continue;
+			}
+
 			if (d_I[i] <= d_I0)//小于I0表示没碰到物体
 			{
 				sd_f_alpha[i] += finger_sig * delta_falpha;//继续闭合手指
@@ -4382,6 +4738,7 @@ int control_handR(short u16_sig, double I_f1, double I_f2, double I_f3,double * 
 			}
 		}
 	}
+
 
 	//输出参数，第一个是旋转角度，后三个分别是三个手指的弯曲角度
 	output[1] = sd_f_alpha[0];
