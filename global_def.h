@@ -15,6 +15,8 @@
 #define REMOTE_MOTION		109
 #define REMOTE_CONTROL		110
 #define REMOTE_DATA			111
+#define FORCE_MOTION		112
+#define FORCE_CONTROL		113
 #define HAND_MOTION			115
 #define HOMEBACK			80
 #define PREPARE_FIND_HOME 	122
@@ -43,7 +45,12 @@
 #define CMD_MOVEPRE			0xAC
 
 //力传感器控制指令
-#define FORCE_INIT   		0xB1
+#define FORCE_START   		0xF1
+#define FORCE_STOP   		0xF2
+#define FORCE_ENABLE   		0xF3
+#define FORCE_DISABLE  		0xF4
+#define FORCE_CLEAR   		0xF5
+#define FORCE_SETPARAM 		0xF6
 
 // 遥操作控制指令
 #define REMOTE_START		0xC1

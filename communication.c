@@ -10,95 +10,11 @@ struct RemoteCMD_Struct RemoteCMD;
 struct ControlCMD_Struct ControlCMD;
 struct HandCMD_Struct HandCMD;
 struct FindHomeCMD_Struct FindHomeData;
+struct ForceCMD_Struct ForceCMD;
 
 int UDP_Sock;
 struct sockaddr_in DestPCAddr;
 
-int ForceClientSock = -1;
-struct sockaddr_in ForceServerAddr;
-
-int ForceSensorTCP_init(void)
-{
-	ForceClientSock = socket(AF_INET, SOCK_STREAM, 0);
-	if (ForceClientSock<0)
-	{
-		perror("ForceClient created failed!\n");
-		return -1;
-	}
-	printf("ForceClient create successfully\n");
-
-	memset(&ForceServerAddr,0,sizeof(ForceServerAddr));
-	ForceServerAddr.sin_family=AF_INET;
-    ForceServerAddr.sin_port=htons(ForceServer_Port);
-    ForceServerAddr.sin_addr.s_addr=inet_addr(ForceServer_IP);
-
-    if (connect(ForceClientSock,&ForceServerAddr,sizeof(struct sockaddr_in))<0)
-    {
-    	perror("Connect failed!\n");
-    	return -1;
-    }
-    printf("ForceServer connect successfully\n");
-    return 0;
-}
-
-int TCPSend(void *buffer, int length)
-{
-	int bytes_left;
-	int sended_bytes;
-	char *ptr;
-
-	ptr = buffer;
-	bytes_left = length;
-	while(bytes_left>0)
-	{
-		sended_bytes = send(ForceClientSock,ptr,bytes_left,MSG_DONTWAIT);
-		if (sended_bytes <=0)
-		{
-			if(errno == EINTR)
-				sended_bytes = 0;
-			else
-				return -1;
-		}
-		bytes_left -=sended_bytes;
-		ptr += sended_bytes;
-	}
-	return 0;
-
-/*	struct my_struct my_struct_client;
-	write(fd,(void *)&my_struct_client,sizeof(struct my_struct);
-
-
-	char buffer[sizeof(struct my_struct)];
-	struct *my_struct_server;
-	read(fd,(void *)buffer,sizeof(struct my_struct));
-	my_struct_server=(struct my_struct *)buffer;    */
-}
-
-int TCPRecv(void *buffer, int length)
-{
-	int bytes_left;
-	int Received_bytes;
-	char *ptr;
-
-	bytes_left = length;
-	while(bytes_left>0)
-	{
-		Received_bytes = recv(ForceClientSock,ptr,bytes_left,MSG_DONTWAIT);
-		if (Received_bytes<0)
-		{
-			if (errno == EINTR)
-				Received_bytes = 0;
-			else
-				return -1;
-		}
-		else if(Received_bytes == 0)
-			break;
-		bytes_left -= Received_bytes;
-		ptr += Received_bytes;
-
-	}
-	return (length - bytes_left);
-}
 
 int RobotUDPComm_init(void)
 {
@@ -278,6 +194,26 @@ int UDPRecv()
 			}
 			break;
 
+			case FORCE_CONTROL:
+			{
+				unsigned char sum = 0;
+				for (i = 0; i < (sizeof(ForceCMD) -1); ++i)
+				{
+					sum += recvbuff[i];
+				}
+				if (sum != recvbuff[sizeof(ForceCMD) -1])	//校验和不正确直接退出
+				{
+					printf("recv %d bytes wrong data!\n",n);
+					return 0;
+				}
+
+				memcpy(&ForceCMD,recvbuff,sizeof(ForceCMD));
+
+				return FORCE_CONTROL;
+			}
+
+			break;
+
 			default:
 			break;
 		}
@@ -369,6 +305,18 @@ int GetFindHomeData(long* can_channel_main,long* can_id_main)
 	*can_channel_main = FindHomeData.CANCH;
 	*can_id_main = FindHomeData.CANID;
 	printf("motion_mode = FIND_HOME_MOTION  CH %ld CANID %ld\n", *can_channel_main+1,*can_id_main+1);
+}
+
+int GetForceCMD(int *ParamType, float ForceParam[7])
+{
+	*ParamType = ForceCMD.Param;
+	int i = 0;
+	for(i=0;i<6;i++)
+	{
+		ForceParam[i] = ForceCMD.Data[i];
+	}
+	printf("ForceControlMode = %02x\n",ForceCMD.Command);
+	return ForceCMD.Command;
 }
 /*
 int UDPRecv(int motion_mode_control,long* can_channel_main,long* can_id_main,float* JointMoveData)

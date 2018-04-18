@@ -59,6 +59,7 @@
 #include "communication.h"
 #include "HandControl.h"
 #include "SerialComm.h"
+#include "ForceControl.h"
 
 #define hand2base 300.0
 
@@ -316,6 +317,24 @@ int HandNewData = 0;
 
 int ArmSelect = 0;
 float One_arm_Data[7] = {0.0};
+
+/********************** 力控制相关 Start ***************************/
+double A6D_ep[6] = {1.1, 1.1, 1.1, 1.1, 1.1, 1.1};				/*阻尼比*/
+double A6D_m[6] = {180, 180, 300, 15, 15, 15};				/*质量*/
+double A6D_K[6] = {150, 150, 200, 3, 3, 3};			/*刚度A6D_wn.^2.*A6D_m*/
+double A6D_C[6] = {1, 1, 1, 1, 1, 1};			/*阻尼系数 2.*A6D_ep.*A6D_wn.*A6D_m      ep*2*sqrt(k*m)*/
+int A6D_enable[6] = {1, 1, 1, 1, 1, 1};		/*control end velocity enable*/
+
+double FDeltaT = 0.003;		/*力控周期*/
+double Acc[6] = {0.0};
+double A6D_D_total[6] = {0.0};
+double A6D_V[6] = {0.0};
+double A6D_P[6] = {0.0};
+double A6D_Joint_P[8] = {0.0};
+double A6D_Joint_V[8] = {0.0};
+double force_velocity_limit[6] = {20.0, 20.0, 20.0, 0.1, 0.1, 0.1};
+/********************** 力控制相关 End ***************************/
+
 
 /********************** UDP通讯相关 Start ***************************/
 int UDPTimes = 0;	// UDP 周期计数
@@ -2657,6 +2676,168 @@ void rt_can_recv(void *arg)
 
 				break;
 
+				case FORCE_MOTION:
+				{
+					int ForceNewData = 0;
+					double ForceData[6] = {0.0};
+					if(ForceTCPFlag <= 0)
+					{
+						ForceTCPFlag = ForceSensorTCP_init(0x01);	//0x01 代表左臂
+						printf("ForceTCPFlag is %d\n",ForceTCPFlag);
+					}
+					else
+					{
+						switch(force_step)
+						{
+							case 1:
+							{
+								int Cfg = 0;
+								Cfg = ConfigSystem(&nStatus, &bIsSendFlag, &bReceived);
+								if(Cfg == 2)
+									force_step = 2;
+
+								ForceTCPRecv();
+							}
+							break;
+
+							case 2:
+								ForceNewData = GetData(ForceData);				// twice get a data
+
+							//	sprintf(buf17, "Force: %8.3f  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f",ForceData[0],ForceData[1],ForceData[2],ForceData[3],ForceData[4],ForceData[5]);
+								printf("Force: %8.3f  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f\n",ForceData[0],ForceData[1],ForceData[2],ForceData[3],ForceData[4],ForceData[5]);
+							break;
+							default:
+							break;
+						}
+
+					}
+			/*		if(ForceControl_flag == 1&& ForceNewData==1)
+					{
+						int i_f = 0;
+						double force_limit[6] = {50.0, 50.0, 50.0, 3.0, 3.0, 3.0};
+
+						int position_change_flag = 1;
+
+						for(i_f=0; i_f<6; i_f++)
+						{
+							if(fabs(ForceData[i_f]) > force_limit[i_f])
+							{
+								motion_enable_flag = 0;
+								position_change_flag = 0;
+								printf("force limited\n");
+								break;
+							}
+						}
+
+						if(position_change_flag == 1)
+						{
+							for(i_f=0;i_f<6;i_f++)
+							{
+								A6D_C[i_f] = 2*A6D_ep[i_f]*sqrt(A6D_K[i_f]*A6D_m[i_f]);
+							}
+
+							for(i_f=0;i_f<6;i_f++)
+							{
+								Acc[i_f] = (ForceData[i_f] - A6D_K[i_f]*A6D_D_total[i_f] - A6D_C[i_f]*A6D_V[i_f])/A6D_m[i_f];
+								A6D_D_total[i_f] = A6D_D_total[i_f] + Acc[i_f]*FDeltaT*FDeltaT/2.0 + A6D_V[i_f]*FDeltaT ;
+								A6D_V[i_f] = A6D_V[i_f] + Acc[i_f]*FDeltaT;
+								A6D_P[i_f] = A6D_V[i_f]*FDeltaT;
+							}
+
+							for(i_f=0;i_f<6;i_f++)
+							{
+								if(A6D_enable[i_f] == 0)
+									A6D_V[i_f] = 0;
+							}
+
+
+							if(FirstForceControl == 1)
+							{
+								for(i_f=0;i_f<4;i_f++)
+								{
+									A6D_Joint_P[i_f] = -Joint_Angle_FB_degree[2][3-i_f];
+									A6D_Joint_P[i_f+4] = Joint_Angle_FB_degree[1][i_f];
+									A6D_Joint_V[i_f] = 0;
+									A6D_Joint_V[i_f+4] = 0;
+								}
+
+								FirstForceControl = 0;
+							}
+							double InvJacobinNow[8][6] = {0.0};
+							InvJacobian(A6D_Joint_P, InvJacobinNow);		// 雅可比奇异情况呢
+							double A6D_Vmm[6];
+							A6D_Vmm[0] = A6D_V[0]*1000;		// change into mm/s
+							A6D_Vmm[1] = A6D_V[1]*1000;		// change into mm/s
+							A6D_Vmm[2] = A6D_V[2]*1000;		// change into mm/s
+							A6D_Vmm[3] = A6D_V[3];
+							A6D_Vmm[4] = A6D_V[4];
+							A6D_Vmm[5] = A6D_V[5];
+
+							for(i_f = 0; i_f<6; i_f++)
+							{
+								if(A6D_Vmm[i_f] > force_velocity_limit[i_f])
+								{
+									A6D_Vmm[i_f] = force_velocity_limit[i_f];
+									printf("velocity limited\n");
+								}
+								else if (A6D_Vmm[i_f] < -force_velocity_limit[i_f])
+								{
+									A6D_Vmm[i_f] = -force_velocity_limit[i_f];
+									printf("velocity limited\n");
+								}
+							}
+
+							//sprintf(buf18, "ExpEndV: %8.3f  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f", A6D_Vmm[0],A6D_Vmm[1],A6D_Vmm[2],A6D_Vmm[3]*Rad2Degree,A6D_Vmm[4]*Rad2Degree,A6D_Vmm[5]*Rad2Degree);
+
+							Matrix_Multiply(8,6,1,*InvJacobinNow,A6D_Vmm,A6D_Joint_V);
+
+							//sprintf(buf19, "ExpJointV: %6.3f  %6.3f  %6.3f  %6.3f  %6.3f  %6.3f  %6.3f  %6.3f",A6D_Joint_V[0]*Rad2Degree,A6D_Joint_V[1]*Rad2Degree,A6D_Joint_V[2]*Rad2Degree,A6D_Joint_V[3]*Rad2Degree,A6D_Joint_V[4]*Rad2Degree,A6D_Joint_V[5]*Rad2Degree,A6D_Joint_V[6]*Rad2Degree,A6D_Joint_V[7]*Rad2Degree);
+
+							for(i_f=0;i_f<8;i_f++)
+							{
+								A6D_Joint_P[i_f] += A6D_Joint_V[i_f]*FDeltaT*Rad2Degree;
+							}
+
+
+							for(i_f=0;i_f<4;i_f++)
+							{
+								Joint_Angle_EP[2][i_f] = JointDetect(2, 3-i_f, -A6D_Joint_P[3-i_f]*Degree2Rad);
+								Joint_Angle_EP[1][i_f] = JointDetect(1, i_f, A6D_Joint_P[i_f+4]*Degree2Rad);
+							}
+
+							// 缺少末端限位
+
+							if(motion_enable_flag == 1)
+							{
+								for(i_f=0;i_f<4;i_f++)
+								{
+									rad_send(2, i_f, Joint_Angle_EP[2][i_f]);
+									sleeptime.tv_nsec = 5000;
+									sleeptime.tv_sec = 0;
+									nanosleep(&sleeptime,NULL);
+									rad_send(1, i_f, Joint_Angle_EP[1][i_f]);
+									sleeptime.tv_nsec = 250000;
+									sleeptime.tv_sec = 0;
+									nanosleep(&sleeptime,NULL);
+								}
+							}
+						}
+					}
+					else if(ForceControl_flag == 0)
+					{
+						int i_f = 0;
+						for(i_f=0;i_f<6;i_f++)
+						{
+							Acc[i_f] = 0.0;
+							A6D_V[i_f] = 0.0;
+							A6D_D_total[i_f] = 0.0;
+						}
+						FirstForceControl = 1;
+					}
+					*/
+				}
+			 	break;
+
 				default:
 				break;
 
@@ -2759,6 +2940,74 @@ void rt_can_recv(void *arg)
 					{
 						GetFindHomeData(&can_channel_main,&can_id_main);
 						motion_mode = FIND_HOME_MOTION;
+					}
+					break;
+
+					case FORCE_CONTROL:
+					{
+						int ForceMode = 0;
+						int ParamType = 0;
+						float ForceParam[6] = {0.0};
+						ForceMode = GetForceCMD(&ParamType, ForceParam);
+						switch(ForceMode)
+						{
+							case FORCE_START:
+								motion_mode = FORCE_MOTION;
+								printf("ForceControl Start\n");
+							break;
+							case FORCE_ENABLE:
+								ForceControl_flag = 1;
+								printf("ForceControl Enable\n");
+							break;
+							case FORCE_DISABLE:
+								ForceControl_flag = 0;
+								printf("ForceControl Disable\n");
+							break;
+							case FORCE_STOP:
+								motion_mode = 100;
+								force_step = 1;
+								nStatus = 0;
+								bIsSendFlag = 1;
+								bReceived = 0;
+								ForceTCPFlag = 0;
+								printf("ForceControl Stop\n");
+								ForceSensorTCP_end();
+							break;
+							case FORCE_CLEAR:
+								First_Force = 1;
+							break;
+							case FORCE_SETPARAM:
+							{
+								int ii = 0;
+								if(ParamType == 1)
+								{
+									for(ii=0;ii<6;ii++)
+										A6D_m[ii] = ForceParam[ii];
+									printf("Set A6D_M: %8.3lf %8.3lf %8.3lf %8.3lf %8.3lf %8.3lf\n",A6D_m[0],A6D_m[1],A6D_m[2],A6D_m[3],A6D_m[4],A6D_m[5]);
+								}
+								else if(ParamType == 2)
+								{
+									for(ii=0;ii<6;ii++)
+										force_velocity_limit[ii] = ForceParam[ii];
+									printf("Set force_velocity_limit: %8.3lf %8.3lf %8.3lf %8.3lf %8.3lf %8.3lf\n",force_velocity_limit[0],force_velocity_limit[1],force_velocity_limit[2],force_velocity_limit[3],force_velocity_limit[4],force_velocity_limit[5]);
+								}
+								else if(ParamType == 3)
+								{
+									for(ii=0;ii<6;ii++)
+										A6D_K[ii] = ForceParam[ii];
+									printf("Set A6D_K: %8.3lf %8.3lf %8.3lf %8.3lf %8.3lf %8.3lf\n",A6D_K[0],A6D_K[1],A6D_K[2],A6D_K[3],A6D_K[4],A6D_K[5]);
+								}
+								else if(ParamType == 4)
+								{
+									for(ii=0;ii<6;ii++)
+										A6D_enable[ii] = ForceParam[ii];
+									printf("Set A6D_enable: %d   %d   %d   %d   %d   %d\n",A6D_enable[0],A6D_enable[1],A6D_enable[2],A6D_enable[3],A6D_enable[4],A6D_enable[5]);
+								}
+							}
+							break;
+							default:
+							break;
+						}
 					}
 					break;
 
