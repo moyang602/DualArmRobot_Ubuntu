@@ -2678,39 +2678,75 @@ void rt_can_recv(void *arg)
 
 				case FORCE_MOTION:
 				{
-					int ForceNewData = 0;
-					double ForceData[6] = {0.0};
-					if(ForceTCPFlag <= 0)
+					int ForceNewDataL = 0;
+					double ForceDataL[6] = {0.0};
+					int ForceNewDataR = 0;
+					double ForceDataR[6] = {0.0};
+					// 左臂读数
+					if(ForceTCPFlagL <= 0)
 					{
-						ForceTCPFlag = ForceSensorTCP_init(0x01);	//0x01 代表左臂
-						printf("ForceTCPFlag is %d\n",ForceTCPFlag);
+						ForceTCPFlagL = ForceSensorTCP_init(0x01);	//0x01 代表左臂
+						printf("ForceTCPFlagL is %d\n",ForceTCPFlagL);
 					}
 					else
 					{
-						switch(force_step)
+						switch(force_stepL)
 						{
 							case 1:
 							{
 								int Cfg = 0;
-								Cfg = ConfigSystem(&nStatus, &bIsSendFlag, &bReceived);
+								Cfg = ConfigSystemL(&nStatusL, &bIsSendFlagL, &bReceivedL);
 								if(Cfg == 2)
-									force_step = 2;
+									force_stepL = 2;
 
-								ForceTCPRecv();
+								ForceTCPRecv(1);
 							}
 							break;
 
 							case 2:
-								ForceNewData = GetData(ForceData);				// twice get a data
+								ForceNewDataL = GetData(1,ForceDataL);				// twice get a data
 
 							//	sprintf(buf17, "Force: %8.3f  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f",ForceData[0],ForceData[1],ForceData[2],ForceData[3],ForceData[4],ForceData[5]);
-								printf("Force: %8.3f  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f\n",ForceData[0],ForceData[1],ForceData[2],ForceData[3],ForceData[4],ForceData[5]);
+								printf("ForceL: %8.3f  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f\n",ForceDataL[0],ForceDataL[1],ForceDataL[2],ForceDataL[3],ForceDataL[4],ForceDataL[5]);
 							break;
 							default:
 							break;
 						}
 
 					}
+					// 右臂读数
+					if(ForceTCPFlagR <= 0)
+					{
+						ForceTCPFlagR = ForceSensorTCP_init(0x02);	//0x01 代表左臂
+						printf("ForceTCPFlagR is %d\n",ForceTCPFlagR);
+					}
+					else
+					{
+						switch(force_stepR)
+						{
+							case 1:
+							{
+								int Cfg = 0;
+								Cfg = ConfigSystemR(&nStatusR, &bIsSendFlagR, &bReceivedR);
+								if(Cfg == 2)
+									force_stepR = 2;
+
+								ForceTCPRecv(2);
+							}
+							break;
+
+							case 2:
+								ForceNewDataR = GetData(2,ForceDataR);				// twice get a data
+
+							//	sprintf(buf17, "Force: %8.3f  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f",ForceData[0],ForceData[1],ForceData[2],ForceData[3],ForceData[4],ForceData[5]);
+								printf("ForceR: %8.3f  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f\n",ForceDataR[0],ForceDataR[1],ForceDataR[2],ForceDataR[3],ForceDataR[4],ForceDataR[5]);
+							break;
+							default:
+							break;
+						}
+
+					}
+
 			/*		if(ForceControl_flag == 1&& ForceNewData==1)
 					{
 						int i_f = 0;
@@ -2956,25 +2992,34 @@ void rt_can_recv(void *arg)
 								printf("ForceControl Start\n");
 							break;
 							case FORCE_ENABLE:
-								ForceControl_flag = 1;
+								ForceControl_flagL = 1;
+								ForceControl_flagR = 1;
 								printf("ForceControl Enable\n");
 							break;
 							case FORCE_DISABLE:
-								ForceControl_flag = 0;
+								ForceControl_flagL = 0;
+								ForceControl_flagR = 0;
 								printf("ForceControl Disable\n");
 							break;
 							case FORCE_STOP:
 								motion_mode = 100;
-								force_step = 1;
-								nStatus = 0;
-								bIsSendFlag = 1;
-								bReceived = 0;
-								ForceTCPFlag = 0;
+								force_stepL = 1;
+								nStatusL = 0;
+								bIsSendFlagL = 1;
+								bReceivedL = 0;
+								ForceTCPFlagL = 0;
+
+								force_stepR = 1;
+								nStatusR = 0;
+								bIsSendFlagR = 1;
+								bReceivedR = 0;
+								ForceTCPFlagR = 0;
 								printf("ForceControl Stop\n");
 								ForceSensorTCP_end();
 							break;
 							case FORCE_CLEAR:
-								First_Force = 1;
+								First_ForceL = 1;
+								First_ForceR = 1;
 							break;
 							case FORCE_SETPARAM:
 							{
