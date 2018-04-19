@@ -22,6 +22,16 @@ double parabolic_interpolation(double x0, double xf, double vb, double acc, doub
 double parabolic_interpolation_time(double x0, double xf, double vb, double acc);
 void select_inv(double angle_last[8], double angle_in[4][8], double angle_out[8]);
 
+void JacobianL(double anglein[7], double JT[6][7]);
+void JacobianR(double anglein[7], double JT[6][7]);
+void InvJacobianL(double anglein[7], double InvJ[7][6]);
+void InvJacobianR(double anglein[7], double InvJ[7][6]);
+
+// 运动学
+void KinL(double Angle[7], double TransMatrix[4][4]);
+void KinR(double Angle[7], double TransMatrix[4][4]);
+void Matrix_Trans3(double MA[3][3], double MB[3][3]);
+int Matrix_Reverse(int iNum, double* pSourceR, double* pDestR);
 //
 struct Cubic_Struct
 {

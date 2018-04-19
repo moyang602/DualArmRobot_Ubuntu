@@ -4,6 +4,9 @@
 #include <errno.h>
 #include <stddef.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <math.h>
+#include <string.h>
 
 // 与力传感器TCP通讯变量声明
 #define ForceServer_PortL 4008
@@ -49,15 +52,17 @@ double m_dDecouplingCoefficientL[M812X_CHN_NUMBER][M812X_CHN_NUMBER] =
 	{9.39356,			-0.009313,	-4.710392,	-0.0501,		-4.652383,	0.169629},
 	{-0.011642,		3.224638,		0.057849,		3.263569,		0.004462,		3.165842},
 };
+
+
 double m_dDecouplingCoefficientR[M812X_CHN_NUMBER][M812X_CHN_NUMBER] =
 {
-	{-0.356073,		0.22652,		1.144266,		71.802291,	0.5515,			-72.609276},
-	{0.268013,		-81.448258,	1.41573,		41.814438,	1.362226,		41.580507},
-	{226.093891,	-1.465781,	227.962006,	-2.353303,	229.051028,	-4.600184},
-	{-0.162402,		-0.094572,	-8.296902,	0.119678,		7.982737,		-0.160643},
-	{9.39356,			-0.009313,	-4.710392,	-0.0501,		-4.652383,	0.169629},
-	{-0.011642,		3.224638,		0.057849,		3.263569,		0.004462,		3.165842},
-};
+	{0.583129,	0.374904,	0.375319,	71.26446,	0.060775,	-71.392659},
+	{0.588984,	-82.627101,	0.310336,	41.684648,	1.035492,	41.117846},
+	{227.934224,	0.324415,	229.601791,	-3.250975,	226.307973,	-3.168233},
+	{-0.112713,	-0.045798,	-8.465209,	0.07628,	7.933784,	-0.084778},
+	{9.427496,	-0.044594,	-4.613457,	0.003019,	-4.571049,	0.074759},
+	{-0.024469,	3.247267,	0.018507,	3.23357,	0.011676,	3.137815},
+};		// SN5164
 
 double m_dAmpZeroL[M812X_CHN_NUMBER];
 double m_dChnGainL[M812X_CHN_NUMBER];
@@ -90,7 +95,7 @@ int ForceSensorTCP_init(int select)
 			HostAddr.sin_family = AF_INET;
 			HostAddr.sin_port = htons(ForceHOST_PORTL);
 			HostAddr.sin_addr.s_addr = inet_addr(ForceHOST_IPL);
-			if (bind(ForceClientSockL, &HostAddr, sizeof(HostAddr)) < 0)
+			if (bind(ForceClientSockL, (struct sockaddr*)&HostAddr, sizeof(HostAddr)) < 0)
 			{
 				perror("PC socket binded failed!\n");
 			}
@@ -101,7 +106,7 @@ int ForceSensorTCP_init(int select)
 			ForceServerAddr.sin_port=htons(ForceServer_PortL);
 			ForceServerAddr.sin_addr.s_addr=inet_addr(ForceServer_IPL);
 
-			if (connect(ForceClientSockL,&ForceServerAddr,sizeof(struct sockaddr_in))<0)
+			if (connect(ForceClientSockL,(struct sockaddr*)&ForceServerAddr,sizeof(struct sockaddr_in))<0)
 			{
 				perror("Connect failed!\n");
 				return -1;
@@ -126,7 +131,7 @@ int ForceSensorTCP_init(int select)
 			HostAddr.sin_family = AF_INET;
 			HostAddr.sin_port = htons(ForceHOST_PORTR);
 			HostAddr.sin_addr.s_addr = inet_addr(ForceHOST_IPR);
-			if (bind(ForceClientSockR, &HostAddr, sizeof(HostAddr)) < 0)
+			if (bind(ForceClientSockR, (struct sockaddr*)&HostAddr, sizeof(HostAddr)) < 0)
 			{
 				perror("PC socket binded failed!\n");
 			}
@@ -137,7 +142,7 @@ int ForceSensorTCP_init(int select)
 			ForceServerAddr.sin_port=htons(ForceServer_PortR);
 			ForceServerAddr.sin_addr.s_addr=inet_addr(ForceServer_IPR);
 
-			if (connect(ForceClientSockR,&ForceServerAddr,sizeof(struct sockaddr_in))<0)
+			if (connect(ForceClientSockR,(struct sockaddr*)&ForceServerAddr,sizeof(struct sockaddr_in))<0)
 			{
 				perror("Connect failed!\n");
 				return -1;

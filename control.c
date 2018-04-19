@@ -149,7 +149,9 @@ char buf21[200]={0};
 char buf22[200]={0};
 char buf23[200]={0};
 char buf24[200]={0};
-
+char buf25[200]={0};
+char buf26[200]={0};
+char buf27[200]={0};
 
 int motion_mode = 0;
 int control_mode = 0;
@@ -168,10 +170,10 @@ int can_channel_number = 4;
 						{0, 0, 0, 0, 1, 1, 1},
 						{1, 1, 1, 1, 1, 1, 0},
 						{1, 1, 1, 1, 1, 1, 1}};*/
-int can_switch[4][7] = {{1, 1, 1, 1, 0, 0, 0},
-						{1, 1, 1, 1, 0, 0, 0},
-						{0, 0, 0, 0, 0, 0, 0},
-						{0, 0, 0, 0, 0, 0, 1}};
+int can_switch[4][7] = {{0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 1, 1, 1},
+						{0, 0, 1, 1, 0, 0, 0},
+						{0, 0, 1, 1, 0, 0, 1}};
 
 // 各节点速度方向
 double joint_direction[4][7] = {{1, 1, 1, 1, 1, -1, 1},
@@ -330,8 +332,8 @@ double Acc[6] = {0.0};
 double A6D_D_total[6] = {0.0};
 double A6D_V[6] = {0.0};
 double A6D_P[6] = {0.0};
-double A6D_Joint_P[8] = {0.0};
-double A6D_Joint_V[8] = {0.0};
+double A6D_Joint_P[7] = {0.0};
+double A6D_Joint_V[7] = {0.0};
 double force_velocity_limit[6] = {20.0, 20.0, 20.0, 0.1, 0.1, 0.1};
 /********************** 力控制相关 End ***************************/
 
@@ -512,7 +514,7 @@ void view (void *n)
 	long pause_order5[8] = {0xD1, 0x11, 0x55, 0x00, 0x00, 0x00, 0x00, 0x37};
 
 	int j,k, i = 0;
-	int DispHead = 40;
+	int DispHead = 30;
 
 	while(view_running)
 	{
@@ -647,29 +649,32 @@ void view (void *n)
 				XDrawString(MyDisplay, MyWindow, MyGC, 400, DispHead, buf1, strlen(buf1));
 				XDrawString(MyDisplay, MyWindow, MyGC, 520, DispHead, bufs1, strlen(bufs1));
 				XDrawString(MyDisplay, MyWindow, MyGC, 640, DispHead, bufs2, strlen(bufs2));
-				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+30, buf2, strlen(buf2));
-				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+60, buf3, strlen(buf3));
-				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+90, buf4, strlen(buf4));
-				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+120, buf5, strlen(buf5));
-				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+150, buf6, strlen(buf6));
-				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+180, buf7, strlen(buf7));
-				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+210, buf8, strlen(buf8));
-				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+240, buf9, strlen(buf9));
-				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+270, buf10, strlen(buf10));
-				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+300, buf11, strlen(buf11));
-				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+330, buf12, strlen(buf12));
-				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+360, buf13, strlen(buf13));
-				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+390, buf14, strlen(buf14));
-				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+420, buf15, strlen(buf15));
-				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+450, buf16, strlen(buf16));
-				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+480, buf17, strlen(buf17));
-				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+510, buf18, strlen(buf18));
-				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+540, buf19, strlen(buf19));
-				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+570, buf20, strlen(buf20));
-				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+600, buf21, strlen(buf21));
-				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+630, buf22, strlen(buf22));
-				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+660, buf23, strlen(buf23));
-				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+690, buf24, strlen(buf24));
+				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+25, buf2, strlen(buf2));
+				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+50, buf3, strlen(buf3));
+				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+75, buf4, strlen(buf4));
+				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+100, buf5, strlen(buf5));
+				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+125, buf6, strlen(buf6));
+				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+150, buf7, strlen(buf7));
+				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+175, buf8, strlen(buf8));
+				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+200, buf9, strlen(buf9));
+				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+225, buf10, strlen(buf10));
+				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+250, buf11, strlen(buf11));
+				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+275, buf12, strlen(buf12));
+				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+300, buf13, strlen(buf13));
+				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+325, buf14, strlen(buf14));
+				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+350, buf15, strlen(buf15));
+				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+375, buf16, strlen(buf16));
+				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+400, buf17, strlen(buf17));
+				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+425, buf18, strlen(buf18));
+				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+450, buf19, strlen(buf19));
+				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+475, buf20, strlen(buf20));
+				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+500, buf21, strlen(buf21));
+				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+525, buf22, strlen(buf22));
+				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+550, buf23, strlen(buf23));
+				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+575, buf24, strlen(buf24));
+				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+600, buf25, strlen(buf25));
+				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+625, buf26, strlen(buf26));
+				XDrawString(MyDisplay, MyWindow, MyGC, 0, DispHead+650, buf27, strlen(buf27));
 			}
 		}
 	}
@@ -2443,7 +2448,7 @@ void rt_can_recv(void *arg)
 		 		}
 		 		break;
 
-		 		case RETURN_ORIGIN_POSITION:
+		 		case RETURN_ORIGIN_POSITION:	// xiugai
 		 		{
 		 			if (first_move_flag)
 		 			{
@@ -2706,8 +2711,10 @@ void rt_can_recv(void *arg)
 							case 2:
 								ForceNewDataL = GetData(1,ForceDataL);				// twice get a data
 
-							//	sprintf(buf17, "Force: %8.3f  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f",ForceData[0],ForceData[1],ForceData[2],ForceData[3],ForceData[4],ForceData[5]);
-								printf("ForceL: %8.3f  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f\n",ForceDataL[0],ForceDataL[1],ForceDataL[2],ForceDataL[3],ForceDataL[4],ForceDataL[5]);
+								sprintf(buf21, "*********************************  Robot Force *********************************");
+
+								sprintf(buf22, "ForceL:   %8.3f  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f",ForceDataL[0],ForceDataL[1],ForceDataL[2],ForceDataL[3],ForceDataL[4],ForceDataL[5]);
+							//	printf("ForceL: %8.3f  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f\n",ForceDataL[0],ForceDataL[1],ForceDataL[2],ForceDataL[3],ForceDataL[4],ForceDataL[5]);
 							break;
 							default:
 							break;
@@ -2738,8 +2745,8 @@ void rt_can_recv(void *arg)
 							case 2:
 								ForceNewDataR = GetData(2,ForceDataR);				// twice get a data
 
-							//	sprintf(buf17, "Force: %8.3f  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f",ForceData[0],ForceData[1],ForceData[2],ForceData[3],ForceData[4],ForceData[5]);
-								printf("ForceR: %8.3f  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f\n",ForceDataR[0],ForceDataR[1],ForceDataR[2],ForceDataR[3],ForceDataR[4],ForceDataR[5]);
+								sprintf(buf23, "ForceR:   %8.3f  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f",ForceDataR[0],ForceDataR[1],ForceDataR[2],ForceDataR[3],ForceDataR[4],ForceDataR[5]);
+							//	printf("ForceR: %8.3f  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f\n",ForceDataR[0],ForceDataR[1],ForceDataR[2],ForceDataR[3],ForceDataR[4],ForceDataR[5]);
 							break;
 							default:
 							break;
@@ -2747,18 +2754,18 @@ void rt_can_recv(void *arg)
 
 					}
 
-			/*		if(ForceControl_flag == 1&& ForceNewData==1)
+					if(ForceControl_flagR == 1&& ForceNewDataR==1)
 					{
 						int i_f = 0;
-						double force_limit[6] = {50.0, 50.0, 50.0, 3.0, 3.0, 3.0};
+						double force_limit[6] = {80.0, 80.0, 100.0, 7.0, 7.0, 7.0};
 
 						int position_change_flag = 1;
 
 						for(i_f=0; i_f<6; i_f++)
 						{
-							if(fabs(ForceData[i_f]) > force_limit[i_f])
+							if(fabs(ForceDataR[i_f]) > force_limit[i_f])
 							{
-								motion_enable_flag = 0;
+								ForceControl_flagR = 0;
 								position_change_flag = 0;
 								printf("force limited\n");
 								break;
@@ -2774,7 +2781,7 @@ void rt_can_recv(void *arg)
 
 							for(i_f=0;i_f<6;i_f++)
 							{
-								Acc[i_f] = (ForceData[i_f] - A6D_K[i_f]*A6D_D_total[i_f] - A6D_C[i_f]*A6D_V[i_f])/A6D_m[i_f];
+								Acc[i_f] = (ForceDataR[i_f] - A6D_K[i_f]*A6D_D_total[i_f] - A6D_C[i_f]*A6D_V[i_f])/A6D_m[i_f];
 								A6D_D_total[i_f] = A6D_D_total[i_f] + Acc[i_f]*FDeltaT*FDeltaT/2.0 + A6D_V[i_f]*FDeltaT ;
 								A6D_V[i_f] = A6D_V[i_f] + Acc[i_f]*FDeltaT;
 								A6D_P[i_f] = A6D_V[i_f]*FDeltaT;
@@ -2787,20 +2794,27 @@ void rt_can_recv(void *arg)
 							}
 
 
-							if(FirstForceControl == 1)
+							if(FirstForceControlR == 1)
 							{
-								for(i_f=0;i_f<4;i_f++)
+								memset(&OneArmStart,0,sizeof(OneArmStart));
+								CanDef2RealRobot(Joint_Angle_FB_degree, &OneArmStart);
+							//	A6D_Joint_P[0] = 0.0;
+							//	A6D_Joint_P[1] = -20.0;
+							//	A6D_Joint_P[2] = 0.0;
+							//	A6D_Joint_P[3] = 45.0;
+							//	A6D_Joint_P[4] = 0.0;
+							//	A6D_Joint_P[5] = -25.0;
+							//	A6D_Joint_P[6] = 0.0;
+								for(i_f=0;i_f<7;i_f++)
 								{
-									A6D_Joint_P[i_f] = -Joint_Angle_FB_degree[2][3-i_f];
-									A6D_Joint_P[i_f+4] = Joint_Angle_FB_degree[1][i_f];
+									A6D_Joint_P[i_f] = OneArmStart.RightArm[i_f];
 									A6D_Joint_V[i_f] = 0;
-									A6D_Joint_V[i_f+4] = 0;
 								}
 
-								FirstForceControl = 0;
+								FirstForceControlR = 0;
 							}
-							double InvJacobinNow[8][6] = {0.0};
-							InvJacobian(A6D_Joint_P, InvJacobinNow);		// 雅可比奇异情况呢
+							double InvJacobinNow[7][6] = {0.0};
+							InvJacobianR(A6D_Joint_P, InvJacobinNow);		// 雅可比奇异情况呢
 							double A6D_Vmm[6];
 							A6D_Vmm[0] = A6D_V[0]*1000;		// change into mm/s
 							A6D_Vmm[1] = A6D_V[1]*1000;		// change into mm/s
@@ -2823,43 +2837,62 @@ void rt_can_recv(void *arg)
 								}
 							}
 
-							//sprintf(buf18, "ExpEndV: %8.3f  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f", A6D_Vmm[0],A6D_Vmm[1],A6D_Vmm[2],A6D_Vmm[3]*Rad2Degree,A6D_Vmm[4]*Rad2Degree,A6D_Vmm[5]*Rad2Degree);
+							sprintf(buf24, "ExpEndV:  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f", A6D_Vmm[0],A6D_Vmm[1],A6D_Vmm[2],A6D_Vmm[3]*Rad2Degree,A6D_Vmm[4]*Rad2Degree,A6D_Vmm[5]*Rad2Degree);
 
-							Matrix_Multiply(8,6,1,*InvJacobinNow,A6D_Vmm,A6D_Joint_V);
+							Matrix_Multiply(7,6,1,*InvJacobinNow,A6D_Vmm,A6D_Joint_V);
 
-							//sprintf(buf19, "ExpJointV: %6.3f  %6.3f  %6.3f  %6.3f  %6.3f  %6.3f  %6.3f  %6.3f",A6D_Joint_V[0]*Rad2Degree,A6D_Joint_V[1]*Rad2Degree,A6D_Joint_V[2]*Rad2Degree,A6D_Joint_V[3]*Rad2Degree,A6D_Joint_V[4]*Rad2Degree,A6D_Joint_V[5]*Rad2Degree,A6D_Joint_V[6]*Rad2Degree,A6D_Joint_V[7]*Rad2Degree);
+							sprintf(buf25, "ExpJointV:%8.3f  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f",A6D_Joint_V[0]*Rad2Degree,A6D_Joint_V[1]*Rad2Degree,A6D_Joint_V[2]*Rad2Degree,A6D_Joint_V[3]*Rad2Degree,A6D_Joint_V[4]*Rad2Degree,A6D_Joint_V[5]*Rad2Degree,A6D_Joint_V[6]*Rad2Degree);
 
-							for(i_f=0;i_f<8;i_f++)
+							for(i_f=0;i_f<7;i_f++)
 							{
 								A6D_Joint_P[i_f] += A6D_Joint_V[i_f]*FDeltaT*Rad2Degree;
 							}
 
 
-							for(i_f=0;i_f<4;i_f++)
-							{
-								Joint_Angle_EP[2][i_f] = JointDetect(2, 3-i_f, -A6D_Joint_P[3-i_f]*Degree2Rad);
-								Joint_Angle_EP[1][i_f] = JointDetect(1, i_f, A6D_Joint_P[i_f+4]*Degree2Rad);
-							}
+							Joint_Angle_EP[2][2] = JointDetect(2, 2, A6D_Joint_P[0]*Degree2Rad);
+							Joint_Angle_EP[3][2] = JointDetect(3, 2, A6D_Joint_P[1]*Degree2Rad);
+							Joint_Angle_EP[3][3] = JointDetect(3, 3, A6D_Joint_P[2]*Degree2Rad);
+							Joint_Angle_EP[2][3] = JointDetect(2, 3, A6D_Joint_P[3]*Degree2Rad);
+							Joint_Angle_EP[1][4] = JointDetect(1, 4, A6D_Joint_P[4]*Degree2Rad);
+							Joint_Angle_EP[1][5] = JointDetect(1, 5, A6D_Joint_P[5]*Degree2Rad);
+							Joint_Angle_EP[1][6] = JointDetect(1, 6, A6D_Joint_P[6]*Degree2Rad);
 
 							// 缺少末端限位
 
 							if(motion_enable_flag == 1)
 							{
-								for(i_f=0;i_f<4;i_f++)
-								{
-									rad_send(2, i_f, Joint_Angle_EP[2][i_f]);
-									sleeptime.tv_nsec = 5000;
-									sleeptime.tv_sec = 0;
-									nanosleep(&sleeptime,NULL);
-									rad_send(1, i_f, Joint_Angle_EP[1][i_f]);
-									sleeptime.tv_nsec = 250000;
-									sleeptime.tv_sec = 0;
-									nanosleep(&sleeptime,NULL);
-								}
+								rad_send(1, 4, Joint_Angle_EP[1][4]);
+								sleeptime.tv_nsec = 250000;
+								sleeptime.tv_sec = 0;
+								nanosleep(&sleeptime,NULL);
+								rad_send(1, 5, Joint_Angle_EP[1][5]);
+								sleeptime.tv_nsec = 250000;
+								sleeptime.tv_sec = 0;
+								nanosleep(&sleeptime,NULL);
+								rad_send(1, 6, Joint_Angle_EP[1][6]);
+								sleeptime.tv_nsec = 8000;
+								sleeptime.tv_sec = 0;
+								nanosleep(&sleeptime,NULL);
+								rad_send(2, 2, Joint_Angle_EP[2][2]);
+								sleeptime.tv_nsec = 250000;
+								sleeptime.tv_sec = 0;
+								nanosleep(&sleeptime,NULL);
+								rad_send(2, 3, Joint_Angle_EP[2][3]);
+								sleeptime.tv_nsec = 8000;
+								sleeptime.tv_sec = 0;
+								nanosleep(&sleeptime,NULL);
+								rad_send(3, 2, Joint_Angle_EP[3][2]);
+								sleeptime.tv_nsec = 250000;
+								sleeptime.tv_sec = 0;
+								nanosleep(&sleeptime,NULL);
+								rad_send(3, 3, Joint_Angle_EP[3][3]);
+								sleeptime.tv_nsec = 10000;
+								sleeptime.tv_sec = 0;
+								nanosleep(&sleeptime,NULL);
 							}
 						}
 					}
-					else if(ForceControl_flag == 0)
+					else if(ForceControl_flagR == 0)
 					{
 						int i_f = 0;
 						for(i_f=0;i_f<6;i_f++)
@@ -2868,9 +2901,9 @@ void rt_can_recv(void *arg)
 							A6D_V[i_f] = 0.0;
 							A6D_D_total[i_f] = 0.0;
 						}
-						FirstForceControl = 1;
+						FirstForceControlR = 1;
 					}
-					*/
+
 				}
 			 	break;
 
@@ -3000,6 +3033,8 @@ void rt_can_recv(void *arg)
 								ForceControl_flagL = 0;
 								ForceControl_flagR = 0;
 								printf("ForceControl Disable\n");
+								memset(buf24,0,sizeof(buf24));
+								memset(buf25,0,sizeof(buf25));
 							break;
 							case FORCE_STOP:
 								motion_mode = 100;
@@ -3015,6 +3050,11 @@ void rt_can_recv(void *arg)
 								bReceivedR = 0;
 								ForceTCPFlagR = 0;
 								printf("ForceControl Stop\n");
+								memset(buf21,0,sizeof(buf21));
+								memset(buf22,0,sizeof(buf22));
+								memset(buf23,0,sizeof(buf23));
+								memset(buf24,0,sizeof(buf24));
+								memset(buf25,0,sizeof(buf25));
 								ForceSensorTCP_end();
 							break;
 							case FORCE_CLEAR:
@@ -4123,9 +4163,9 @@ void servo_on(void)
 	printf("ret = %d\n", ret);
 	printf("servo on %02x  %02x	 %02x  %02x  %02x  %02x  %02x  %02x\n", frame.data[0], frame.data[1],frame.data[2],frame.data[3],frame.data[4],frame.data[5],frame.data[6],frame.data[7]);
 
-	sprintf(buf22, "CAN connection  %d  %d  %d  %d  %d  %d  %d . %d  %d  %d  %d  %d  %d  %d . %d  %d  %d  %d  %d  %d  %d . %d  %d  %d  %d  %d  %d", can_connection_status[0],can_connection_status[1], can_connection_status[2],can_connection_status[3],can_connection_status[4],can_connection_status[5],can_connection_status[6],can_connection_status[7], can_connection_status[8],can_connection_status[9],can_connection_status[10],can_connection_status[11],can_connection_status[12],can_connection_status[13], can_connection_status[14],can_connection_status[15],can_connection_status[16],can_connection_status[17], can_connection_status[18],can_connection_status[19], can_connection_status[20],can_connection_status[21], can_connection_status[22],can_connection_status[23],can_connection_status[24],can_connection_status[25],can_connection_status[26]);
+	sprintf(buf26, "CAN connection  %d  %d  %d  %d  %d  %d  %d . %d  %d  %d  %d  %d  %d  %d . %d  %d  %d  %d  %d  %d  %d . %d  %d  %d  %d  %d  %d", can_connection_status[0],can_connection_status[1], can_connection_status[2],can_connection_status[3],can_connection_status[4],can_connection_status[5],can_connection_status[6],can_connection_status[7], can_connection_status[8],can_connection_status[9],can_connection_status[10],can_connection_status[11],can_connection_status[12],can_connection_status[13], can_connection_status[14],can_connection_status[15],can_connection_status[16],can_connection_status[17], can_connection_status[18],can_connection_status[19], can_connection_status[20],can_connection_status[21], can_connection_status[22],can_connection_status[23],can_connection_status[24],can_connection_status[25],can_connection_status[26]);
 
-	sprintf(buf23, "CAN init        %d  %d  %d  %d  %d  %d  %d . %d  %d  %d  %d  %d  %d  %d . %d  %d  %d  %d  %d  %d  %d . %d  %d  %d  %d  %d  %d",can_work_states[0],can_work_states[1],  can_work_states[2],can_work_states[3],can_work_states[4],can_work_states[5],can_work_states[6],can_work_states[7], can_work_states[8],can_work_states[9],can_work_states[10],can_work_states[11],can_work_states[12],can_work_states[13], can_work_states[14], can_work_states[15], can_work_states[16], can_work_states[17], can_work_states[18], can_work_states[19], can_work_states[20], can_work_states[21], can_work_states[22], can_work_states[23], can_work_states[24], can_work_states[25], can_work_states[26]);
+	sprintf(buf27, "CAN init        %d  %d  %d  %d  %d  %d  %d . %d  %d  %d  %d  %d  %d  %d . %d  %d  %d  %d  %d  %d  %d . %d  %d  %d  %d  %d  %d",can_work_states[0],can_work_states[1],  can_work_states[2],can_work_states[3],can_work_states[4],can_work_states[5],can_work_states[6],can_work_states[7], can_work_states[8],can_work_states[9],can_work_states[10],can_work_states[11],can_work_states[12],can_work_states[13], can_work_states[14], can_work_states[15], can_work_states[16], can_work_states[17], can_work_states[18], can_work_states[19], can_work_states[20], can_work_states[21], can_work_states[22], can_work_states[23], can_work_states[24], can_work_states[25], can_work_states[26]);
 }
 
 // CAN定义到实际机器人数据结构转换

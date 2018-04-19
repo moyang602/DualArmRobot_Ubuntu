@@ -1,12 +1,16 @@
 #include "trajectory.h"
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 double L1 = 290.5;
 double L2 = 311.357;
 double pi = 3.1415926;
 double d3 = 310.5;
 double d4 = 338;
+double dend = 100;
+double Tool_Position[3] = {0.0, 0.0, 0.0};
 
 double sqrt3c2 = 0.8660254037844;
 double beta_L1 = 270.0;
@@ -1463,4 +1467,605 @@ int CollisionDetection(float jL[7],float jR[7],float jW[2])
 	}
 	//结果为0表示发生碰撞，结果为1表示未发生碰撞
 	return TestResult;
+}
+
+
+
+void JacobianL(double anglein[7], double JT[6][7])
+{
+	double x1 = anglein[0]/57.3;
+	double x2 = anglein[1]/57.3;
+	double x3 = anglein[2]/57.3;
+	double x4 = anglein[3]/57.3;
+	double x5 = anglein[4]/57.3;
+	double x6 = anglein[5]/57.3;
+	double x7 = anglein[6]/57.3;
+	double sqrt3c2 = 0.8660254;
+
+	//求Jv
+	double Jv0[3][7];
+	double Jv7[3][7];
+
+	Jv0[0][0] = d4*(sin(x4)*(cos(x1)*sin(x3) + cos(x2)*cos(x3)*sin(x1)) + cos(x4)*sin(x1)*sin(x2)) + dend*(cos(x6)*(sin(x4)*(cos(x1)*sin(x3) + cos(x2)*cos(x3)*sin(x1)) + cos(x4)*sin(x1)*sin(x2)) + sin(x6)*(cos(x5)*(cos(x4)*(cos(x1)*sin(x3) + cos(x2)*cos(x3)*sin(x1)) - sin(x1)*sin(x2)*sin(x4)) + sin(x5)*(cos(x1)*cos(x3) - cos(x2)*sin(x1)*sin(x3)))) + d3*sin(x1)*sin(x2);
+	Jv0[0][1] = dend*(sin(x6)*(cos(x5)*(cos(x1)*cos(x2)*sin(x4) + cos(x1)*cos(x3)*cos(x4)*sin(x2)) - cos(x1)*sin(x2)*sin(x3)*sin(x5)) - cos(x6)*(cos(x1)*cos(x2)*cos(x4) - cos(x1)*cos(x3)*sin(x2)*sin(x4))) - d4*(cos(x1)*cos(x2)*cos(x4) - cos(x1)*cos(x3)*sin(x2)*sin(x4)) - d3*cos(x1)*cos(x2);
+	Jv0[0][2] = d4*sin(x4)*(cos(x3)*sin(x1) + cos(x1)*cos(x2)*sin(x3)) - dend*(sin(x6)*(sin(x5)*(sin(x1)*sin(x3) - cos(x1)*cos(x2)*cos(x3)) - cos(x4)*cos(x5)*(cos(x3)*sin(x1) + cos(x1)*cos(x2)*sin(x3))) - cos(x6)*sin(x4)*(cos(x3)*sin(x1) + cos(x1)*cos(x2)*sin(x3)));
+	Jv0[0][3] = dend*(cos(x6)*(cos(x4)*(sin(x1)*sin(x3) - cos(x1)*cos(x2)*cos(x3)) + cos(x1)*sin(x2)*sin(x4)) - cos(x5)*sin(x6)*(sin(x4)*(sin(x1)*sin(x3) - cos(x1)*cos(x2)*cos(x3)) - cos(x1)*cos(x4)*sin(x2))) + d4*(cos(x4)*(sin(x1)*sin(x3) - cos(x1)*cos(x2)*cos(x3)) + cos(x1)*sin(x2)*sin(x4));
+	Jv0[0][4] = -dend*sin(x6)*(sin(x5)*(cos(x4)*(sin(x1)*sin(x3) - cos(x1)*cos(x2)*cos(x3)) + cos(x1)*sin(x2)*sin(x4)) - cos(x5)*(cos(x3)*sin(x1) + cos(x1)*cos(x2)*sin(x3)));
+	Jv0[0][5] = -dend*(sin(x6)*(sin(x4)*(sin(x1)*sin(x3) - cos(x1)*cos(x2)*cos(x3)) - cos(x1)*cos(x4)*sin(x2)) - cos(x6)*(cos(x5)*(cos(x4)*(sin(x1)*sin(x3) - cos(x1)*cos(x2)*cos(x3)) + cos(x1)*sin(x2)*sin(x4)) + sin(x5)*(cos(x3)*sin(x1) + cos(x1)*cos(x2)*sin(x3))));
+	Jv0[0][6] = 0;
+
+	Jv0[1][0] = dend*(cos(x6)*(sin(x4)*(sin(x1)*sin(x3) - cos(x1)*cos(x2)*cos(x3)) - cos(x1)*cos(x4)*sin(x2)) + sin(x6)*(cos(x5)*(cos(x4)*(sin(x1)*sin(x3) - cos(x1)*cos(x2)*cos(x3)) + cos(x1)*sin(x2)*sin(x4)) + sin(x5)*(cos(x3)*sin(x1) + cos(x1)*cos(x2)*sin(x3)))) + d4*(sin(x4)*(sin(x1)*sin(x3) - cos(x1)*cos(x2)*cos(x3)) - cos(x1)*cos(x4)*sin(x2)) - d3*cos(x1)*sin(x2);
+	Jv0[1][1] = dend*(sin(x6)*(cos(x5)*(cos(x2)*sin(x1)*sin(x4) + cos(x3)*cos(x4)*sin(x1)*sin(x2)) - sin(x1)*sin(x2)*sin(x3)*sin(x5)) - cos(x6)*(cos(x2)*cos(x4)*sin(x1) - cos(x3)*sin(x1)*sin(x2)*sin(x4))) - d4*(cos(x2)*cos(x4)*sin(x1) - cos(x3)*sin(x1)*sin(x2)*sin(x4)) - d3*cos(x2)*sin(x1);
+	Jv0[1][2] = dend*(sin(x6)*(sin(x5)*(cos(x1)*sin(x3) + cos(x2)*cos(x3)*sin(x1)) - cos(x4)*cos(x5)*(cos(x1)*cos(x3) - cos(x2)*sin(x1)*sin(x3))) - cos(x6)*sin(x4)*(cos(x1)*cos(x3) - cos(x2)*sin(x1)*sin(x3))) - d4*sin(x4)*(cos(x1)*cos(x3) - cos(x2)*sin(x1)*sin(x3));
+	Jv0[1][3] = - d4*(cos(x4)*(cos(x1)*sin(x3) + cos(x2)*cos(x3)*sin(x1)) - sin(x1)*sin(x2)*sin(x4)) - dend*(cos(x6)*(cos(x4)*(cos(x1)*sin(x3) + cos(x2)*cos(x3)*sin(x1)) - sin(x1)*sin(x2)*sin(x4)) - cos(x5)*sin(x6)*(sin(x4)*(cos(x1)*sin(x3) + cos(x2)*cos(x3)*sin(x1)) + cos(x4)*sin(x1)*sin(x2)));
+	Jv0[1][4] = dend*sin(x6)*(sin(x5)*(cos(x4)*(cos(x1)*sin(x3) + cos(x2)*cos(x3)*sin(x1)) - sin(x1)*sin(x2)*sin(x4)) - cos(x5)*(cos(x1)*cos(x3) - cos(x2)*sin(x1)*sin(x3)));
+	Jv0[1][5] = dend*(sin(x6)*(sin(x4)*(cos(x1)*sin(x3) + cos(x2)*cos(x3)*sin(x1)) + cos(x4)*sin(x1)*sin(x2)) - cos(x6)*(cos(x5)*(cos(x4)*(cos(x1)*sin(x3) + cos(x2)*cos(x3)*sin(x1)) - sin(x1)*sin(x2)*sin(x4)) + sin(x5)*(cos(x1)*cos(x3) - cos(x2)*sin(x1)*sin(x3))));
+	Jv0[1][6] = 0;
+
+	Jv0[2][0] = 0;
+	Jv0[2][1] = dend*(sin(x6)*(cos(x5)*(sin(x2)*sin(x4) - cos(x2)*cos(x3)*cos(x4)) + cos(x2)*sin(x3)*sin(x5)) - cos(x6)*(cos(x4)*sin(x2) + cos(x2)*cos(x3)*sin(x4))) - d4*(cos(x4)*sin(x2) + cos(x2)*cos(x3)*sin(x4)) - d3*sin(x2);
+	Jv0[2][2] = dend*(sin(x6)*(cos(x3)*sin(x2)*sin(x5) + cos(x4)*cos(x5)*sin(x2)*sin(x3)) + cos(x6)*sin(x2)*sin(x3)*sin(x4)) + d4*sin(x2)*sin(x3)*sin(x4);
+	Jv0[2][3] = - d4*(cos(x2)*sin(x4) + cos(x3)*cos(x4)*sin(x2)) - dend*(cos(x6)*(cos(x2)*sin(x4) + cos(x3)*cos(x4)*sin(x2)) + cos(x5)*sin(x6)*(cos(x2)*cos(x4) - cos(x3)*sin(x2)*sin(x4)));
+	Jv0[2][4] = dend*sin(x6)*(sin(x5)*(cos(x2)*sin(x4) + cos(x3)*cos(x4)*sin(x2)) + cos(x5)*sin(x2)*sin(x3));
+	Jv0[2][5] = -dend*(cos(x6)*(cos(x5)*(cos(x2)*sin(x4) + cos(x3)*cos(x4)*sin(x2)) - sin(x2)*sin(x3)*sin(x5)) + sin(x6)*(cos(x2)*cos(x4) - cos(x3)*sin(x2)*sin(x4)));
+	Jv0[2][6] = 0;
+
+	double T07[4][4];
+	double T70[4][4];
+	double R70[3][3];
+	double xin[7];
+	int i,j;
+
+	for(i=0;i<7;i++)
+		xin[i] = anglein[i]/57.3;
+
+	KinL(xin,T07);
+	inv_matrix(T07,T70);
+
+	for(i=0;i<3;i++)
+	{
+		for(j=0;j<3;j++)
+			R70[i][j] = T70[i][j];
+	}
+
+	Matrix_Multiply(3,3,7,*R70,*Jv0,*Jv7);
+
+	//求Jw
+	double R1[3][3] = {{cos(xin[0]), -sin(xin[0]), 0}, {sin(xin[0]), cos(xin[0]), 0}, {0, 0, 1.0}};
+	double R2[3][3] = {{cos(xin[1]), -sin(xin[1]), 0}, {0, 0, -1.0}, {sin(xin[1]), cos(xin[1]),0}};
+	double R3[3][3] = {{cos(xin[2]), -sin(xin[2]), 0}, {0, 0, 1.0}, {-sin(xin[2]), -cos(xin[2]),0}};
+	double R4[3][3] = {{cos(xin[3]), -sin(xin[3]), 0}, {0, 0, -1.0}, {sin(xin[3]), cos(xin[3]),0}};
+	double R5[3][3] = {{cos(xin[4]), -sin(xin[4]), 0}, {0, 0, 1.0}, {-sin(xin[4]), -cos(xin[4]),0}};
+	double R6[3][3] = {{cos(xin[5]), -sin(xin[5]), 0}, {0, 0, -1.0}, {sin(xin[5]), cos(xin[5]),0}};
+	double R7[3][3] = {{cos(xin[6]), -sin(xin[6]), 0}, {0, 0, 1.0}, {-sin(xin[6]), -cos(xin[6]),0}};
+	double Z[3] = {0,0,1};
+
+	double J1w[3][1];
+	double J2w[3][2];
+	double J3w[3][3];
+	double J4w[3][4];
+	double J5w[3][5];
+	double J6w[3][6];
+	double J7w[3][7];
+	double R2t[3][3];
+	double R3t[3][3];
+	double R4t[3][3];
+	double R5t[3][3];
+	double R6t[3][3];
+	double R7t[3][3];
+
+	Matrix_Trans3(R2,R2t);
+	Matrix_Trans3(R3,R3t);
+	Matrix_Trans3(R4,R4t);
+	Matrix_Trans3(R5,R5t);
+	Matrix_Trans3(R6,R6t);
+	Matrix_Trans3(R7,R7t);
+
+	Matrix_Multiply(3,3,1,*R2t,Z,*J1w);
+
+	for (i = 0;i<3;i++)
+	{
+		J2w[i][0] = J1w[i][0];
+		J2w[i][1] = Z[i];
+	}
+
+	double J3temp[3][2];
+	Matrix_Multiply(3,3,2,*R3t,*J2w,*J3temp);
+
+	for (i = 0;i<3;i++)
+	{
+		for(j=0;j<2;j++)
+			J3w[i][j] = J3temp[i][j];
+
+		J3w[i][2] = Z[i];
+	}
+
+	double J4temp[3][3];
+	Matrix_Multiply(3,3,3,*R4t,*J3w,*J4temp);
+
+	for (i = 0;i<3;i++)
+	{
+		for(j=0;j<3;j++)
+			J4w[i][j] = J4temp[i][j];
+
+		J4w[i][3] = Z[i];
+	}
+
+	double J5temp[3][4];
+	Matrix_Multiply(3,3,4,*R5t,*J4w,*J5temp);
+
+	for (i = 0;i<3;i++)
+	{
+		for(j=0;j<4;j++)
+			J5w[i][j] = J5temp[i][j];
+
+		J5w[i][4] = Z[i];
+	}
+
+	double J6temp[3][5];
+	Matrix_Multiply(3,3,5,*R6t,*J5w,*J6temp);
+
+	for (i = 0;i<3;i++)
+	{
+		for(j=0;j<5;j++)
+			J6w[i][j] = J6temp[i][j];
+
+		J6w[i][5] = Z[i];
+	}
+
+	double J7temp[3][6];
+	Matrix_Multiply(3,3,6,*R7t,*J6w,*J7temp);
+
+	for (i = 0;i<3;i++)
+	{
+		for(j=0;j<6;j++)
+			J7w[i][j] = J7temp[i][j];
+
+		J7w[i][6] = Z[i];
+	}
+
+
+	//J7
+	for (i = 0;i<3;i++)
+	{
+		for(j=0;j<7;j++)
+			JT[i][j] = Jv7[i][j];
+
+	}
+	for (i = 0;i<3;i++)
+	{
+		for(j=0;j<7;j++)
+			JT[i+3][j] = J7w[i][j];
+
+	}
+}
+
+void JacobianR(double anglein[7], double JT[6][7])
+{
+	double x1 = anglein[0]/57.3;
+	double x2 = anglein[1]/57.3;
+	double x3 = anglein[2]/57.3;
+	double x4 = anglein[3]/57.3;
+	double x5 = anglein[4]/57.3;
+	double x6 = anglein[5]/57.3;
+	double x7 = anglein[6]/57.3;
+	double sqrt3c2 = 0.8660254;
+
+	//求Jv
+	double Jv0[3][7];
+	double Jv7[3][7];
+
+	Jv0[0][0] = - d4*(sin(x4)*(cos(x1)*sin(x3) + cos(x2)*cos(x3)*sin(x1)) + cos(x4)*sin(x1)*sin(x2)) - dend*(cos(x6)*(sin(x4)*(cos(x1)*sin(x3) + cos(x2)*cos(x3)*sin(x1)) + cos(x4)*sin(x1)*sin(x2)) + sin(x6)*(cos(x5)*(cos(x4)*(cos(x1)*sin(x3) + cos(x2)*cos(x3)*sin(x1)) - sin(x1)*sin(x2)*sin(x4)) + sin(x5)*(cos(x1)*cos(x3) - cos(x2)*sin(x1)*sin(x3)))) - d3*sin(x1)*sin(x2);
+	Jv0[0][1] = d4*(cos(x1)*cos(x2)*cos(x4) - cos(x1)*cos(x3)*sin(x2)*sin(x4)) - dend*(sin(x6)*(cos(x5)*(cos(x1)*cos(x2)*sin(x4) + cos(x1)*cos(x3)*cos(x4)*sin(x2)) - cos(x1)*sin(x2)*sin(x3)*sin(x5)) - cos(x6)*(cos(x1)*cos(x2)*cos(x4) - cos(x1)*cos(x3)*sin(x2)*sin(x4))) + d3*cos(x1)*cos(x2);
+	Jv0[0][2] = dend*(sin(x6)*(sin(x5)*(sin(x1)*sin(x3) - cos(x1)*cos(x2)*cos(x3)) - cos(x4)*cos(x5)*(cos(x3)*sin(x1) + cos(x1)*cos(x2)*sin(x3))) - cos(x6)*sin(x4)*(cos(x3)*sin(x1) + cos(x1)*cos(x2)*sin(x3))) - d4*sin(x4)*(cos(x3)*sin(x1) + cos(x1)*cos(x2)*sin(x3));
+	Jv0[0][3] = - dend*(cos(x6)*(cos(x4)*(sin(x1)*sin(x3) - cos(x1)*cos(x2)*cos(x3)) + cos(x1)*sin(x2)*sin(x4)) - cos(x5)*sin(x6)*(sin(x4)*(sin(x1)*sin(x3) - cos(x1)*cos(x2)*cos(x3)) - cos(x1)*cos(x4)*sin(x2))) - d4*(cos(x4)*(sin(x1)*sin(x3) - cos(x1)*cos(x2)*cos(x3)) + cos(x1)*sin(x2)*sin(x4));
+	Jv0[0][4] = dend*sin(x6)*(sin(x5)*(cos(x4)*(sin(x1)*sin(x3) - cos(x1)*cos(x2)*cos(x3)) + cos(x1)*sin(x2)*sin(x4)) - cos(x5)*(cos(x3)*sin(x1) + cos(x1)*cos(x2)*sin(x3)));
+	Jv0[0][5] = dend*(sin(x6)*(sin(x4)*(sin(x1)*sin(x3) - cos(x1)*cos(x2)*cos(x3)) - cos(x1)*cos(x4)*sin(x2)) - cos(x6)*(cos(x5)*(cos(x4)*(sin(x1)*sin(x3) - cos(x1)*cos(x2)*cos(x3)) + cos(x1)*sin(x2)*sin(x4)) + sin(x5)*(cos(x3)*sin(x1) + cos(x1)*cos(x2)*sin(x3))));
+	Jv0[0][6] = 0;
+
+	Jv0[1][0] = d3*cos(x1)*sin(x2) - d4*(sin(x4)*(sin(x1)*sin(x3) - cos(x1)*cos(x2)*cos(x3)) - cos(x1)*cos(x4)*sin(x2)) - dend*(cos(x6)*(sin(x4)*(sin(x1)*sin(x3) - cos(x1)*cos(x2)*cos(x3)) - cos(x1)*cos(x4)*sin(x2)) + sin(x6)*(cos(x5)*(cos(x4)*(sin(x1)*sin(x3) - cos(x1)*cos(x2)*cos(x3)) + cos(x1)*sin(x2)*sin(x4)) + sin(x5)*(cos(x3)*sin(x1) + cos(x1)*cos(x2)*sin(x3))));
+	Jv0[1][1] = d4*(cos(x2)*cos(x4)*sin(x1) - cos(x3)*sin(x1)*sin(x2)*sin(x4)) - dend*(sin(x6)*(cos(x5)*(cos(x2)*sin(x1)*sin(x4) + cos(x3)*cos(x4)*sin(x1)*sin(x2)) - sin(x1)*sin(x2)*sin(x3)*sin(x5)) - cos(x6)*(cos(x2)*cos(x4)*sin(x1) - cos(x3)*sin(x1)*sin(x2)*sin(x4))) + d3*cos(x2)*sin(x1);
+	Jv0[1][2] = d4*sin(x4)*(cos(x1)*cos(x3) - cos(x2)*sin(x1)*sin(x3)) - dend*(sin(x6)*(sin(x5)*(cos(x1)*sin(x3) + cos(x2)*cos(x3)*sin(x1)) - cos(x4)*cos(x5)*(cos(x1)*cos(x3) - cos(x2)*sin(x1)*sin(x3))) - cos(x6)*sin(x4)*(cos(x1)*cos(x3) - cos(x2)*sin(x1)*sin(x3)));
+	Jv0[1][3] = d4*(cos(x4)*(cos(x1)*sin(x3) + cos(x2)*cos(x3)*sin(x1)) - sin(x1)*sin(x2)*sin(x4)) + dend*(cos(x6)*(cos(x4)*(cos(x1)*sin(x3) + cos(x2)*cos(x3)*sin(x1)) - sin(x1)*sin(x2)*sin(x4)) - cos(x5)*sin(x6)*(sin(x4)*(cos(x1)*sin(x3) + cos(x2)*cos(x3)*sin(x1)) + cos(x4)*sin(x1)*sin(x2)));
+	Jv0[1][4] = -dend*sin(x6)*(sin(x5)*(cos(x4)*(cos(x1)*sin(x3) + cos(x2)*cos(x3)*sin(x1)) - sin(x1)*sin(x2)*sin(x4)) - cos(x5)*(cos(x1)*cos(x3) - cos(x2)*sin(x1)*sin(x3)));
+	Jv0[1][5] = -dend*(sin(x6)*(sin(x4)*(cos(x1)*sin(x3) + cos(x2)*cos(x3)*sin(x1)) + cos(x4)*sin(x1)*sin(x2)) - cos(x6)*(cos(x5)*(cos(x4)*(cos(x1)*sin(x3) + cos(x2)*cos(x3)*sin(x1)) - sin(x1)*sin(x2)*sin(x4)) + sin(x5)*(cos(x1)*cos(x3) - cos(x2)*sin(x1)*sin(x3))));
+	Jv0[1][6] = 0;
+
+	Jv0[2][0] = 0;
+	Jv0[2][1] = dend*(sin(x6)*(cos(x5)*(sin(x2)*sin(x4) - cos(x2)*cos(x3)*cos(x4)) + cos(x2)*sin(x3)*sin(x5)) - cos(x6)*(cos(x4)*sin(x2) + cos(x2)*cos(x3)*sin(x4))) - d4*(cos(x4)*sin(x2) + cos(x2)*cos(x3)*sin(x4)) - d3*sin(x2);
+	Jv0[2][2] = dend*(sin(x6)*(cos(x3)*sin(x2)*sin(x5) + cos(x4)*cos(x5)*sin(x2)*sin(x3)) + cos(x6)*sin(x2)*sin(x3)*sin(x4)) + d4*sin(x2)*sin(x3)*sin(x4);
+	Jv0[2][3] = - d4*(cos(x2)*sin(x4) + cos(x3)*cos(x4)*sin(x2)) - dend*(cos(x6)*(cos(x2)*sin(x4) + cos(x3)*cos(x4)*sin(x2)) + cos(x5)*sin(x6)*(cos(x2)*cos(x4) - cos(x3)*sin(x2)*sin(x4)));
+	Jv0[2][4] = dend*sin(x6)*(sin(x5)*(cos(x2)*sin(x4) + cos(x3)*cos(x4)*sin(x2)) + cos(x5)*sin(x2)*sin(x3));
+	Jv0[2][5] = -dend*(cos(x6)*(cos(x5)*(cos(x2)*sin(x4) + cos(x3)*cos(x4)*sin(x2)) - sin(x2)*sin(x3)*sin(x5)) + sin(x6)*(cos(x2)*cos(x4) - cos(x3)*sin(x2)*sin(x4)));
+	Jv0[2][6] = 0;
+
+	double T07[4][4];
+	double T70[4][4];
+	double R70[3][3];
+	double xin[7];
+
+	int i,j;
+
+	for(i=0;i<7;i++)
+		xin[i] = anglein[i]/57.3;
+
+	KinR(xin,T07);
+	inv_matrix(T07,T70);
+
+	for(i=0;i<3;i++)
+	{
+		for(j=0;j<3;j++)
+			R70[i][j] = T70[i][j];
+	}
+
+	Matrix_Multiply(3,3,7,*R70,*Jv0,*Jv7);
+
+	//求Jw
+	double R1[3][3] = {{cos(xin[0]), -sin(xin[0]), 0}, {sin(xin[0]), cos(xin[0]), 0}, {0, 0, 1.0}};
+	double R2[3][3] = {{cos(xin[1]), -sin(xin[1]), 0}, {0, 0, 1.0}, {-sin(xin[1]), -cos(xin[1]),0}};
+	double R3[3][3] = {{cos(xin[2]), -sin(xin[2]), 0}, {0, 0, -1.0}, {sin(xin[2]), cos(xin[2]),0}};
+	double R4[3][3] = {{cos(xin[3]), -sin(xin[3]), 0}, {0, 0, 1.0}, {-sin(xin[3]), -cos(xin[3]),0}};
+	double R5[3][3] = {{cos(xin[4]), -sin(xin[4]), 0}, {0, 0, -1.0}, {sin(xin[4]), cos(xin[4]),0}};
+	double R6[3][3] = {{cos(xin[5]), -sin(xin[5]), 0}, {0, 0, 1.0}, {-sin(xin[5]), -cos(xin[5]),0}};
+	double R7[3][3] = {{cos(xin[6]), -sin(xin[6]), 0}, {0, 0, -1.0}, {sin(xin[6]), cos(xin[6]),0}};
+	double Z[3] = {0,0,1};
+
+	double J1w[3][1];
+	double J2w[3][2];
+	double J3w[3][3];
+	double J4w[3][4];
+	double J5w[3][5];
+	double J6w[3][6];
+	double J7w[3][7];
+	double R2t[3][3];
+	double R3t[3][3];
+	double R4t[3][3];
+	double R5t[3][3];
+	double R6t[3][3];
+	double R7t[3][3];
+
+	Matrix_Trans3(R2,R2t);
+	Matrix_Trans3(R3,R3t);
+	Matrix_Trans3(R4,R4t);
+	Matrix_Trans3(R5,R5t);
+	Matrix_Trans3(R6,R6t);
+	Matrix_Trans3(R7,R7t);
+
+	Matrix_Multiply(3,3,1,*R2t,Z,*J1w);
+
+	for (i = 0;i<3;i++)
+	{
+		J2w[i][0] = J1w[i][0];
+		J2w[i][1] = Z[i];
+	}
+
+	double J3temp[3][2];
+	Matrix_Multiply(3,3,2,*R3t,*J2w,*J3temp);
+
+	for (i = 0;i<3;i++)
+	{
+		for(j=0;j<2;j++)
+			J3w[i][j] = J3temp[i][j];
+
+		J3w[i][2] = Z[i];
+	}
+
+	double J4temp[3][3];
+	Matrix_Multiply(3,3,3,*R4t,*J3w,*J4temp);
+
+	for (i = 0;i<3;i++)
+	{
+		for(j=0;j<3;j++)
+			J4w[i][j] = J4temp[i][j];
+
+		J4w[i][3] = Z[i];
+	}
+
+	double J5temp[3][4];
+	Matrix_Multiply(3,3,4,*R5t,*J4w,*J5temp);
+
+	for (i = 0;i<3;i++)
+	{
+		for(j=0;j<4;j++)
+			J5w[i][j] = J5temp[i][j];
+
+		J5w[i][4] = Z[i];
+	}
+
+	double J6temp[3][5];
+	Matrix_Multiply(3,3,5,*R6t,*J5w,*J6temp);
+
+	for (i = 0;i<3;i++)
+	{
+		for(j=0;j<5;j++)
+			J6w[i][j] = J6temp[i][j];
+
+		J6w[i][5] = Z[i];
+	}
+
+	double J7temp[3][6];
+	Matrix_Multiply(3,3,6,*R7t,*J6w,*J7temp);
+
+	for (i = 0;i<3;i++)
+	{
+		for(j=0;j<6;j++)
+			J7w[i][j] = J7temp[i][j];
+
+		J7w[i][6] = Z[i];
+	}
+
+
+	//J7
+	for (i = 0;i<3;i++)
+	{
+		for(j=0;j<7;j++)
+			JT[i][j] = Jv7[i][j];
+
+	}
+	for (i = 0;i<3;i++)
+	{
+		for(j=0;j<7;j++)
+			JT[i+3][j] = J7w[i][j];
+
+	}
+}
+
+void InvJacobianL(double anglein[7], double InvJ[7][6])
+{
+	double J[6][7];
+	double Jt[7][6];
+	JacobianL(anglein,J);
+	int i,j;
+
+	for (i=0;i<7;i++)
+	{
+		for (j=0;j<6;j++)
+		{
+			Jt[i][j] = J[j][i];
+		}
+	}
+
+	double Temp[7][7];
+	double InvTemp[7][7];
+	for (i=0;i<7;i++)
+	{
+		for (j=0;j<7;j++)
+		{
+			if (i == j)
+				Temp[i][j] = 1;
+			else
+				Temp[i][j] = 0;
+		}
+	}
+	Temp[0][0] = 30;
+	Temp[3][3] = 66;
+
+	Matrix_Reverse(7,*Temp,*InvTemp);
+
+	double Ttemp1[7][6],Ttemp2[6][7],Ttemp3[6][6],Ttemp4[6][6];
+
+	Matrix_Multiply(7,7,6,*InvTemp,*Jt,*Ttemp1);
+	Matrix_Multiply(6,7,7,*J,*InvTemp,*Ttemp2);
+	Matrix_Multiply(6,7,6,*Ttemp2,*Jt,*Ttemp3);
+	Matrix_Reverse(6,*Ttemp3,*Ttemp4);
+	Matrix_Multiply(7,6,6,*Ttemp1,*Ttemp4,*InvJ);
+}
+
+void InvJacobianR(double anglein[7], double InvJ[7][6])
+{
+	double J[6][7];
+	double Jt[7][6];
+	JacobianR(anglein,J);
+	int i,j;
+
+	for (i=0;i<7;i++)
+	{
+		for (j=0;j<6;j++)
+		{
+			Jt[i][j] = J[j][i];
+		}
+	}
+
+	double Temp[7][7];
+	double InvTemp[7][7];
+	for (i=0;i<7;i++)
+	{
+		for (j=0;j<7;j++)
+		{
+			if (i == j)
+				Temp[i][j] = 1;
+			else
+				Temp[i][j] = 0;
+		}
+	}
+	Temp[0][0] = 30;
+	Temp[3][3] = 66;
+
+	Matrix_Reverse(7,*Temp,*InvTemp);
+
+	double Ttemp1[7][6],Ttemp2[6][7],Ttemp3[6][6],Ttemp4[6][6];
+
+	Matrix_Multiply(7,7,6,*InvTemp,*Jt,*Ttemp1);
+	Matrix_Multiply(6,7,7,*J,*InvTemp,*Ttemp2);
+	Matrix_Multiply(6,7,6,*Ttemp2,*Jt,*Ttemp3);
+	Matrix_Reverse(6,*Ttemp3,*Ttemp4);
+	Matrix_Multiply(7,6,6,*Ttemp1,*Ttemp4,*InvJ);
+}
+
+
+void KinL(double Angle[7], double TransMatrix[4][4])
+{
+	double T1[4][4] = {{cos(Angle[0]), -sin(Angle[0]), 0, 0}, {sin(Angle[0]), cos(Angle[0]), 0, 0}, {0, 0, 1.0, 0}, {0, 0, 0, 1.0}};
+	double T2[4][4] = {{cos(Angle[1]), -sin(Angle[1]), 0, 0}, {0, 0, -1.0, 0}, {sin(Angle[1]), cos(Angle[1]), 0, 0},{0, 0, 0, 1.0}};
+	double T3[4][4] = {{cos(Angle[2]), -sin(Angle[2]), 0, 0}, {0, 0, 1.0, d3}, {-sin(Angle[2]), -cos(Angle[2]), 0, 0},{0, 0, 0, 1.0}};
+	double T4[4][4] = {{cos(Angle[3]), -sin(Angle[3]), 0, 0}, {0, 0, -1.0, 0}, {sin(Angle[3]), cos(Angle[3]), 0, 0},{0, 0, 0, 1.0}};
+	double T5[4][4] = {{cos(Angle[4]), -sin(Angle[4]), 0, 0}, {0, 0, 1.0, d4}, {-sin(Angle[4]), -cos(Angle[4]), 0, 0}, {0, 0, 0, 1.0}};
+	double T6[4][4] = {{cos(Angle[5]), -sin(Angle[5]), 0, 0}, {0, 0, -1.0, 0}, {sin(Angle[5]), cos(Angle[5]), 0, 0},{0, 0, 0, 1.0}};
+	double T7[4][4] = {{cos(Angle[6]), -sin(Angle[6]), 0, 0}, {0, 0, 1.0, 0}, {-sin(Angle[6]), -cos(Angle[6]), 0, 0},{0, 0, 0, 1.0}};
+	double T_Hand[4][4] = {{1.0, 0.0, 0, Tool_Position[0]}, {0, 1.0, 0.0, Tool_Position[1]}, {0.0, 0.0, 1.0, Tool_Position[2]},{0, 0, 0, 1.0}};
+
+
+	double T02[4][4], T03[4][4], T04[4][4], T05[4][4], T06[4][4], T07[4][4];
+
+	matrix_multiply(T1, T2, T02);
+	matrix_multiply(T02, T3, T03);
+	matrix_multiply(T03, T4, T04);
+	matrix_multiply(T04, T5, T05);
+	matrix_multiply(T05, T6, T06);
+	matrix_multiply(T06, T7, T07);
+	matrix_multiply(T07, T_Hand, TransMatrix);
+
+	return ;
+}
+void KinR(double Angle[7], double TransMatrix[4][4])
+{
+	double T1[4][4] = {{cos(Angle[0]), -sin(Angle[0]), 0, 0}, {sin(Angle[0]), cos(Angle[0]), 0, 0}, {0, 0, 1.0, 0}, {0, 0, 0, 1.0}};
+	double T2[4][4] = {{cos(Angle[1]), -sin(Angle[1]), 0, 0}, {0, 0, 1.0, 0}, {-sin(Angle[1]), -cos(Angle[1]), 0, 0},{0, 0, 0, 1.0}};
+	double T3[4][4] = {{cos(Angle[2]), -sin(Angle[2]), 0, 0}, {0, 0, -1.0, -d3}, {sin(Angle[2]), cos(Angle[2]), 0, 0},{0, 0, 0, 1.0}};
+	double T4[4][4] = {{cos(Angle[3]), -sin(Angle[3]), 0, 0}, {0, 0, 1.0, 0}, {-sin(Angle[3]), -cos(Angle[3]), 0, 0},{0, 0, 0, 1.0}};
+	double T5[4][4] = {{cos(Angle[4]), -sin(Angle[4]), 0, 0}, {0, 0, -1.0, -d4}, {sin(Angle[4]), cos(Angle[4]), 0, 0}, {0, 0, 0, 1.0}};
+	double T6[4][4] = {{cos(Angle[5]), -sin(Angle[5]), 0, 0}, {0, 0, 1.0, 0}, {-sin(Angle[5]), -cos(Angle[5]), 0, 0},{0, 0, 0, 1.0}};
+	double T7[4][4] = {{cos(Angle[6]), -sin(Angle[6]), 0, 0}, {0, 0, -1.0, 0}, {sin(Angle[6]), cos(Angle[6]), 0, 0},{0, 0, 0, 1.0}};
+	double T_Hand[4][4] = {{1.0, 0.0, 0, Tool_Position[0]}, {0, 1.0, 0.0, Tool_Position[1]}, {0.0, 0.0, 1.0, Tool_Position[2]},{0, 0, 0, 1.0}};
+
+
+	double T02[4][4], T03[4][4], T04[4][4], T05[4][4], T06[4][4], T07[4][4];
+
+	matrix_multiply(T1, T2, T02);
+	matrix_multiply(T02, T3, T03);
+	matrix_multiply(T03, T4, T04);
+	matrix_multiply(T04, T5, T05);
+	matrix_multiply(T05, T6, T06);
+	matrix_multiply(T06, T7, T07);
+	matrix_multiply(T07, T_Hand, TransMatrix);
+
+	return ;
+}
+
+void Matrix_Trans3(double MA[3][3], double MB[3][3])
+{
+	int i = 0;
+	int j = 0;
+	for(i=0; i<3; i++)
+	{
+		for(j=0; j<3;j++)
+		{
+			MB[i][j] = MA[j][i];
+		}
+	}
+}
+
+
+int Matrix_Reverse(int iNum, double* pSourceR, double* pDestR)
+{
+	int i, j, k, i0, j0;
+	double dMax, dTem;
+
+	int* iRow = (int*)malloc(sizeof(int) * iNum);
+	int* iCol = (int*)malloc(sizeof(int) * iNum);
+	double* dTem1 = (double*)malloc(sizeof(double) * iNum);
+	double* dTem2 = (double*)malloc(sizeof(double) * iNum);
+
+	// 复制数组, 在缓冲区之间拷贝字符
+	memcpy(pDestR, pSourceR, (iNum * iNum) * sizeof(double));
+
+	for (k = 0; k < iNum; k++)
+	{
+		dMax = 0.0;
+
+		// 首先，全选主元；从第k行k列开始的右下角子阵中选取绝对值最大的元素
+		for (i = k; i < iNum; i++)
+		{
+			for (j = k; j < iNum; j++)
+			{
+				if (fabs(pDestR[i*iNum+j]) > fabs(dMax))
+				{
+					dMax = pDestR[i*iNum+j];
+					i0 = i;
+					j0 = j;
+				}
+			}
+		}
+
+		// 若绝对值最大的元素为零，则为奇异矩阵，求逆失败
+		if (fabs(dMax) < 0.000000000001)
+		{
+			free(iRow);  free(iCol);  free(dTem1);  free(dTem2);
+			return 0;
+		}
+
+		// 将绝对值最大的元素所在行与k行互换
+		if (i0 != k)
+		{
+			for (j = 0; j < iNum; j++)
+			{
+				dTem = pDestR[i0*iNum+j];
+				pDestR[i0*iNum+j] = pDestR[k*iNum+j];
+				pDestR[k*iNum+j] = dTem;
+			}
+		}
+
+		// 将绝对值最大的元素所在列与k列互换，即可交换到主元素位置上
+		if (j0 != k)
+		{
+			for (i = 0; i < iNum; i++)
+			{
+				dTem = pDestR[i*iNum+j0];
+				pDestR[i*iNum+j0] = pDestR[i*iNum+k];
+				pDestR[i*iNum+k] = dTem;
+			}
+		}
+
+		// 记录该元素所在的行号和列号
+		iRow[k] = i0;
+		iCol[k] = j0;
+
+		// 然后求解
+		for (j = 0; j < iNum; j++)
+		{
+			if (j == k)
+			{
+				dTem1[j] = 1 / dMax;
+				dTem2[j] = 1.0;
+			}
+			else
+			{
+				dTem1[j] =  - pDestR[k*iNum+j] / dMax;
+				dTem2[j] = pDestR[j*iNum+k];
+			}
+			pDestR[k*iNum+j] = 0.0;
+			pDestR[j*iNum+k] = 0.0;
+		}
+		for (i = 0; i < iNum; i++)
+			for (j = 0; j < iNum; j++)
+				pDestR[i*iNum+j] += dTem2[i] * dTem1[j];
+	}
+
+	// 最后，根据在全选主元过程中所记录的行、列交换的信息进行恢复
+	for (k = iNum-1; k >= 0; k--)
+	{
+		i0 = iRow[k];
+		j0 = iCol[k];
+		if (i0 != k)
+		{
+			for (i = 0; i < iNum; i++)
+			{
+				dTem = pDestR[i*iNum+i0];
+				pDestR[i*iNum+i0] = pDestR[i*iNum+k];
+				pDestR[i*iNum+k] = dTem;
+			}
+		}
+		if (j0 != k)
+		{
+			for (j = 0; j < iNum; j++)
+			{
+				dTem = pDestR[j0*iNum+j];
+				pDestR[j0*iNum+j] = pDestR[k*iNum+j];
+				pDestR[k*iNum+j] = dTem;
+			}
+		}
+	}
+
+	free(iRow);  free(iCol);  free(dTem1);  free(dTem2);
+	return 1;
 }

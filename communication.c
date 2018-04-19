@@ -1,6 +1,9 @@
 #include "communication.h"
 #include "global_def.h"
 #include <errno.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 
 struct SingleJointCMD_Struct SingleJointData;
 struct SingleArmCMD_Struct SignleArmData;
@@ -28,7 +31,7 @@ int RobotUDPComm_init(void)
 	HostAddr.sin_family = AF_INET;
 	HostAddr.sin_port = htons(CTRLHOST_PORT);
 	HostAddr.sin_addr.s_addr = inet_addr(CTRLHOST_IP);
-	if (bind(UDP_Sock, &HostAddr, sizeof(HostAddr)) < 0)
+	if (bind(UDP_Sock, (struct sockaddr*)&HostAddr, sizeof(HostAddr)) < 0)
 	{
 		perror("PC socket binded failed!\n");
 	}
