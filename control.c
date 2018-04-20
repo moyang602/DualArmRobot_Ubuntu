@@ -170,10 +170,10 @@ int can_channel_number = 4;
 						{0, 0, 0, 0, 1, 1, 1},
 						{1, 1, 1, 1, 1, 1, 0},
 						{1, 1, 1, 1, 1, 1, 1}};*/
-int can_switch[4][7] = {{0, 0, 0, 0, 0, 0, 0},
+int can_switch[4][7] = {{0, 0, 0, 0, 1, 1, 1},
 						{0, 0, 0, 0, 1, 1, 1},
-						{0, 0, 1, 1, 0, 0, 0},
-						{0, 0, 1, 1, 0, 0, 1}};
+						{1, 1, 1, 1, 0, 0, 0},
+						{1, 1, 1, 1, 0, 0, 1}};
 
 // 各节点速度方向
 double joint_direction[4][7] = {{1, 1, 1, 1, 1, -1, 1},
@@ -328,12 +328,16 @@ double A6D_C[6] = {1, 1, 1, 1, 1, 1};			/*阻尼系数 2.*A6D_ep.*A6D_wn.*A6D_m 
 int A6D_enable[6] = {1, 1, 1, 1, 1, 1};		/*control end velocity enable*/
 
 double FDeltaT = 0.003;		/*力控周期*/
-double Acc[6] = {0.0};
-double A6D_D_total[6] = {0.0};
-double A6D_V[6] = {0.0};
-double A6D_P[6] = {0.0};
-double A6D_Joint_P[7] = {0.0};
-double A6D_Joint_V[7] = {0.0};
+double AccL[6] = {0.0};
+double AccR[6] = {0.0};
+double A6D_D_totalL[6] = {0.0};
+double A6D_D_totalR[6] = {0.0};
+double A6D_VL[6] = {0.0};
+double A6D_VR[6] = {0.0};
+double A6D_Joint_PL[7] = {0.0};
+double A6D_Joint_PR[7] = {0.0};
+double A6D_Joint_VL[7] = {0.0};
+double A6D_Joint_VR[7] = {0.0};
 double force_velocity_limit[6] = {20.0, 20.0, 20.0, 0.1, 0.1, 0.1};
 /********************** 力控制相关 End ***************************/
 
@@ -1358,7 +1362,7 @@ void rt_can_recv(void *arg)
 							memset(&SendAngle,0,sizeof(SendAngle));
 							CanDef2RealRobot(Joint_Angle_EP, &SendAngle);
 							rtnn = CollisionDetection(SendAngle.LeftArm, SendAngle.RightArm, SendAngle.Waist);
-							printf("OBBFLAG = %d\n",rtnn);
+						//	printf("OBBFLAG = %d\n",rtnn);
 
 							if(motion_enable_flag == 1)
 							{
@@ -2427,12 +2431,14 @@ void rt_can_recv(void *arg)
 						RealTargetPos.LeftArm[3] = 8*Degree2Rad;
 						RealTargetPos.LeftArm[4] = 10*Degree2Rad;
 						RealTargetPos.LeftArm[5] = 8*Degree2Rad;
+						RealTargetPos.LeftArm[6] = 0*Degree2Rad;
 						RealTargetPos.RightArm[0] = -8*Degree2Rad;
 						RealTargetPos.RightArm[1] = 85*Degree2Rad;
 						RealTargetPos.RightArm[2] = 6*Degree2Rad;
 						RealTargetPos.RightArm[3] = 8*Degree2Rad;
 						RealTargetPos.RightArm[4] = -16*Degree2Rad;
 						RealTargetPos.RightArm[5] = 8*Degree2Rad;
+						RealTargetPos.RightArm[6] = 0*Degree2Rad;
 		 			}
 		 			else
 		 			{
@@ -2457,6 +2463,11 @@ void rt_can_recv(void *arg)
 
 		 				memset(&RealTargetPos,0,sizeof(RealTargetPos));
 						CanDef2RealRobot(Joint_Angle_FB, &RealTargetPos);
+						for(i=0; i<7; i++)
+						{
+							RealTargetPos.LeftArm[i] = 0.0*Degree2Rad;
+							RealTargetPos.RightArm[i] = 0.0*Degree2Rad;
+						}
 						RealTargetPos.LeftArm[1] = 73.5*Degree2Rad;
 						RealTargetPos.RightArm[1] = -73.5*Degree2Rad;
 		 			}
@@ -2511,12 +2522,14 @@ void rt_can_recv(void *arg)
 						RealTargetPos.LeftArm[3] = 30*Degree2Rad;
 						RealTargetPos.LeftArm[4] = 0*Degree2Rad;
 						RealTargetPos.LeftArm[5] = 30*Degree2Rad;
+						RealTargetPos.LeftArm[6] = 0*Degree2Rad;
 						RealTargetPos.RightArm[0] = 45*Degree2Rad;
 						RealTargetPos.RightArm[1] = -60*Degree2Rad;
 						RealTargetPos.RightArm[2] = 0*Degree2Rad;
 						RealTargetPos.RightArm[3] = -30*Degree2Rad;
 						RealTargetPos.RightArm[4] = 0*Degree2Rad;
 						RealTargetPos.RightArm[5] = -30*Degree2Rad;
+						RealTargetPos.RightArm[6] = 0*Degree2Rad;
 		 			}
 		 			else
 		 			{
@@ -2714,7 +2727,6 @@ void rt_can_recv(void *arg)
 								sprintf(buf21, "*********************************  Robot Force *********************************");
 
 								sprintf(buf22, "ForceL:   %8.3f  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f",ForceDataL[0],ForceDataL[1],ForceDataL[2],ForceDataL[3],ForceDataL[4],ForceDataL[5]);
-							//	printf("ForceL: %8.3f  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f\n",ForceDataL[0],ForceDataL[1],ForceDataL[2],ForceDataL[3],ForceDataL[4],ForceDataL[5]);
 							break;
 							default:
 							break;
@@ -2746,7 +2758,6 @@ void rt_can_recv(void *arg)
 								ForceNewDataR = GetData(2,ForceDataR);				// twice get a data
 
 								sprintf(buf23, "ForceR:   %8.3f  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f",ForceDataR[0],ForceDataR[1],ForceDataR[2],ForceDataR[3],ForceDataR[4],ForceDataR[5]);
-							//	printf("ForceR: %8.3f  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f\n",ForceDataR[0],ForceDataR[1],ForceDataR[2],ForceDataR[3],ForceDataR[4],ForceDataR[5]);
 							break;
 							default:
 							break;
@@ -2754,25 +2765,25 @@ void rt_can_recv(void *arg)
 
 					}
 
-					if(ForceControl_flagR == 1&& ForceNewDataR==1)
-					{
-						int i_f = 0;
-						double force_limit[6] = {80.0, 80.0, 100.0, 7.0, 7.0, 7.0};
+					int i_f = 0;
+					double force_limit[6] = {80.0, 80.0, 100.0, 7.0, 7.0, 7.0};
 
-						int position_change_flag = 1;
+					if(ForceControl_flagL == 1&& ForceNewDataL==1)	//左臂control
+					{
+						int position_change_flagL = 1;
 
 						for(i_f=0; i_f<6; i_f++)
 						{
-							if(fabs(ForceDataR[i_f]) > force_limit[i_f])
+							if(fabs(ForceDataL[i_f]) > force_limit[i_f])
 							{
-								ForceControl_flagR = 0;
-								position_change_flag = 0;
-								printf("force limited\n");
+								ForceControl_flagL = 0;
+								position_change_flagL = 0;
+								printf("forceL limited\n");
 								break;
 							}
 						}
 
-						if(position_change_flag == 1)
+						if(position_change_flagL == 1)
 						{
 							for(i_f=0;i_f<6;i_f++)
 							{
@@ -2781,16 +2792,162 @@ void rt_can_recv(void *arg)
 
 							for(i_f=0;i_f<6;i_f++)
 							{
-								Acc[i_f] = (ForceDataR[i_f] - A6D_K[i_f]*A6D_D_total[i_f] - A6D_C[i_f]*A6D_V[i_f])/A6D_m[i_f];
-								A6D_D_total[i_f] = A6D_D_total[i_f] + Acc[i_f]*FDeltaT*FDeltaT/2.0 + A6D_V[i_f]*FDeltaT ;
-								A6D_V[i_f] = A6D_V[i_f] + Acc[i_f]*FDeltaT;
-								A6D_P[i_f] = A6D_V[i_f]*FDeltaT;
+								AccL[i_f] = (ForceDataL[i_f] - A6D_K[i_f]*A6D_D_totalL[i_f] - A6D_C[i_f]*A6D_VL[i_f])/A6D_m[i_f];
+								A6D_D_totalL[i_f] = A6D_D_totalL[i_f] + AccL[i_f]*FDeltaT*FDeltaT/2.0 + A6D_VL[i_f]*FDeltaT ;
+								A6D_VL[i_f] = A6D_VL[i_f] + AccL[i_f]*FDeltaT;
 							}
 
 							for(i_f=0;i_f<6;i_f++)
 							{
 								if(A6D_enable[i_f] == 0)
-									A6D_V[i_f] = 0;
+									A6D_VL[i_f] = 0;
+							}
+
+
+							if(FirstForceControlL == 1)
+							{
+								memset(&OneArmStart,0,sizeof(OneArmStart));
+								CanDef2RealRobot(Joint_Angle_FB_degree, &OneArmStart);
+								/*A6D_Joint_PL[0] = 0.0;
+								A6D_Joint_PL[1] = 20.0;
+								A6D_Joint_PL[2] = 0.0;
+								A6D_Joint_PL[3] = -45.0;
+								A6D_Joint_PL[4] = 0.0;
+								A6D_Joint_PL[5] = 25.0;
+								A6D_Joint_PL[6] = 0.0;*/
+								for(i_f=0;i_f<7;i_f++)
+								{
+									A6D_Joint_PL[i_f] = OneArmStart.LeftArm[i_f];
+									A6D_Joint_VL[i_f] = 0;
+								}
+
+								FirstForceControlL = 0;
+							}
+							double InvJacobinNowL[7][6] = {0.0};
+							InvJacobianL(A6D_Joint_PL, InvJacobinNowL);		// 雅可比奇异情况呢
+							double A6D_VmmL[6];
+							A6D_VmmL[0] = A6D_VL[0]*1000;		// change into mm/s
+							A6D_VmmL[1] = A6D_VL[1]*1000;		// change into mm/s
+							A6D_VmmL[2] = A6D_VL[2]*1000;		// change into mm/s
+							A6D_VmmL[3] = A6D_VL[3];
+							A6D_VmmL[4] = A6D_VL[4];
+							A6D_VmmL[5] = A6D_VL[5];
+
+							for(i_f = 0; i_f<6; i_f++)
+							{
+								if(A6D_VmmL[i_f] > force_velocity_limit[i_f])
+								{
+									A6D_VmmL[i_f] = force_velocity_limit[i_f];
+									printf("velocityL limited\n");
+								}
+								else if (A6D_VmmL[i_f] < -force_velocity_limit[i_f])
+								{
+									A6D_VmmL[i_f] = -force_velocity_limit[i_f];
+									printf("velocityL limited\n");
+								}
+							}
+
+							sprintf(buf24, "ExpEndVL: %8.3f  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f", A6D_VmmL[0],A6D_VmmL[1],A6D_VmmL[2],A6D_VmmL[3]*Rad2Degree,A6D_VmmL[4]*Rad2Degree,A6D_VmmL[5]*Rad2Degree);
+
+							Matrix_Multiply(7,6,1,*InvJacobinNowL,A6D_VmmL,A6D_Joint_VL);
+
+							sprintf(buf25, "ExpJointVL:%7.3f  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f",A6D_Joint_VL[0]*Rad2Degree,A6D_Joint_VL[1]*Rad2Degree,A6D_Joint_VL[2]*Rad2Degree,A6D_Joint_VL[3]*Rad2Degree,A6D_Joint_VL[4]*Rad2Degree,A6D_Joint_VL[5]*Rad2Degree,A6D_Joint_VL[6]*Rad2Degree);
+
+							for(i_f=0;i_f<7;i_f++)
+							{
+								A6D_Joint_PL[i_f] += A6D_Joint_VL[i_f]*FDeltaT*Rad2Degree;
+							}
+
+
+							Joint_Angle_EP[2][0] = JointDetect(2, 0, A6D_Joint_PL[0]*Degree2Rad);
+							Joint_Angle_EP[3][0] = JointDetect(3, 0, A6D_Joint_PL[1]*Degree2Rad);
+							Joint_Angle_EP[3][1] = JointDetect(3, 1, A6D_Joint_PL[2]*Degree2Rad);
+							Joint_Angle_EP[2][1] = JointDetect(2, 1, A6D_Joint_PL[3]*Degree2Rad);
+							Joint_Angle_EP[0][4] = JointDetect(0, 4, A6D_Joint_PL[4]*Degree2Rad);
+							Joint_Angle_EP[0][5] = JointDetect(0, 5, A6D_Joint_PL[5]*Degree2Rad);
+							Joint_Angle_EP[0][6] = JointDetect(0, 6, A6D_Joint_PL[6]*Degree2Rad);
+
+							// 缺少末端限位
+
+							if(motion_enable_flag == 1)
+							{
+								rad_send(0, 4, Joint_Angle_EP[0][4]);
+								sleeptime.tv_nsec = 250000;
+								sleeptime.tv_sec = 0;
+								nanosleep(&sleeptime,NULL);
+								rad_send(0, 5, Joint_Angle_EP[0][5]);
+								sleeptime.tv_nsec = 250000;
+								sleeptime.tv_sec = 0;
+								nanosleep(&sleeptime,NULL);
+								rad_send(0, 6, Joint_Angle_EP[0][6]);
+								sleeptime.tv_nsec = 8000;
+								sleeptime.tv_sec = 0;
+								nanosleep(&sleeptime,NULL);
+								rad_send(2, 0, Joint_Angle_EP[2][0]);
+								sleeptime.tv_nsec = 250000;
+								sleeptime.tv_sec = 0;
+								nanosleep(&sleeptime,NULL);
+								rad_send(2, 1, Joint_Angle_EP[2][1]);
+								sleeptime.tv_nsec = 8000;
+								sleeptime.tv_sec = 0;
+								nanosleep(&sleeptime,NULL);
+								rad_send(3, 0, Joint_Angle_EP[3][0]);
+								sleeptime.tv_nsec = 250000;
+								sleeptime.tv_sec = 0;
+								nanosleep(&sleeptime,NULL);
+								rad_send(3, 1, Joint_Angle_EP[3][1]);
+								sleeptime.tv_nsec = 10000;
+								sleeptime.tv_sec = 0;
+								nanosleep(&sleeptime,NULL);
+
+							}
+						}
+					}
+					else if(ForceControl_flagL == 0)
+					{
+						for(i_f=0;i_f<6;i_f++)
+						{
+							AccL[i_f] = 0.0;
+							A6D_VL[i_f] = 0.0;
+							A6D_D_totalL[i_f] = 0.0;
+						}
+						FirstForceControlL = 1;
+					}
+
+
+					if(ForceControl_flagR == 1&& ForceNewDataR==1)	//右臂control
+					{
+						int position_change_flagR = 1;
+
+						for(i_f=0; i_f<6; i_f++)
+						{
+							if(fabs(ForceDataR[i_f]) > force_limit[i_f])
+							{
+								ForceControl_flagR = 0;
+								position_change_flagR = 0;
+								printf("force limited\n");
+								break;
+							}
+						}
+
+						if(position_change_flagR == 1)
+						{
+							for(i_f=0;i_f<6;i_f++)
+							{
+								A6D_C[i_f] = 2*A6D_ep[i_f]*sqrt(A6D_K[i_f]*A6D_m[i_f]);
+							}
+
+							for(i_f=0;i_f<6;i_f++)
+							{
+								AccR[i_f] = (ForceDataR[i_f] - A6D_K[i_f]*A6D_D_totalR[i_f] - A6D_C[i_f]*A6D_VR[i_f])/A6D_m[i_f];
+								A6D_D_totalR[i_f] = A6D_D_totalR[i_f] + AccR[i_f]*FDeltaT*FDeltaT/2.0 + A6D_VR[i_f]*FDeltaT ;
+								A6D_VR[i_f] = A6D_VR[i_f] + AccR[i_f]*FDeltaT;
+							}
+
+							for(i_f=0;i_f<6;i_f++)
+							{
+								if(A6D_enable[i_f] == 0)
+									A6D_VR[i_f] = 0;
 							}
 
 
@@ -2798,64 +2955,64 @@ void rt_can_recv(void *arg)
 							{
 								memset(&OneArmStart,0,sizeof(OneArmStart));
 								CanDef2RealRobot(Joint_Angle_FB_degree, &OneArmStart);
-							//	A6D_Joint_P[0] = 0.0;
-							//	A6D_Joint_P[1] = -20.0;
-							//	A6D_Joint_P[2] = 0.0;
-							//	A6D_Joint_P[3] = 45.0;
-							//	A6D_Joint_P[4] = 0.0;
-							//	A6D_Joint_P[5] = -25.0;
-							//	A6D_Joint_P[6] = 0.0;
+							/*	A6D_Joint_PR[0] = 0.0;
+								A6D_Joint_PR[1] = -20.0;
+								A6D_Joint_PR[2] = 0.0;
+								A6D_Joint_PR[3] = 45.0;
+								A6D_Joint_PR[4] = 0.0;
+								A6D_Joint_PR[5] = -25.0;
+								A6D_Joint_PR[6] = 0.0;	*/
 								for(i_f=0;i_f<7;i_f++)
 								{
-									A6D_Joint_P[i_f] = OneArmStart.RightArm[i_f];
-									A6D_Joint_V[i_f] = 0;
+									A6D_Joint_PR[i_f] = OneArmStart.RightArm[i_f];
+									A6D_Joint_VR[i_f] = 0;
 								}
 
 								FirstForceControlR = 0;
 							}
-							double InvJacobinNow[7][6] = {0.0};
-							InvJacobianR(A6D_Joint_P, InvJacobinNow);		// 雅可比奇异情况呢
-							double A6D_Vmm[6];
-							A6D_Vmm[0] = A6D_V[0]*1000;		// change into mm/s
-							A6D_Vmm[1] = A6D_V[1]*1000;		// change into mm/s
-							A6D_Vmm[2] = A6D_V[2]*1000;		// change into mm/s
-							A6D_Vmm[3] = A6D_V[3];
-							A6D_Vmm[4] = A6D_V[4];
-							A6D_Vmm[5] = A6D_V[5];
+							double InvJacobinNowR[7][6] = {0.0};
+							InvJacobianR(A6D_Joint_PR, InvJacobinNowR);		// 雅可比奇异情况呢
+							double A6D_VmmR[6];
+							A6D_VmmR[0] = A6D_VR[0]*1000;		// change into mm/s
+							A6D_VmmR[1] = A6D_VR[1]*1000;		// change into mm/s
+							A6D_VmmR[2] = A6D_VR[2]*1000;		// change into mm/s
+							A6D_VmmR[3] = A6D_VR[3];
+							A6D_VmmR[4] = A6D_VR[4];
+							A6D_VmmR[5] = A6D_VR[5];
 
 							for(i_f = 0; i_f<6; i_f++)
 							{
-								if(A6D_Vmm[i_f] > force_velocity_limit[i_f])
+								if(A6D_VmmR[i_f] > force_velocity_limit[i_f])
 								{
-									A6D_Vmm[i_f] = force_velocity_limit[i_f];
+									A6D_VmmR[i_f] = force_velocity_limit[i_f];
 									printf("velocity limited\n");
 								}
-								else if (A6D_Vmm[i_f] < -force_velocity_limit[i_f])
+								else if (A6D_VmmR[i_f] < -force_velocity_limit[i_f])
 								{
-									A6D_Vmm[i_f] = -force_velocity_limit[i_f];
+									A6D_VmmR[i_f] = -force_velocity_limit[i_f];
 									printf("velocity limited\n");
 								}
 							}
 
-							sprintf(buf24, "ExpEndV:  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f", A6D_Vmm[0],A6D_Vmm[1],A6D_Vmm[2],A6D_Vmm[3]*Rad2Degree,A6D_Vmm[4]*Rad2Degree,A6D_Vmm[5]*Rad2Degree);
+							sprintf(buf24, "ExpEndV:  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f", A6D_VmmR[0],A6D_VmmR[1],A6D_VmmR[2],A6D_VmmR[3]*Rad2Degree,A6D_VmmR[4]*Rad2Degree,A6D_VmmR[5]*Rad2Degree);
 
-							Matrix_Multiply(7,6,1,*InvJacobinNow,A6D_Vmm,A6D_Joint_V);
+							Matrix_Multiply(7,6,1,*InvJacobinNowR,A6D_VmmR,A6D_Joint_VR);
 
-							sprintf(buf25, "ExpJointV:%8.3f  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f",A6D_Joint_V[0]*Rad2Degree,A6D_Joint_V[1]*Rad2Degree,A6D_Joint_V[2]*Rad2Degree,A6D_Joint_V[3]*Rad2Degree,A6D_Joint_V[4]*Rad2Degree,A6D_Joint_V[5]*Rad2Degree,A6D_Joint_V[6]*Rad2Degree);
+							sprintf(buf25, "ExpJointV:%8.3f  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f",A6D_Joint_VR[0]*Rad2Degree,A6D_Joint_VR[1]*Rad2Degree,A6D_Joint_VR[2]*Rad2Degree,A6D_Joint_VR[3]*Rad2Degree,A6D_Joint_VR[4]*Rad2Degree,A6D_Joint_VR[5]*Rad2Degree,A6D_Joint_VR[6]*Rad2Degree);
 
 							for(i_f=0;i_f<7;i_f++)
 							{
-								A6D_Joint_P[i_f] += A6D_Joint_V[i_f]*FDeltaT*Rad2Degree;
+								A6D_Joint_PR[i_f] += A6D_Joint_VR[i_f]*FDeltaT*Rad2Degree;
 							}
 
 
-							Joint_Angle_EP[2][2] = JointDetect(2, 2, A6D_Joint_P[0]*Degree2Rad);
-							Joint_Angle_EP[3][2] = JointDetect(3, 2, A6D_Joint_P[1]*Degree2Rad);
-							Joint_Angle_EP[3][3] = JointDetect(3, 3, A6D_Joint_P[2]*Degree2Rad);
-							Joint_Angle_EP[2][3] = JointDetect(2, 3, A6D_Joint_P[3]*Degree2Rad);
-							Joint_Angle_EP[1][4] = JointDetect(1, 4, A6D_Joint_P[4]*Degree2Rad);
-							Joint_Angle_EP[1][5] = JointDetect(1, 5, A6D_Joint_P[5]*Degree2Rad);
-							Joint_Angle_EP[1][6] = JointDetect(1, 6, A6D_Joint_P[6]*Degree2Rad);
+							Joint_Angle_EP[2][2] = JointDetect(2, 2, A6D_Joint_PR[0]*Degree2Rad);
+							Joint_Angle_EP[3][2] = JointDetect(3, 2, A6D_Joint_PR[1]*Degree2Rad);
+							Joint_Angle_EP[3][3] = JointDetect(3, 3, A6D_Joint_PR[2]*Degree2Rad);
+							Joint_Angle_EP[2][3] = JointDetect(2, 3, A6D_Joint_PR[3]*Degree2Rad);
+							Joint_Angle_EP[1][4] = JointDetect(1, 4, A6D_Joint_PR[4]*Degree2Rad);
+							Joint_Angle_EP[1][5] = JointDetect(1, 5, A6D_Joint_PR[5]*Degree2Rad);
+							Joint_Angle_EP[1][6] = JointDetect(1, 6, A6D_Joint_PR[6]*Degree2Rad);
 
 							// 缺少末端限位
 
@@ -2894,12 +3051,11 @@ void rt_can_recv(void *arg)
 					}
 					else if(ForceControl_flagR == 0)
 					{
-						int i_f = 0;
 						for(i_f=0;i_f<6;i_f++)
 						{
-							Acc[i_f] = 0.0;
-							A6D_V[i_f] = 0.0;
-							A6D_D_total[i_f] = 0.0;
+							AccR[i_f] = 0.0;
+							A6D_VR[i_f] = 0.0;
+							A6D_D_totalR[i_f] = 0.0;
 						}
 						FirstForceControlR = 1;
 					}
@@ -3771,7 +3927,7 @@ void driver_init_status(void)
 		}
 	}
 
-	sprintf(buf23, "CAN init        %d  %d  %d  %d  %d  %d  %d . %d  %d  %d  %d  %d  %d  %d . %d  %d  %d  %d  %d  %d  %d . %d  %d  %d  %d  %d  %d",can_work_states[0],can_work_states[1],  can_work_states[2],can_work_states[3],can_work_states[4],can_work_states[5],can_work_states[6],can_work_states[7], can_work_states[8],can_work_states[9],can_work_states[10],can_work_states[11],can_work_states[12],can_work_states[13], can_work_states[14], can_work_states[15], can_work_states[16], can_work_states[17], can_work_states[18], can_work_states[19], can_work_states[20], can_work_states[21], can_work_states[22], can_work_states[23], can_work_states[24], can_work_states[25], can_work_states[26]);
+	sprintf(buf27, "CAN init        %d  %d  %d  %d  %d  %d  %d . %d  %d  %d  %d  %d  %d  %d . %d  %d  %d  %d  %d  %d  %d . %d  %d  %d  %d  %d  %d",can_work_states[0],can_work_states[1],  can_work_states[2],can_work_states[3],can_work_states[4],can_work_states[5],can_work_states[6],can_work_states[7], can_work_states[8],can_work_states[9],can_work_states[10],can_work_states[11],can_work_states[12],can_work_states[13], can_work_states[14], can_work_states[15], can_work_states[16], can_work_states[17], can_work_states[18], can_work_states[19], can_work_states[20], can_work_states[21], can_work_states[22], can_work_states[23], can_work_states[24], can_work_states[25], can_work_states[26]);
 }
 
 
