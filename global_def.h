@@ -23,6 +23,7 @@
 #define RETURN_ORIGIN_POSITION	 121
 #define RETURN_ZERO			119
 #define MOVE_PRE_POSITION	 123
+#define DUTY_MOTION		124
 
 #define ARM1 0
 #define ARM2 1
@@ -64,6 +65,12 @@
 #define HANDCMD_SPHERE			0xD3
 #define HANDCMD_CYLINDER_PRE	0xD4
 #define HANDCMD_SPHERE_PRE		0xD5
+
+// 开门任务指令
+#define DUTY_START			0xB1
+#define DUTY_STOP			0xB2
+
+
 
 #define GLOABL_DEF
 #endif

@@ -14,6 +14,7 @@ struct ControlCMD_Struct ControlCMD;
 struct HandCMD_Struct HandCMD;
 struct FindHomeCMD_Struct FindHomeData;
 struct ForceCMD_Struct ForceCMD;
+struct DutyCMD_Struct DutyCMD;
 
 int UDP_Sock;
 struct sockaddr_in DestPCAddr;
@@ -321,95 +322,9 @@ int GetForceCMD(int *ParamType, float ForceParam[7])
 	printf("ForceControlMode = %02x\n",ForceCMD.Command);
 	return ForceCMD.Command;
 }
-/*
-int UDPRecv(int motion_mode_control,long* can_channel_main,long* can_id_main,float* JointMoveData)
+
+int GetDutyCMD(void)
 {
-	int n;
-	int motion_mode = 0;
-	memset(recvbuff,0,sizeof(recvbuff));
-	n = recvfrom(UDP_Sock, recvbuff, sizeof(recvbuff), MSG_DONTWAIT, (struct sockaddr *)&DestPCAddr, &nAddrLen);
-
-	if((n == sizeof(DownloadData)) && (motion_mode_control == 0))
-	{
-		memcpy(&DownloadData,recvbuff,sizeof(DownloadData));
-
-		switch(DownloadData.Mode)
-		{
-
-/*
-			case 02:
-				motion_mode = ONE_ARM_MOTION;
-				can_channel_main = DownloadData.CANCH;
-				One_arm_main[0] = DownloadData.Data[0] * degree2rad;
-				One_arm_main[1] = DownloadData.Data[1] * degree2rad;
-				One_arm_main[2] = DownloadData.Data[2] * degree2rad;
-				One_arm_main[3] = DownloadData.Data[3] * degree2rad;
-
-				printf("motion_mode = ONE_ARM_MOTION  Arm %ld  %f  %f  %f  %f\n", can_channel_main+1, DownloadData.Data[0],DownloadData.Data[1],DownloadData.Data[2],DownloadData.Data[3]);
-			break;
-
-			case 03:
-				motion_mode = TWO_ARMS_MOTION;
-				End_Numb = DownloadData.CANCH;
-				for(i=0;i<3;i++)
-				{
-					for(j=0;j<4;j++)
-					{
-						T_END_main[i][j] = DownloadData.Data[i*4+j];
-					}
-				}
-				T_END_main[3][0] = 0.0;
-				T_END_main[3][1] = 0.0;
-				T_END_main[3][2] = 0.0;
-				T_END_main[3][3] = 1.0;
-				two_arms_time = DownloadData.Data[12];
-
-				printf("motion_mode = TWO_ARMS_MOTION  end_numb %d\n, time length is %f", End_Numb,two_arms_time);
-
-			break;
-
-			case 04:
-				motion_mode = VISION_MOTION;
-				End_Numb = DownloadData.CANCH;
-
-				if((DownloadData.Data[0] ==0.0)&&(DownloadData.Data[1] ==0.0)&&(DownloadData.Data[2] ==0.0))
-				{
-					motion_mode = 0;
-				}
-				else
-				{
-					for(i=0;i<3;i++)
-					{
-						for(j=0;j<4;j++)
-						{
-							DeltaMatrix[i][j] = DownloadData.Data[i*4+j];
-						}
-					}
-					DeltaMatrix[3][0] = 0.0;
-					DeltaMatrix[3][1] = 0.0;
-					DeltaMatrix[3][2] = 0.0;
-					DeltaMatrix[3][3] = 1.0;
-					vision_motion_time = DownloadData.Data[12];
-					printf("motion_mode = VISION_MOTION  end_numb %d\n, time length is %f\n", End_Numb, vision_motion_time);
-				}
-			break;
-
-			case 06:
-				motion_mode = FIND_HOME_MOTION;
-				can_channel_main = DownloadData.CANCH;
-				can_id_main = DownloadData.CANID;
-			break;
-
-			default:
-			break;
-
-		}
-
-	}
-	else if(n>0)
-	{
-		printf("Motion has not completed, Recv %d Byte data\n",n);
-	}
-
+	printf("DutyMode = %02x\n",DutyCMD.Command);
+	return DutyCMD.Command;
 }
-*/

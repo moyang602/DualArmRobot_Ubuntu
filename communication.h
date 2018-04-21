@@ -176,6 +176,19 @@ struct ForceCMD_Struct
 };
 #pragma pack(pop)
 
+/***********************************************************
+                      定义开门任务控制指令
+************************************************************/
+#pragma pack(push)
+#pragma pack(1)
+struct DutyCMD_Struct
+{
+	unsigned char Mode;
+	unsigned char Command;
+	unsigned char CheckSum;
+};
+#pragma pack(pop)
+
 //函数声明
 int RobotUDPComm_init(void);
 int RobotFBSend(struct RobotDataUDP_Struct RobotFBData);
@@ -188,5 +201,6 @@ int GetRemoteCMD(void);
 int GetControlCMD(void);
 int GetHandCMD(int* HandSelect, float* HandAngleL, float* HandAngleR);
 int GetForceCMD(int *ParamType, float ForceParam[7]);
+int GetDutyCMD(void);
 
 #endif
