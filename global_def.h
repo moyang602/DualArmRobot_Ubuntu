@@ -69,7 +69,7 @@
 // 开门任务指令
 #define DUTY_START			0xB1
 #define DUTY_STOP			0xB2
-
+#define DUTY_RUN			0xB3
 
 
 #define GLOABL_DEF

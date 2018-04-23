@@ -22,10 +22,10 @@ double parabolic_interpolation(double x0, double xf, double vb, double acc, doub
 double parabolic_interpolation_time(double x0, double xf, double vb, double acc);
 void select_inv(double angle_last[8], double angle_in[4][8], double angle_out[8]);
 
-void JacobianL(double anglein[7], double JT[6][7]);
-void JacobianR(double anglein[7], double JT[6][7]);
-void InvJacobianL(double anglein[7], double InvJ[7][6]);
-void InvJacobianR(double anglein[7], double InvJ[7][6]);
+void JacobianL(double anglein[7], double JT[6][7]);	// input: deg
+void JacobianR(double anglein[7], double JT[6][7]);	// input: deg
+void InvJacobianL(double anglein[7], double InvJ[7][6]);	// input: deg
+void InvJacobianR(double anglein[7], double InvJ[7][6]);	// input: deg
 
 // 运动学
 void KinL(double Angle[7], double TransMatrix[4][4]);

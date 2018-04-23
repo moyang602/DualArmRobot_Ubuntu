@@ -218,6 +218,26 @@ int UDPRecv()
 
 			break;
 
+			case DUTY_MOTION:
+			{
+				unsigned char sum = 0;
+				for (i = 0; i < (sizeof(DutyCMD) -1); ++i)
+				{
+					sum += recvbuff[i];
+				}
+				if (sum != recvbuff[sizeof(DutyCMD) -1])	//校验和不正确直接退出
+				{
+					printf("recv %d bytes wrong data!\n",n);
+					return 0;
+				}
+
+				memcpy(&DutyCMD,recvbuff,sizeof(DutyCMD));
+
+				return DUTY_MOTION;
+			}
+
+			break;
+
 			default:
 			break;
 		}

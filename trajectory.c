@@ -1461,6 +1461,8 @@ int CollisionDetection(float jL[7],float jR[7],float jW[2])
 			ReLB[i][j] = OBB_Collision(OBB_ArmL[i+2],OBB_Base[j]);
 			ReRB[i][j] = OBB_Collision(OBB_ArmR[i+2],OBB_Base[j]);
 
+			ReLB[0][0] = 1;
+			ReRB[0][0] = 1;
 			if ((ReLB[i][j] == 0)||(ReRB[i][j] == 0))
 				TestResult = 0;
 		}
@@ -1810,7 +1812,7 @@ void JacobianR(double anglein[7], double JT[6][7])
 	}
 }
 
-void InvJacobianL(double anglein[7], double InvJ[7][6])
+void InvJacobianL(double anglein[7], double InvJ[7][6])	// input: deg
 {
 	double J[6][7];
 	double Jt[7][6];
