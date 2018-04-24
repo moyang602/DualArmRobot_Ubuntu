@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
+#include "trajectory.h"
 
 // 与力传感器TCP通讯变量声明
 #define ForceServer_PortL 4008
@@ -897,4 +898,74 @@ int ShowAlgorithmData(int select, double* m_dDecouplingValue)
 		break;
 	}
 
+}
+
+int ForceCompensationL(double ForceBefore[6], double AngleNow[7], double ForceAfter[6])	//unit: N  rad  N
+{
+	double G = 20.58; // 末端工具  unit: N
+	double GravityB[3] = {-G, 0, 0};	// 工具产生的重力在基坐标系下的表示
+	double GravityE[3];					// 工具产生的重力在末端力传感器坐标系下的表示
+	double MomentE[3];					// 工具产生的重力矩在末端力传感器坐标系下的表示
+	double ForceInit[6] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+	double P[3] = {0, 0, 0.1};			// 工具中心在末端力传感器坐标系下的表示
+
+	double TransMatrix[4][4];
+	KinL(AngleNow, TransMatrix);
+	double InvMatrix[4][4];
+	inv_matrix(TransMatrix, InvMatrix);
+	double R_B2E[3][3];
+	int i,j;
+	for (i=0;i<3;i++)
+	{
+		for (j=0;j<3;j++)
+		{
+			R_B2E[i][j] = InvMatrix[i][j];
+		}
+	}
+
+	Matrix_Multiply(3,3,1,*R_B2E, GravityB, GravityE);
+
+	VecCross(GravityE, P, MomentE);
+
+	for (i=0;i<3;i++)
+	{
+		ForceAfter[i] = ForceBefore[i] - GravityE[i] - ForceInit[i];
+		ForceAfter[i+3] = ForceBefore[i+3] - GravityE[i+3] - ForceInit[i+3];
+	}
+	return 0;
+}
+
+int ForceCompensationR(double ForceBefore[6], double AngleNow[7], double ForceAfter[6])	//unit: N  rad  N
+{
+	double G = 20.58; // 末端工具  unit: N
+	double GravityB[3] = {-G, 0, 0};	// 工具产生的重力在基坐标系下的表示
+	double GravityE[3];					// 工具产生的重力在末端力传感器坐标系下的表示
+	double MomentE[3];					// 工具产生的重力矩在末端力传感器坐标系下的表示
+	double ForceInit[6] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+	double P[3] = {0, 0, 0.1};			// 工具中心在末端力传感器坐标系下的表示
+
+	double TransMatrix[4][4];
+	KinR(AngleNow, TransMatrix);
+	double InvMatrix[4][4];
+	inv_matrix(TransMatrix, InvMatrix);
+	double R_B2E[3][3];
+	int i,j;
+	for (i=0;i<3;i++)
+	{
+		for (j=0;j<3;j++)
+		{
+			R_B2E[i][j] = InvMatrix[i][j];
+		}
+	}
+
+	Matrix_Multiply(3,3,1,*R_B2E, GravityB, GravityE);
+
+	VecCross(GravityE, P, MomentE);
+
+	for (i=0;i<3;i++)
+	{
+		ForceAfter[i] = ForceBefore[i] - GravityE[i] - ForceInit[i];
+		ForceAfter[i+3] = ForceBefore[i+3] - GravityE[i+3] - ForceInit[i+3];
+	}
+	return 0;
 }

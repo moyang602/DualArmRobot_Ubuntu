@@ -16,6 +16,8 @@ int GetChParameter(int select, char *pInstr,double *pdBuffer);
 int GetData(int select, double* m_dDecouplingValue);
 int GetADCounts(unsigned char mRxBuffer[dataBufferLen], int m_nADCountsL[M812X_CHN_NUMBER]);
 int ShowAlgorithmData(int select, double* m_dDecouplingValue);
+int ForceCompensationL(double ForceBefore[6], double AngleNow[7], double ForceAfter[6]);
+int ForceCompensationR(double ForceBefore[6], double AngleNow[7], double ForceAfter[6]);
 
 extern int ForceTCPFlagL;
 extern int force_stepL;		// 力传感器读数整体步骤值

@@ -1944,6 +1944,653 @@ void KinR(double Angle[7], double TransMatrix[4][4])
 	return ;
 }
 
+
+// 逆运动学
+int invKinL(double Angle_now[7], double TransMatrix[4][4], double Beta, double Angle_cal[7])
+{
+	double px, py, pz;
+	double alfa = 0.0;
+	double ang1[4], ang2[4], ang3[4], ang4[4], ang5[4], ang6[4], ang7[4];
+	double p[3], p_unit[3];
+	double x0[3] = {1.0, 0.0, 0.0};
+	double a[3], a_unit[3], a_unit_vertical[3], b_unit[3], z3[3], y3_1[3], y3[3], x3[3];
+	double T1[4][4], T2[4][4], T3[4][4], T4[4][4], T02[4][4], T03[4][4], T04[4][4], T07[4][4], T57_2_1[4][4], T57_2_2[4][4], INV_T04[4][4];
+
+	double T_Hand_inv[4][4] = {{1.0, 0.0, 0, -Tool_Position[0]}, {0, 1.0, 0.0, -Tool_Position[1]}, {0.0, 0.0, 1.0, -Tool_Position[2]},{0, 0, 0, 1.0}};
+
+	int i,j;
+
+	for (i=0; i<4; i++)
+	{
+		for (j=0; j<4; j++)
+		{
+			T1[i][j] = 0.0;
+			T2[i][j] = 0.0;
+			T3[i][j] = 0.0;
+			T4[i][j] = 0.0;
+		}
+	}
+
+	matrix_multiply(TransMatrix, T_Hand_inv, T07);
+
+	px = T07[0][3];
+	py = T07[1][3];
+	pz = T07[2][3];
+
+	alfa = acos(((px*px + py*py+ pz*pz) + d3*d3 - d4*d4)/(2.0*d3*sqrt(px*px + py*py+ pz*pz)));
+
+	ang4[0] = acos(((px*px + py*py+ pz*pz) - d3*d3 - d4*d4)/(2.0*d3*d4));
+	ang4[1] = ang4[0];
+	ang4[2] = ang4[0];
+	ang4[3] = ang4[0];
+
+	p[0] = px;
+	p[1] = py;
+	p[2] = pz;
+
+	for (i=0; i<3; i++)
+	{
+		p_unit[i] = p[i]/sqrt(px*px + py*py + pz*pz);
+	}
+
+	cross(x0, p_unit, a);
+	for (i=0; i<3; i++)
+	{
+		a_unit[i] = a[i]/sqrt(a[0]*a[0] + a[1]*a[1] + a[2]*a[2]);
+	}
+
+	cross(p_unit, a_unit,a_unit_vertical);
+
+	for (i=0; i<3; i++)
+	{
+		b_unit[i] = a_unit[i]*cos(Beta) + a_unit_vertical[i]*sin(Beta);
+		z3[i] = p_unit[i]*cos(alfa) + b_unit[i]*sin(alfa);
+	}
+
+
+	if(fabs(ang4[0]) <1e-8)
+	{
+		ang2[0] = acos(z3[2]);
+		ang2[1] = ang2[0];
+		ang2[2] = -ang2[0];
+		ang2[3] = -ang2[0];
+
+		for(i=0; i<4; i++)
+		{
+			ang3[i] = Angle_now[2];
+			if(fabs(ang2[i]) < 1e-6)
+			{
+				ang1[i] = Angle_now[0];
+			}
+			else
+			{
+				ang1[i] = atan2(-z3[1]/sin(ang2[i]), -z3[0]/sin(ang2[i]));
+			}
+		}
+	}
+	else
+	{
+		cross(p_unit,z3, y3_1);
+		for (i=0; i<3; i++)
+		{
+			y3[i] = y3_1[i]/sqrt(y3_1[0]*y3_1[0] + y3_1[1]*y3_1[1] + y3_1[2]*y3_1[2]);
+		}
+
+		cross(y3, z3, x3);
+
+		//		T32 = [x3 y3 z3];
+
+		ang2[0] = acos(z3[2]);
+		ang2[1] = ang2[0];
+		ang2[2] = -ang2[0];
+		ang2[3] = -ang2[0];
+
+		for(i =0; i<4; i++)
+		{
+			if(fabs(ang2[i]) < 1e-6)
+			{
+				ang1[i] = Angle_now[0];
+				ang3[i] = atan2(x3[1], x3[0]) - ang1[i];
+			}
+			else
+			{
+				ang1[i] = atan2(-z3[1]/sin(ang2[i]), -z3[0]/sin(ang2[i]));
+				ang3[i] = atan2(-y3[2]/sin(ang2[i]), x3[2]/sin(ang2[i]));
+			}
+		}
+	}
+
+
+	T1[0][0] = cos(ang1[0]);
+	T1[0][1] = -sin(ang1[0]);
+	T1[1][0] = sin(ang1[0]);
+	T1[1][1] = cos(ang1[0]);
+	T1[2][2] = 1.0;
+	T1[3][3] = 1.0;
+
+	T2[0][0] = cos(ang2[0]);
+	T2[0][1] = -sin(ang2[0]);
+	T2[1][2] = -1.0;
+	T2[2][0] = sin(ang2[0]);
+	T2[2][1] = cos(ang2[0]);
+	T2[3][3] = 1.0;
+
+	T3[0][0] = cos(ang3[0]);
+	T3[0][1] = -sin(ang3[0]);
+	T3[1][2] = 1.0;
+	T3[2][0] = -sin(ang3[0]);
+	T3[2][1] = -cos(ang3[0]);
+	T3[3][3] = 1.0;
+
+	T4[0][0] = cos(ang4[0]);
+	T4[0][1] = -sin(ang4[0]);
+	T4[1][2] = -1.0;
+	T4[2][0] = sin(ang4[0]);
+	T4[2][1] = cos(ang4[0]);
+	T4[3][3] = 1.0;
+
+
+	matrix_multiply(T1,T2, T02);
+	matrix_multiply(T02,T3, T03);
+	matrix_multiply(T03,T4, T04);
+
+	inv_matrix(T04, INV_T04);
+	matrix_multiply(INV_T04, TransMatrix, T57_2_1);
+
+
+	T1[0][0] = cos(ang1[2]);
+	T1[0][1] = -sin(ang1[2]);
+	T1[1][0] = sin(ang1[2]);
+	T1[1][1] = cos(ang1[2]);
+	T1[2][2] = 1.0;
+	T1[3][3] = 1.0;
+
+	T2[0][0] = cos(ang2[2]);
+	T2[0][1] = -sin(ang2[2]);
+	T2[1][2] = -1.0;
+	T2[2][0] = sin(ang2[2]);
+	T2[2][1] = cos(ang2[2]);
+	T2[3][3] = 1.0;
+
+	T3[0][0] = cos(ang3[2]);
+	T3[0][1] = -sin(ang3[2]);
+	T3[1][2] = 1.0;
+	T3[2][0] = -sin(ang3[2]);
+	T3[2][1] = -cos(ang3[2]);
+	T3[3][3] = 1.0;
+
+	T4[0][0] = cos(ang4[2]);
+	T4[0][1] = -sin(ang4[2]);
+	T4[1][2] = -1.0;
+	T4[2][0] = sin(ang4[2]);
+	T4[2][1] = cos(ang4[2]);
+	T4[3][3] = 1.0;
+
+
+	matrix_multiply(T1,T2, T02);
+	matrix_multiply(T02,T3, T03);
+	matrix_multiply(T03,T4, T04);
+
+	inv_matrix(T04, INV_T04);
+	matrix_multiply(INV_T04, TransMatrix, T57_2_2);
+
+	ang6[0] = acos(T57_2_1[1][2]);
+	ang6[1] = -acos(T57_2_1[1][2]);
+	ang6[2] = acos(T57_2_2[1][2]);
+	ang6[3] = -acos(T57_2_2[1][2]);
+
+	for (i = 0; i<2; i++)
+	{
+		if(fabs(ang6[i]) < 1e-6)
+		{
+			ang5[i] = Angle_now[4];
+			ang7[i] = atan2(-T57_2_1[2][0], T57_2_1[0][0]) - ang5[i];
+		}
+		else
+		{
+			ang5[i] = atan2(T57_2_1[2][2]/sin(ang6[i]), -T57_2_1[0][2]/sin(ang6[i]));
+			ang7[i] = atan2(-T57_2_1[1][1]/sin(ang6[i]), T57_2_1[1][0]/sin(ang6[i]));
+		}
+	}
+
+	for(i=2; i<4; i++)
+	{
+		if(fabs(ang6[i]) < 1e-6)
+		{
+			ang5[i] = Angle_now[4];
+			ang7[i] = atan2(-T57_2_2[2][0], T57_2_2[0][0]) - ang5[i];
+		}
+		else
+		{
+			ang5[i] = atan2(T57_2_2[2][2]/sin(ang6[i]), -T57_2_2[0][2]/sin(ang6[i]));
+			ang7[i] = atan2(-T57_2_2[1][1]/sin(ang6[i]), T57_2_2[1][0]/sin(ang6[i]));
+		}
+	}
+
+
+	double Solve[4][7];
+	for(i=0; i<4; i++)
+	{
+		Solve[i][0] = ang1[i];
+		Solve[i][1] = ang2[i];
+		Solve[i][2] = ang3[i];
+		Solve[i][3] = ang4[i];
+		Solve[i][4] = ang5[i];
+		Solve[i][5] = ang6[i];
+		Solve[i][6] = ang7[i];
+	}
+
+	int index = ChooseSolve(Angle_now,Solve);
+	for (i=0;i<7;i++)
+	{
+		Angle_cal[i] = Solve[index][i]*180/3.1415926;
+	}
+	return 0;
+}
+int invKinR(double Angle_now[7], double TransMatrix[4][4], double Beta, double Angle_cal[7])
+{
+	double px, py, pz;
+	double alfa = 0.0;
+	double ang1[4], ang2[4], ang3[4], ang4[4], ang5[4], ang6[4], ang7[4];
+	double p[3], p_unit[3];
+	double x0[3] = {1.0, 0.0, 0.0};
+	double a[3], a_unit[3], a_unit_vertical[3], b_unit[3], z3[3], y3_1[3], y3[3], x3[3];
+	double T1[4][4], T2[4][4], T3[4][4], T4[4][4], T02[4][4], T03[4][4], T04[4][4], T07[4][4], T57_2_1[4][4], T57_2_2[4][4], INV_T04[4][4];
+
+	double T_Hand_inv[4][4] = {{1.0, 0.0, 0, -Tool_Position[0]}, {0, 1.0, 0.0, -Tool_Position[1]}, {0.0, 0.0, 1.0, -Tool_Position[2]},{0, 0, 0, 1.0}};
+
+	int i,j;
+
+	for (i=0; i<4; i++)
+	{
+		for (j=0; j<4; j++)
+		{
+			T1[i][j] = 0.0;
+			T2[i][j] = 0.0;
+			T3[i][j] = 0.0;
+			T4[i][j] = 0.0;
+		}
+	}
+
+	matrix_multiply(TransMatrix, T_Hand_inv, T07);
+
+	px = T07[0][3];
+	py = T07[1][3];
+	pz = T07[2][3];
+
+	alfa = acos(((px*px + py*py+ pz*pz) + d3*d3 - d4*d4)/(2.0*d3*sqrt(px*px + py*py+ pz*pz)));
+
+	ang4[0] = -acos(((px*px + py*py+ pz*pz) - d3*d3 - d4*d4)/(2.0*d3*d4));
+	ang4[1] = ang4[0];
+	ang4[2] = ang4[0];
+	ang4[3] = ang4[0];
+
+	p[0] = px;
+	p[1] = py;
+	p[2] = pz;
+
+	for (i=0; i<3; i++)
+	{
+		p_unit[i] = p[i]/sqrt(px*px + py*py + pz*pz);
+	}
+
+	cross(x0, p_unit, a);
+	for (i=0; i<3; i++)
+	{
+		a_unit[i] = a[i]/sqrt(a[0]*a[0] + a[1]*a[1] + a[2]*a[2]);
+	}
+
+	//cross( a_unit,p_unit,a_unit_vertical);
+	cross(p_unit, a_unit, a_unit_vertical);
+
+	for (i=0; i<3; i++)
+	{
+		b_unit[i] = a_unit[i]*cos(Beta) + a_unit_vertical[i]*sin(Beta);
+		z3[i] = p_unit[i]*cos(alfa) + b_unit[i]*sin(alfa);
+	}
+
+
+	if(fabs(ang4[0]) <1e-8)
+	{
+		ang2[0] = acos(z3[2]);
+		ang2[1] = ang2[0];
+		ang2[2] = -ang2[0];
+		ang2[3] = -ang2[0];
+
+		for(i=0; i<4; i++)
+		{
+			ang3[i] = Angle_now[2];
+			if(fabs(ang2[i]) < 1e-6)
+			{
+				ang1[i] = Angle_now[0];
+			}
+			else
+			{
+				ang1[i] = atan2(z3[1]/sin(ang2[i]), z3[0]/sin(ang2[i]));
+			}
+		}
+	}
+	else
+	{
+		cross(p_unit,z3, y3_1);
+		for (i=0; i<3; i++)
+		{
+			y3[i] = y3_1[i]/sqrt(y3_1[0]*y3_1[0] + y3_1[1]*y3_1[1] + y3_1[2]*y3_1[2]);
+		}
+
+		cross(y3, z3, x3);
+
+		//		T32 = [x3 y3 z3];
+
+		ang2[0] = acos(z3[2]);
+		ang2[1] = ang2[0];
+		ang2[2] = -ang2[0];
+		ang2[3] = -ang2[0];
+
+		for(i =0; i<4; i++)
+		{
+			if(fabs(ang2[i]) < 1e-6)
+			{
+				ang1[i] = Angle_now[0];
+				ang3[i] = atan2(x3[1], x3[0]) - ang1[i];
+			}
+			else
+			{
+				ang1[i] = atan2(z3[1]/sin(ang2[i]), z3[0]/sin(ang2[i]));
+				ang3[i] = atan2(y3[2]/sin(ang2[i]), -x3[2]/sin(ang2[i]));
+			}
+		}
+	}
+
+
+	T1[0][0] = cos(ang1[0]);
+	T1[0][1] = -sin(ang1[0]);
+	T1[1][0] = sin(ang1[0]);
+	T1[1][1] = cos(ang1[0]);
+	T1[2][2] = 1.0;
+	T1[3][3] = 1.0;
+
+	T2[0][0] = cos(ang2[0]);
+	T2[0][1] = -sin(ang2[0]);
+	T2[1][2] = 1.0;
+	T2[2][0] = -sin(ang2[0]);
+	T2[2][1] = -cos(ang2[0]);
+	T2[3][3] = 1.0;
+
+	T3[0][0] = cos(ang3[0]);
+	T3[0][1] = -sin(ang3[0]);
+	T3[1][2] = -1.0;
+	T3[2][0] = sin(ang3[0]);
+	T3[2][1] = cos(ang3[0]);
+	T3[3][3] = 1.0;
+
+	T4[0][0] = cos(ang4[0]);
+	T4[0][1] = -sin(ang4[0]);
+	T4[1][2] = 1.0;
+	T4[2][0] = -sin(ang4[0]);
+	T4[2][1] = -cos(ang4[0]);
+	T4[3][3] = 1.0;
+
+
+	matrix_multiply(T1,T2, T02);
+	matrix_multiply(T02,T3, T03);
+	matrix_multiply(T03,T4, T04);
+
+	inv_matrix(T04, INV_T04);
+	matrix_multiply(INV_T04, TransMatrix, T57_2_1);
+
+
+	T1[0][0] = cos(ang1[2]);
+	T1[0][1] = -sin(ang1[2]);
+	T1[1][0] = sin(ang1[2]);
+	T1[1][1] = cos(ang1[2]);
+	T1[2][2] = 1.0;
+	T1[3][3] = 1.0;
+
+	T2[0][0] = cos(ang2[2]);
+	T2[0][1] = -sin(ang2[2]);
+	T2[1][2] = 1.0;
+	T2[2][0] = -sin(ang2[2]);
+	T2[2][1] = -cos(ang2[2]);
+	T2[3][3] = 1.0;
+
+	T3[0][0] = cos(ang3[2]);
+	T3[0][1] = -sin(ang3[2]);
+	T3[1][2] = -1.0;
+	T3[2][0] = sin(ang3[2]);
+	T3[2][1] = cos(ang3[2]);
+	T3[3][3] = 1.0;
+
+	T4[0][0] = cos(ang4[2]);
+	T4[0][1] = -sin(ang4[2]);
+	T4[1][2] = 1.0;
+	T4[2][0] = -sin(ang4[2]);
+	T4[2][1] = -cos(ang4[2]);
+	T4[3][3] = 1.0;
+
+
+	matrix_multiply(T1,T2, T02);
+	matrix_multiply(T02,T3, T03);
+	matrix_multiply(T03,T4, T04);
+
+	inv_matrix(T04, INV_T04);
+	matrix_multiply(INV_T04, TransMatrix, T57_2_2);
+
+	ang6[0] = acos(-T57_2_1[1][2]);
+	ang6[1] = -acos(-T57_2_1[1][2]);
+	ang6[2] = acos(-T57_2_2[1][2]);
+	ang6[3] = -acos(-T57_2_2[1][2]);
+
+	for (i = 0; i<2; i++)
+	{
+		if(fabs(ang6[i]) < 1e-6)
+		{
+			ang5[i] = Angle_now[4];
+			ang7[i] = atan2(T57_2_1[2][0], T57_2_1[0][0]) - ang5[i];
+		}
+		else
+		{
+			ang5[i] = atan2(T57_2_1[2][2]/sin(ang6[i]), T57_2_1[0][2]/sin(ang6[i]));
+			ang7[i] = atan2(-T57_2_1[1][1]/sin(ang6[i]), T57_2_1[1][0]/sin(ang6[i]));
+		}
+	}
+
+	for(i=2; i<4; i++)
+	{
+		if(fabs(ang6[i]) < 1e-6)
+		{
+			ang5[i] = Angle_now[4];
+			ang7[i] = atan2(T57_2_2[2][0], T57_2_2[0][0]) - ang5[i];
+		}
+		else
+		{
+			ang5[i] = atan2(T57_2_2[2][2]/sin(ang6[i]), T57_2_2[0][2]/sin(ang6[i]));
+			ang7[i] = atan2(-T57_2_2[1][1]/sin(ang6[i]), T57_2_2[1][0]/sin(ang6[i]));
+		}
+	}
+	double atest[7];
+	double Tt[4][4];
+	for(i=0; i<4; i++)
+	{
+		atest[0]=ang1[i];atest[1]=ang2[i];atest[2]=ang3[i];atest[3]=ang4[i];atest[4]=ang5[i];atest[5]=ang6[i];atest[6]=ang7[i];
+		KinR(atest,Tt);
+	}
+
+	double Solve[4][7];
+	for(i=0; i<4; i++)
+	{
+		Solve[i][0] = ang1[i];
+		Solve[i][1] = ang2[i];
+		Solve[i][2] = ang3[i];
+		Solve[i][3] = ang4[i];
+		Solve[i][4] = ang5[i];
+		Solve[i][5] = ang6[i];
+		Solve[i][6] = ang7[i];
+	}
+
+	int index = ChooseSolve(Angle_now,Solve);
+	for (i=0;i<7;i++)
+	{
+		Angle_cal[i] = Solve[index][i]*180/3.1415926;
+	}
+	return 0;
+}
+
+// 冗余自由度规划计算
+double Beta_CalL(double angle7[7])
+{
+	int i;
+	double T1[4][4] = {{cos(angle7[0]), -sin(angle7[0]), 0, 0}, {sin(angle7[0]), cos(angle7[0]), 0, 0}, {0, 0, 1.0, 0}, {0, 0, 0, 1.0}};
+	double T2[4][4] = {{cos(angle7[1]), -sin(angle7[1]), 0, 0}, {0, 0, -1.0, 0}, {sin(angle7[1]), cos(angle7[1]), 0, 0},{0, 0, 0, 1.0}};
+	double T3[4][4] = {{cos(angle7[2]), -sin(angle7[2]), 0, 0}, {0, 0, 1.0, d3}, {-sin(angle7[2]), -cos(angle7[2]), 0, 0},{0, 0, 0, 1.0}};
+	double T4[4][4] = {{cos(angle7[3]), -sin(angle7[3]), 0, 0}, {0, 0, -1.0, 0}, {sin(angle7[3]), cos(angle7[3]), 0, 0},{0, 0, 0, 1.0}};
+	double T5[4][4] = {{cos(angle7[4]), -sin(angle7[4]), 0, 0}, {0, 0, 1.0, d4}, {-sin(angle7[4]), -cos(angle7[4]), 0, 0}, {0, 0, 0, 1.0}};
+	double px, py, pz, p_unit[3], p3[3];
+	double x0[3] = {1.0, 0.0, 0.0};
+	double a[3], a_unit[3], a_unit_vertical[3], beta_x, beta_y, b_origin[3], dot_punit_p3;
+	double T02[4][4], T03[4][4], T04[4][4], T05[4][4];
+	double beta_origin;
+
+	matrix_multiply(T1, T2, T02);
+	matrix_multiply(T02, T3, T03);
+	matrix_multiply(T03, T4, T04);
+	matrix_multiply(T04, T5, T05);
+
+	px = T05[0][3];
+	py = T05[1][3];
+	pz = T05[2][3];
+
+
+	p_unit[0] = px/sqrt(px*px + py*py + pz*pz);
+	p_unit[1] = py/sqrt(px*px + py*py + pz*pz);
+	p_unit[2] = pz/sqrt(px*px + py*py + pz*pz);
+
+
+	cross(x0, p_unit, a);
+	for(i=0; i<3; i++)
+	{
+		a_unit[i] = a[i]/sqrt(a[0]*a[0] + a[1]*a[1] + a[2]*a[2]);
+	}
+	cross(p_unit, a_unit, a_unit_vertical);
+
+	for(i=0; i<3; i++)
+	{
+		p3[i] = T03[i][3];
+	}
+
+
+// 	dot_punit_p3 = p_unit[0]*p3[0] + p_unit[1]*p3[1] + p_unit[2]*p3[2];
+
+	for(i=0; i<3; i++)
+	{
+		b_origin[i] = p3[i];
+	}
+
+	beta_x = b_origin[0]*a_unit[0] + b_origin[1]*a_unit[1] + b_origin[2]*a_unit[2];
+	beta_y = b_origin[0]*a_unit_vertical[0] + b_origin[1]*a_unit_vertical[1] + b_origin[2]*a_unit_vertical[2];
+
+	beta_origin = atan2(beta_y, beta_x);
+	return(beta_origin);
+}
+double Beta_CalR(double Angle[7])
+{
+	int i;
+	double T1[4][4] = {{cos(Angle[0]), -sin(Angle[0]), 0, 0}, {sin(Angle[0]), cos(Angle[0]), 0, 0}, {0, 0, 1.0, 0}, {0, 0, 0, 1.0}};
+	double T2[4][4] = {{cos(Angle[1]), -sin(Angle[1]), 0, 0}, {0, 0, 1.0, 0}, {-sin(Angle[1]), -cos(Angle[1]), 0, 0},{0, 0, 0, 1.0}};
+	double T3[4][4] = {{cos(Angle[2]), -sin(Angle[2]), 0, 0}, {0, 0, -1.0, -d3}, {sin(Angle[2]), cos(Angle[2]), 0, 0},{0, 0, 0, 1.0}};
+	double T4[4][4] = {{cos(Angle[3]), -sin(Angle[3]), 0, 0}, {0, 0, 1.0, 0}, {-sin(Angle[3]), -cos(Angle[3]), 0, 0},{0, 0, 0, 1.0}};
+	double T5[4][4] = {{cos(Angle[4]), -sin(Angle[4]), 0, 0}, {0, 0, -1.0, -d4}, {sin(Angle[4]), cos(Angle[4]), 0, 0}, {0, 0, 0, 1.0}};
+	double px, py, pz, p_unit[3], p3[3];
+	double x0[3] = {1.0, 0.0, 0.0};
+	double a[3], a_unit[3], a_unit_vertical[3], beta_x, beta_y, b_origin[3], dot_punit_p3;
+	double T02[4][4], T03[4][4], T04[4][4], T05[4][4];
+	double beta_origin;
+
+	matrix_multiply(T1, T2, T02);
+	matrix_multiply(T02, T3, T03);
+	matrix_multiply(T03, T4, T04);
+	matrix_multiply(T04, T5, T05);
+
+	px = T05[0][3];
+	py = T05[1][3];
+	pz = T05[2][3];
+
+
+	p_unit[0] = px/sqrt(px*px + py*py + pz*pz);
+	p_unit[1] = py/sqrt(px*px + py*py + pz*pz);
+	p_unit[2] = pz/sqrt(px*px + py*py + pz*pz);
+
+
+	cross(x0, p_unit, a);
+	for(i=0; i<3; i++)
+	{
+		a_unit[i] = a[i]/sqrt(a[0]*a[0] + a[1]*a[1] + a[2]*a[2]);
+	}
+	//cross( a_unit,p_unit,a_unit_vertical);
+	cross(p_unit, a_unit, a_unit_vertical);
+	for(i=0; i<3; i++)
+	{
+		p3[i] = T03[i][3];
+	}
+
+
+// 	dot_punit_p3 = p_unit[0]*p3[0] + p_unit[1]*p3[1] + p_unit[2]*p3[2];
+//
+// 	for(i=0; i<3; i++)
+// 	{
+// 		b_origin[i] = p3[i] - dot_punit_p3*p_unit[i];
+// 	}
+	for(i=0; i<3; i++)
+	{
+		b_origin[i] = p3[i];
+	}
+
+	beta_x = b_origin[0]*a_unit[0] + b_origin[1]*a_unit[1] + b_origin[2]*a_unit[2];
+	beta_y = b_origin[0]*a_unit_vertical[0] + b_origin[1]*a_unit_vertical[1] + b_origin[2]*a_unit_vertical[2];
+
+	beta_origin = atan2(beta_y, beta_x);
+	return(beta_origin);
+}
+// 逆运动学选解
+int ChooseSolve(double Angle_now[7], double Solve[4][7])
+{
+	double AngleSum;
+	double MinSum = 10000.0;
+	int MinIndex = -1;
+	int index,i;
+	for (index = 0; index<4; index++)
+	{
+		AngleSum = 0.0;
+		for (i = 0; i<7; i++)			// 计算当前解的关节运动总量
+		{
+			AngleSum+=fabs(Solve[index][i] - Angle_now[i]);
+		}
+		if (AngleSum<MinSum)
+		{
+			MinSum = AngleSum;
+			MinIndex = index;
+		}
+	}
+	return MinIndex;
+}
+
+void delta2tr(double delta[6], double tr[4][4])
+{
+	double Eye4[4][4] = {{1,0,0,0},{0,1,0,0},{0,0,1,0},{0,0,0,1}};
+	int i,j;
+	double temp[4][4] = {{0, -delta[5], delta[4],delta[0]},
+						 {delta[5],	0, -delta[3],delta[1]},
+						 {-delta[4],delta[3],0, delta[2]},
+						 {0, 0, 0, 0}};
+	for (i=0;i<4;i++)
+	{
+		for (j=0;j<4;j++)
+		{
+			tr[i][j] = Eye4[i][j] + temp[i][j];
+		}
+	}
+}
+
 void Matrix_Trans3(double MA[3][3], double MB[3][3])
 {
 	int i = 0;
