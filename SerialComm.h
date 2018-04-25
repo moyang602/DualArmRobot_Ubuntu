@@ -157,7 +157,7 @@ struct CJY901
 int set_serial(int fd,int nSpeed, int nBits, char nEvent, int nStop);
 int JY901_analyse(unsigned char *buff,int n);
 int JY901_init();
-int JY901_GetData(float Posture[3]);
+int JY901_GetData(double Posture[3]);
 int JY901_end();
 
 
@@ -177,7 +177,7 @@ typedef struct __gprmc__
 }GPRMC;
 int gps_analyse(char *buff,GPRMC *gps_data);
 int GPS_init();
-int GPS_GetData(float *latitude, float *longitude);
+int GPS_GetData(double *latitude, double *longitude);
 int GPS_end();
 #endif
 

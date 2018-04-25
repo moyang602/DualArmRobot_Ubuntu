@@ -34,7 +34,7 @@ void KinR(double Angle[7], double TransMatrix[4][4]);
 double Beta_CalL(double Angle[7]);	// input: rad
 double Beta_CalR(double Angle[7]);	// input: rad
 // 逆运动学
-int invKinL(double Angle_now[7], double TransMatrix[4][4], double Beta, double Angle_cal[7]);	// input: 
+int invKinL(double Angle_now[7], double TransMatrix[4][4], double Beta, double Angle_cal[7]);	// input:
 int invKinR(double Angle_now[7], double TransMatrix[4][4], double Beta, double Angle_cal[7]);
 int ChooseSolve(double Angle_now[7], double Solve[4][7]);	// input: rad
 
@@ -66,8 +66,8 @@ struct Cubic_Struct
 	float coeffc;
 	float coeffd;
 };
-int cubicAddPoint(int index, float point);
-float cubicInterpolate(int index);
+int cubicAddPoint(int index, double point);
+double cubicInterpolate(int index);
 
 //3维向量叉乘点乘
 void VecCross(double va[3],double vb[3],double vre[3]);

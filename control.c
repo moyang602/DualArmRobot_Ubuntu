@@ -170,10 +170,10 @@ int can_channel_number = 4;
 						{0, 0, 0, 0, 1, 1, 1},
 						{1, 1, 1, 1, 1, 1, 0},
 						{1, 1, 1, 1, 1, 1, 1}};*/
-int can_switch[4][7] = {{1, 1, 1, 1, 1, 1, 1},
-						{0, 0, 0, 0, 0, 0, 0},
-						{1, 1, 0, 0, 0, 0, 0},
-						{1, 1, 0, 0, 0, 0, 1}};
+int can_switch[4][7] = {{0, 0, 0, 0, 0, 0, 0},
+						{1, 1, 1, 1, 1, 1, 1},
+						{0, 0, 1, 1, 0, 0, 0},
+						{0, 0, 1, 1, 0, 0, 1}};
 
 // 各节点速度方向
 double joint_direction[4][7] = {{1, 1, 1, 1, 1, -1, 1},
@@ -253,16 +253,7 @@ long motor_sp[4][7] = {{40, 	5500,	5500,	5500, 	50000,	50000,	50000},
 					   {40, 	5500,	5500,	5500, 	50000,	50000,	50000},
 					   {50000, 	50000, 	50000,	50000, 	500,	500},
 					   {50000, 	50000,	50000,	50000, 	500,	500}};
-// 各节点额定电流
-float motor_cl[4][7] = {{0.75, 1.0, 1.0, 1.0, 7.0, 7.0, 7.0},
-						{0.75, 1.0, 1.0, 1.0, 7.0, 7.0, 7.0},
-						{7.0, 7.0, 7.0, 7.0, 1.0, 1.0},
-						{7.0, 7.0, 7.0, 7.0, 1.0, 1.0}};
-// 各节点峰值电流
-float motor_pl[4][7] = {{0.8, 1.2, 1.2, 1.2, 10.0, 10.0, 10.0},
-						{0.8, 1.2, 1.2, 1.2, 10.0, 10.0, 10.0},
-						{10.0, 10.0, 10.0, 10.0, 1.2, 1.2},
-						{10.0, 10.0, 10.0, 10.0, 1.2, 1.2}};
+
 // 各节点角度反馈弧度值
 double Joint_Angle_FB[4][7] = {0.0};
 // 各节点角度期望弧度值
@@ -318,6 +309,7 @@ float RemoteMotionDataLast[14] = {0.0};
 short rockerL = 0;
 short rockerR = 0;
 int RemoteNewData = 0;
+int NoCollisionFlag = 1;
 int RemoteStep = 0;
 
 float HandAngleL = 0.0;
@@ -1165,7 +1157,7 @@ void rt_can_recv(void *arg)
 
 	struct RealRobot_Struct RemoteRobotPos_deg;
 	struct RealRobot_Struct RemoteCrtPos_deg;
-	float RemotePlanPos_deg[14];
+	double RemotePlanPos_deg[14];
 
 	struct RealRobot_Struct OneArmStart;
 	struct RealRobot_Struct RealTargetPos;
@@ -1234,9 +1226,9 @@ void rt_can_recv(void *arg)
 /**********************************************************************************/
 	FILE *fp;
 	fp = fopen("current.txt","w");
-	float Posture[3]={0.0, 0.0, 0.0};
-	float latitude = 0;
-	float longitude = 0;
+	double Posture[3]={0.0, 0.0, 0.0};
+	double latitude = 0;
+	double longitude = 0;
 	int n_gps;
 	while(canrv_running)
 	{
@@ -1258,7 +1250,7 @@ void rt_can_recv(void *arg)
 		return_value = JY901_GetData(Posture);
 		if (return_value > 0)
 		{
-		//	printf("rtn = %d, Pos1 = %f, Pos2 = %f, Pos3 = %f\n", return_value, Posture[0], Posture[1], Posture[2]);
+		//	printf("rtn = %d, Pos1 = %lf, Pos2 = %lf, Pos3 = %lf\n", return_value, Posture[0], Posture[1], Posture[2]);
 		}
 		n_gps++;
 		if(n_gps>333)
@@ -1465,13 +1457,13 @@ void rt_can_recv(void *arg)
 							{
 								for (i_R = 0; i_R < 14; i_R++)
 								{
-									if (RemotePlanPos_deg[i_R] - RemoteMotionData[i_R]>30*0.24)
+									if (RemotePlanPos_deg[i_R] - RemoteMotionData[i_R]>10*0.24)
 									{
-										RemotePlanPos_deg[i_R] = RemotePlanPos_deg[i_R] - 30*0.24;
+										RemotePlanPos_deg[i_R] = RemotePlanPos_deg[i_R] - 10*0.24;
 									}
-									else if (RemotePlanPos_deg[i_R] - RemoteMotionData[i_R]<-30*0.24)
+									else if (RemotePlanPos_deg[i_R] - RemoteMotionData[i_R]<-10*0.24)
 									{
-										RemotePlanPos_deg[i_R] = RemotePlanPos_deg[i_R] + 30*0.24;
+										RemotePlanPos_deg[i_R] = RemotePlanPos_deg[i_R] + 10*0.24;
 									}
 									else
 									{
@@ -1516,7 +1508,7 @@ void rt_can_recv(void *arg)
 						Joint_Angle_EP[1][5] = JointDetect(1, 5, RemoteRobotPos_deg.RightArm[5]*Degree2Rad);
 						Joint_Angle_EP[1][6] = JointDetect(1, 6, RemoteRobotPos_deg.RightArm[6]*Degree2Rad);
 
-						fprintf(fp, "%8.3lf %8.3lf %8.3lf %8.3lf %8.3lf %8.3lf %8.3lf\n", Joint_Angle_EP[2][0]*Rad2Degree, Joint_Angle_EP[3][0]*Rad2Degree, Joint_Angle_EP[3][1]*Rad2Degree, Joint_Angle_EP[2][1]*Rad2Degree, Joint_Angle_EP[0][4]*Rad2Degree, Joint_Angle_EP[0][5]*Rad2Degree, Joint_Angle_EP[0][6]*Rad2Degree);
+				//		fprintf(fp, "%8.3lf %8.3lf %8.3lf %8.3lf %8.3lf %8.3lf %8.3lf\n", Joint_Angle_EP[2][0]*Rad2Degree, Joint_Angle_EP[3][0]*Rad2Degree, Joint_Angle_EP[3][1]*Rad2Degree, Joint_Angle_EP[2][1]*Rad2Degree, Joint_Angle_EP[0][4]*Rad2Degree, Joint_Angle_EP[0][5]*Rad2Degree, Joint_Angle_EP[0][6]*Rad2Degree);
 
 						int rtnn = 0;
 						struct RealRobot_Struct SendAngle;
@@ -1526,15 +1518,17 @@ void rt_can_recv(void *arg)
 						if (rtnn == 0)
 						{
 							printf("Detect collision!\n");
+							NoCollisionFlag = 0;
 						}
 						else
 						{
 							printf("No collision!\n");
+							NoCollisionFlag = 1;
 						}
 
 						if(motion_enable_flag == 1)
 						{
-							rad_send(0, 4, Joint_Angle_EP[0][4]);
+						/*	rad_send(0, 4, Joint_Angle_EP[0][4]);
 							sleeptime.tv_nsec = 250000;
 							sleeptime.tv_sec = 0;
 							nanosleep(&sleeptime,NULL);
@@ -1561,9 +1555,9 @@ void rt_can_recv(void *arg)
 							rad_send(3, 1, Joint_Angle_EP[3][1]);
 							sleeptime.tv_nsec = 8000;
 							sleeptime.tv_sec = 0;
-							nanosleep(&sleeptime,NULL);
+							nanosleep(&sleeptime,NULL);*/
 
-						/*	rad_send(1, 4, Joint_Angle_EP[1][4]);
+							rad_send(1, 4, Joint_Angle_EP[1][4]);
 							sleeptime.tv_nsec = 250000;
 							sleeptime.tv_sec = 0;
 							nanosleep(&sleeptime,NULL);
@@ -1590,15 +1584,12 @@ void rt_can_recv(void *arg)
 							rad_send(3, 3, Joint_Angle_EP[3][3]);
 							sleeptime.tv_nsec = 250000;
 							sleeptime.tv_sec = 0;
-							nanosleep(&sleeptime,NULL);	*/
+							nanosleep(&sleeptime,NULL);
 						}
 
 						double AngleH[2][4] = {{0.0, 0.0, 0.0, 0.0},{0.0, 0.0, 0.0, 0.0}};
 						control_handL(rockerL, motor_current[0][1], motor_current[0][2], motor_current[0][3], AngleH[0]);
 						control_handR(rockerR, motor_current[1][1], motor_current[1][1], motor_current[1][1], AngleH[1]);
-				//		printf("rockerR=%04x,AngleH1 = %f,AngleH2 = %f,AngleH3 = %f\n",rockerR,AngleH[1][1],AngleH[1][2],AngleH[1][3]);
-
-				//		fprintf(fp, "%8.3lf %8.3lf %8.3lf %8.3lf\n", motor_current[1][0], motor_current[1][1], motor_current[1][2], motor_current[1][3]);
 
 						for (i_R=0; i_R<2; i_R++)
 						{
@@ -1607,7 +1598,6 @@ void rt_can_recv(void *arg)
 							Joint_Angle_EP[i_R][2] = JointDetect(i_R, 2, AngleH[i_R][2]*Degree2Rad);
 							Joint_Angle_EP[i_R][3] = JointDetect(i_R, 3, AngleH[i_R][3]*Degree2Rad);
 						}
-
 
 						if(motion_enable_flag == 1)
 						{
@@ -3316,7 +3306,7 @@ void rt_can_recv(void *arg)
 								}
 								firsttimeflag = 1;
 								fisrtBalanceFlag = 1;
-								
+
 								for(i_R=0;i_R<6;i_R++)
 								{
 									AccL[i_R] = 0.0;
@@ -3438,7 +3428,7 @@ void rt_can_recv(void *arg)
 										static double TotalDeltaT[4][4] = {{1,0,0,0},{0,1,0,0},{0,0,1,0},{0,0,0,1}};
 										delta2tr(A6D_PL, deltaTRaw);
 										Schmidt(deltaTRaw, deltaT);
-										
+
 										deltaT[0][3] = deltaT[0][3]*1000;
 										deltaT[1][3] = deltaT[1][3]*1000;
 										deltaT[2][3] = deltaT[2][3]*1000;  // mm
@@ -3578,7 +3568,7 @@ void rt_can_recv(void *arg)
 										static double TotalDeltaT[4][4] = {{1,0,0,0},{0,1,0,0},{0,0,1,0},{0,0,0,1}};
 										delta2tr(A6D_PR, deltaTRaw);
 										Schmidt(deltaTRaw, deltaT);
-										
+
 										deltaT[0][3] = deltaT[0][3]*1000;
 										deltaT[1][3] = deltaT[1][3]*1000;
 										deltaT[2][3] = deltaT[2][3]*1000;  // mm
@@ -3664,8 +3654,8 @@ void rt_can_recv(void *arg)
 										Joint_Angle_EP[1][6] = JointDetect(1, 6, A6D_Joint_PR[6]*Degree2Rad);
 									}
 								}
-								
-															
+
+
 								if(motion_enable_flag == 1)
 								{
 									rad_send(0, 4, Joint_Angle_EP[0][4]);		//moyang602 	可根据通道发送减少时间
@@ -3724,7 +3714,7 @@ void rt_can_recv(void *arg)
 									rad_send(3, 3, Joint_Angle_EP[3][3]);
 									sleeptime.tv_nsec = 10000;
 									sleeptime.tv_sec = 0;
-									nanosleep(&sleeptime,NULL);	
+									nanosleep(&sleeptime,NULL);
 								}
 
 								double AngleH[2][4] = {{0.0, 0.0, 0.0, 0.0},{0.0, 0.0, 0.0, 0.0}};
@@ -5130,7 +5120,7 @@ void RealRobot2CanDef(struct RealRobot_Struct RealRobot, double CanDef[4][7])
 
 double JointDetect(int Can_CH, int Can_ID, double angle_in)		// input: rad    output: rad
 {
-	float out = 100;
+	double out = 100;
 	// 发送数据位置限位
 	if (angle_in>AngleMax_deg[Can_CH][Can_ID]*Degree2Rad)
 	{

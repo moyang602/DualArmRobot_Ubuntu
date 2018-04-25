@@ -153,7 +153,7 @@ int JY901_init()
     return 0;
 }
 
-int JY901_GetData(float Posture[3])
+int JY901_GetData(double Posture[3])
 {
     int n = 0;
     int rtn = 0;
@@ -170,10 +170,10 @@ int JY901_GetData(float Posture[3])
     //printf("buff:%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",buff[0],buff[1],buff[2],buff[3],buff[4],buff[5],buff[6],buff[7],buff[8],buff[9],buff[10]);
     memset(&JY901, 0 , sizeof(JY901));
     rtn = JY901_analyse (buff,n);
-    //printf("Angle:%.3f %.3f %.3f\r\n",(float)JY901.stcAngle.Angle[0]/32768*180,(float)JY901.stcAngle.Angle[1]/32768*180,(float)JY901.stcAngle.Angle[2]/32768*180);
-    Posture[0] = (float)JY901.stcAngle.Angle[0]/32768*180;
-    Posture[1] = (float)JY901.stcAngle.Angle[1]/32768*180;
-    Posture[2] = (float)JY901.stcAngle.Angle[2]/32768*180;
+    //printf("Angle:%.3lf %.3lf %.3lf\r\n",(double)JY901.stcAngle.Angle[0]/32768*180,(double)JY901.stcAngle.Angle[1]/32768*180,(double)JY901.stcAngle.Angle[2]/32768*180);
+    Posture[0] = (double)JY901.stcAngle.Angle[0]/32768*180;
+    Posture[1] = (double)JY901.stcAngle.Angle[1]/32768*180;
+    Posture[2] = (double)JY901.stcAngle.Angle[2]/32768*180;
     return rtn;
 }
 
@@ -219,7 +219,7 @@ int GPS_init()
     return 0;
 }
 
-int GPS_GetData(float *latitude, float *longitude)
+int GPS_GetData(double *latitude, double *longitude)
 {
     int n = 0;
     int rtn = 0;

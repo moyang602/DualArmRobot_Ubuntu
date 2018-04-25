@@ -1032,7 +1032,7 @@ double parabolic_interpolation_time(double x0, double xf, double vb, double acc)
 
 
 struct Cubic_Struct cubic[14];
-int cubicAddPoint(int index, float point)
+int cubicAddPoint(int index, double point)
 {
 	if (cubic[index].needNextPoint == 0)
 	{
@@ -1071,7 +1071,7 @@ int cubicAddPoint(int index, float point)
 	return 1;
 }
 
-float cubicInterpolate(int index)
+double cubicInterpolate(int index)
 {
 	if (cubic[index].needNextPoint == 1)
 	{
@@ -1085,7 +1085,7 @@ float cubicInterpolate(int index)
 		cubic[index].needNextPoint = 1;
 	}
 
-	float out = 0.0;
+	double out = 0.0;
 	out = cubic[index].coeffa*cubic[index].interpolationTime*cubic[index].interpolationTime*cubic[index].interpolationTime + cubic[index].coeffb*cubic[index].interpolationTime*cubic[index].interpolationTime + cubic[index].coeffc*cubic[index].interpolationTime + cubic[index].coeffd;
 //	if(index == 0)
 //	printf("cubictime = %f  out = %f\n", cubic[index].interpolationTime, out);
@@ -2725,33 +2725,41 @@ void Schmidt(double Raw[4][4], double Out[4][4])
 	double U[3][3];
 	double Uu[3];
 	int i,j;
-	memcpy(Out, Raw, sizeof(Raw));
+	for(i=0;i<4;i++)
+	{
+		for (j=0;j<4;j++)
+		{
+			Out[i][j] = Raw[i][j];
+		}
+	}
 	for(i=0;i<3;i++)
 	{
-		U[0][0] = Raw[0][0];
-		U[1][0] = Raw[1][0];
-		U[2][0] = Raw[2][0];
+		U[0][i] = Raw[0][i];
+		U[1][i] = Raw[1][i];
+		U[2][i] = Raw[2][i];
 
 		if(i == 0)
 		{
-			Out[0][0] = U[0][0]/sqrt(U[0][0]^2+U[1][0]^2+U[2][0]^2);
+			Out[0][i] = U[0][i]/sqrt(U[0][i]*U[0][i]+U[1][i]*U[1][i]+U[2][i]*U[2][i]);
+			Out[1][i] = U[1][i]/sqrt(U[0][i]*U[0][i]+U[1][i]*U[1][i]+U[2][i]*U[2][i]);
+			Out[2][i] = U[2][i]/sqrt(U[0][i]*U[0][i]+U[1][i]*U[1][i]+U[2][i]*U[2][i]);
 		}
 		else
 		{
 			Uu[0] = U[0][i];
 			Uu[1] = U[1][i];
 			Uu[2] = U[2][i];
-			for (j=0;j<i-1;j++)
+			for (j=0;j<i;j++)
 			{
-				Uu[0] = Uu[0] - (Raw[0][i]*U[0][j]+Raw[1][i]*U[1][j]+Raw[2][i]*U[2][j])/(U[0][j]^2+U[1][j]^2+U[2][j]^2)*U[0][j]
-				Uu[1] = Uu[1] - (Raw[0][i]*U[0][j]+Raw[1][i]*U[1][j]+Raw[2][i]*U[2][j])/(U[0][j]^2+U[1][j]^2+U[2][j]^2)*U[1][j]
-				Uu[1] = Uu[1] - (Raw[0][i]*U[0][j]+Raw[1][i]*U[1][j]+Raw[2][i]*U[2][j])/(U[0][j]^2+U[1][j]^2+U[2][j]^2)*U[2][j]
+				Uu[0] = Uu[0] - (Raw[0][i]*U[0][j]+Raw[1][i]*U[1][j]+Raw[2][i]*U[2][j])/(U[0][j]*U[0][j]+U[1][j]*U[1][j]+U[2][j]*U[2][j])*U[0][j];
+				Uu[1] = Uu[1] - (Raw[0][i]*U[0][j]+Raw[1][i]*U[1][j]+Raw[2][i]*U[2][j])/(U[0][j]*U[0][j]+U[1][j]*U[1][j]+U[2][j]*U[2][j])*U[1][j];
+				Uu[2] = Uu[2] - (Raw[0][i]*U[0][j]+Raw[1][i]*U[1][j]+Raw[2][i]*U[2][j])/(U[0][j]*U[0][j]+U[1][j]*U[1][j]+U[2][j]*U[2][j])*U[2][j];
 			}
 			U[0][i] = Uu[0];
 			U[1][i] = Uu[1];
 			U[2][i] = Uu[2];
-			
-			if((U[0][j]^2+U[1][j]^2+U[2][j]^2)==0)
+
+			if((U[0][i]*U[0][i]+U[1][i]*U[1][i]+U[2][i]*U[2][i])==0)
 			{
 				Out[0][i] = 0;
 				Out[1][i] = 0;
@@ -2759,11 +2767,11 @@ void Schmidt(double Raw[4][4], double Out[4][4])
 			}
 			else
 			{
-				Out[0][i] = U[0][i]/sqrt(U[0][j]^2+U[1][j]^2+U[2][j]^2);
-				Out[1][i] = U[0][i]/sqrt(U[0][j]^2+U[1][j]^2+U[2][j]^2);
-				Out[2][i] = U[0][i]/sqrt(U[0][j]^2+U[1][j]^2+U[2][j]^2);
+				Out[0][i] = U[0][i]/sqrt(U[0][i]*U[0][i]+U[1][i]*U[1][i]+U[2][i]*U[2][i]);
+				Out[1][i] = U[1][i]/sqrt(U[0][i]*U[0][i]+U[1][i]*U[1][i]+U[2][i]*U[2][i]);
+				Out[2][i] = U[2][i]/sqrt(U[0][i]*U[0][i]+U[1][i]*U[1][i]+U[2][i]*U[2][i]);
 			}
-			
+
 		}
 	}
 }
