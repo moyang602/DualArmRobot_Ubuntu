@@ -3316,6 +3316,19 @@ void rt_can_recv(void *arg)
 								}
 								firsttimeflag = 1;
 								fisrtBalanceFlag = 1;
+								
+								for(i_R=0;i_R<6;i_R++)
+								{
+									AccL[i_R] = 0.0;
+									A6D_VL[i_R] = 0.0;
+									A6D_D_totalL[i_R] = 0.0;
+									AccR[i_R] = 0.0;
+									A6D_VR[i_R] = 0.0;
+									A6D_D_totalR[i_R] = 0.0;
+								}
+								FirstForceControlL = 1;
+								FirstForceControlR = 1;
+
 							}
 							else
 							{
@@ -3421,9 +3434,11 @@ void rt_can_recv(void *arg)
 											}
 										}
 
-										double deltaT[4][4];
+										double deltaTRaw[4][4],deltaT[4][4];
 										static double TotalDeltaT[4][4] = {{1,0,0,0},{0,1,0,0},{0,0,1,0},{0,0,0,1}};
-										delta2tr(A6D_PL, deltaT);
+										delta2tr(A6D_PL, deltaTRaw);
+										Schmidt(deltaTRaw, deltaT);
+										
 										deltaT[0][3] = deltaT[0][3]*1000;
 										deltaT[1][3] = deltaT[1][3]*1000;
 										deltaT[2][3] = deltaT[2][3]*1000;  // mm
@@ -3456,7 +3471,7 @@ void rt_can_recv(void *arg)
 										for(i_R=0; i_R<7; i_R++)
 										{
 										//	AngleLNow[i_R] = RobotAngleFB.LeftArm[i_R];
-											AngleLNow[i_R] = RemoteRobotPos_deg.LeftArm[i_R]*Degree2Rad;
+											AngleLNow[i_R] = A6D_Joint_PL[i_R]*Degree2Rad;
 										}
 										double betaL;
 
@@ -3510,7 +3525,147 @@ void rt_can_recv(void *arg)
 									}
 								}
 
+								if(ForceNewDataR==1)	//左臂control
+								{
+									int position_change_flagR = 1;
+									for(i_R=0; i_R<6; i_R++)
+									{
+										if(fabs(ForceDataR[i_R]) > force_limit[i_R])
+										{
+											position_change_flagR = 0;
+											motion_enable_flag = 0;
+											printf("forceR limited\n");
+											break;
+										}
+									}
 
+									if(position_change_flagR == 1)
+									{
+
+										// 计算遥操作输入末端位姿
+										double Angle[7];	// unit: rad
+										for(i_R=0;i_R<7;i_R++)
+										{
+											Angle[i_R] = RemoteRobotPos_deg.RightArm[i_R]*Degree2Rad;
+										}
+										double RemoteTend[4][4];	// 遥操作末端位姿
+										KinR(Angle, RemoteTend);	// input: rad  output: mm
+
+										// 计算阻抗控制下，此步移动量
+										for(i_R=0;i_R<6;i_R++)
+										{
+											A6D_C[i_R] = 2*A6D_ep[i_R]*sqrt(A6D_K[i_R]*A6D_m[i_R]);
+										}
+										for(i_R=0;i_R<6;i_R++)
+										{
+											AccR[i_R] = (ForceDataR[i_R] - A6D_K[i_R]*A6D_D_totalR[i_R] - A6D_C[i_R]*A6D_VR[i_R])/A6D_m[i_R];
+											A6D_D_totalR[i_R] = A6D_D_totalR[i_R] + AccR[i_R]*FDeltaT*FDeltaT/2.0 + A6D_VR[i_R]*FDeltaT;
+											A6D_VR[i_R] = A6D_VR[i_R] + AccR[i_R]*FDeltaT;
+											A6D_PR[i_R] = A6D_VR[i_R]*FDeltaT;
+										}
+
+										// 对特定方向关闭控制
+										for(i_R=0;i_R<6;i_R++)
+										{
+											if(A6D_enable[i_R] == 0)
+											{
+												A6D_VR[i_R] = 0;
+												A6D_PR[i_R] = 0.0;
+											}
+										}
+
+										double deltaTRaw[4][4],deltaT[4][4];
+										static double TotalDeltaT[4][4] = {{1,0,0,0},{0,1,0,0},{0,0,1,0},{0,0,0,1}};
+										delta2tr(A6D_PR, deltaTRaw);
+										Schmidt(deltaTRaw, deltaT);
+										
+										deltaT[0][3] = deltaT[0][3]*1000;
+										deltaT[1][3] = deltaT[1][3]*1000;
+										deltaT[2][3] = deltaT[2][3]*1000;  // mm
+
+										if(FirstForceControlR == 1)
+										{
+											memcpy(&OneArmStart,&RobotAngleFBDeg,sizeof(OneArmStart));
+											for(i_R=0;i_R<7;i_R++)
+											{
+												A6D_Joint_PR[i_R] = OneArmStart.RightArm[i_R];
+												A6D_Joint_VR[i_R] = 0;
+											}
+
+											memset(TotalDeltaT,0,sizeof(TotalDeltaT));
+											TotalDeltaT[0][0] = 1;
+											TotalDeltaT[1][1] = 1;
+											TotalDeltaT[2][2] = 1;
+											TotalDeltaT[3][3] = 1;
+
+											FirstForceControlR = 0;
+										}
+
+										double TempT[4][4];
+										matrix_multiply(TotalDeltaT, deltaT, TempT);
+										memcpy(TotalDeltaT,TempT,sizeof(TempT));
+
+										matrix_multiply(RemoteTend,TotalDeltaT,TempT);
+
+										double AngleRNow[7];
+										for(i_R=0; i_R<7; i_R++)
+										{
+										//	AngleRNow[i_R] = RobotAngleFB.RightArm[i_R];
+											AngleRNow[i_R] = A6D_Joint_PR[i_R]*Degree2Rad;
+										}
+										double betaR;
+
+										betaR = Beta_CalR(AngleRNow);	// input: rad
+										invKinR(AngleRNow, TempT, betaR, A6D_Joint_PR);	// input:
+
+
+									/*	double A6D_VmmR[6];
+										A6D_VmmR[0] = A6D_VR[0]*1000;		// change into mm/s
+										A6D_VmmR[1] = A6D_VR[1]*1000;		// change into mm/s
+										A6D_VmmR[2] = A6D_VR[2]*1000;		// change into mm/s
+										A6D_VmmR[3] = A6D_VR[3];
+										A6D_VmmR[4] = A6D_VR[4];
+										A6D_VmmR[5] = A6D_VR[5];
+
+										double InvJacobinNowR[7][6] = {0.0};
+										InvJacobianR(A6D_Joint_PR, InvJacobinNowR);		// 雅可比奇异情况呢
+
+										for(i_R = 0; i_R<6; i_R++)
+										{
+											if(A6D_VmmR[i_R] > force_velocity_limit[i_R])
+											{
+												A6D_VmmR[i_R] = force_velocity_limit[i_R];
+												printf("velocityR limited\n");
+											}
+											else if (A6D_VmmR[i_R] < -force_velocity_limit[i_R])
+											{
+												A6D_VmmR[i_R] = -force_velocity_limit[i_R];
+												printf("velocityR limited\n");
+											}
+										}
+
+										sprintf(buf24, "ExpEndVR: %8.3f  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f", A6D_VmmR[0],A6D_VmmR[1],A6D_VmmR[2],A6D_VmmR[3]*Rad2Degree,A6D_VmmR[4]*Rad2Degree,A6D_VmmR[5]*Rad2Degree);
+
+										Matrix_Multiply(7,6,1,*InvJacobinNowR,A6D_VmmR,A6D_Joint_VR);
+
+										sprintf(buf25, "ExpJointVR:%7.3f  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f",A6D_Joint_VR[0]*Rad2Degree,A6D_Joint_VR[1]*Rad2Degree,A6D_Joint_VR[2]*Rad2Degree,A6D_Joint_VR[3]*Rad2Degree,A6D_Joint_VR[4]*Rad2Degree,A6D_Joint_VR[5]*Rad2Degree,A6D_Joint_VR[6]*Rad2Degree);
+
+										for(i_R=0;i_R<7;i_R++)
+										{
+											A6D_Joint_PR[i_R] = RemoteRobotPos_deg.RightArm[i_R] + A6D_Joint_VR[i_R]*FDeltaT*Rad2Degree;
+										}
+									*/
+										Joint_Angle_EP[2][2] = JointDetect(2, 2, A6D_Joint_PR[0]*Degree2Rad);
+										Joint_Angle_EP[3][2] = JointDetect(3, 2, A6D_Joint_PR[1]*Degree2Rad);
+										Joint_Angle_EP[3][3] = JointDetect(3, 3, A6D_Joint_PR[2]*Degree2Rad);
+										Joint_Angle_EP[2][3] = JointDetect(2, 3, A6D_Joint_PR[3]*Degree2Rad);
+										Joint_Angle_EP[1][4] = JointDetect(1, 4, A6D_Joint_PR[4]*Degree2Rad);
+										Joint_Angle_EP[1][5] = JointDetect(1, 5, A6D_Joint_PR[5]*Degree2Rad);
+										Joint_Angle_EP[1][6] = JointDetect(1, 6, A6D_Joint_PR[6]*Degree2Rad);
+									}
+								}
+								
+															
 								if(motion_enable_flag == 1)
 								{
 									rad_send(0, 4, Joint_Angle_EP[0][4]);		//moyang602 	可根据通道发送减少时间
@@ -3542,7 +3697,7 @@ void rt_can_recv(void *arg)
 									sleeptime.tv_sec = 0;
 									nanosleep(&sleeptime,NULL);
 
-								/*	rad_send(1, 4, Joint_Angle_EP[1][4]);
+									rad_send(1, 4, Joint_Angle_EP[1][4]);
 									sleeptime.tv_nsec = 250000;
 									sleeptime.tv_sec = 0;
 									nanosleep(&sleeptime,NULL);
@@ -3569,7 +3724,7 @@ void rt_can_recv(void *arg)
 									rad_send(3, 3, Joint_Angle_EP[3][3]);
 									sleeptime.tv_nsec = 10000;
 									sleeptime.tv_sec = 0;
-									nanosleep(&sleeptime,NULL);	*/
+									nanosleep(&sleeptime,NULL);	
 								}
 
 								double AngleH[2][4] = {{0.0, 0.0, 0.0, 0.0},{0.0, 0.0, 0.0, 0.0}};

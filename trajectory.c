@@ -2718,3 +2718,52 @@ int Matrix_Reverse(int iNum, double* pSourceR, double* pDestR)
 	free(iRow);  free(iCol);  free(dTem1);  free(dTem2);
 	return 1;
 }
+
+// 将旋转矩阵正交单位化
+void Schmidt(double Raw[4][4], double Out[4][4])
+{
+	double U[3][3];
+	double Uu[3];
+	int i,j;
+	memcpy(Out, Raw, sizeof(Raw));
+	for(i=0;i<3;i++)
+	{
+		U[0][0] = Raw[0][0];
+		U[1][0] = Raw[1][0];
+		U[2][0] = Raw[2][0];
+
+		if(i == 0)
+		{
+			Out[0][0] = U[0][0]/sqrt(U[0][0]^2+U[1][0]^2+U[2][0]^2);
+		}
+		else
+		{
+			Uu[0] = U[0][i];
+			Uu[1] = U[1][i];
+			Uu[2] = U[2][i];
+			for (j=0;j<i-1;j++)
+			{
+				Uu[0] = Uu[0] - (Raw[0][i]*U[0][j]+Raw[1][i]*U[1][j]+Raw[2][i]*U[2][j])/(U[0][j]^2+U[1][j]^2+U[2][j]^2)*U[0][j]
+				Uu[1] = Uu[1] - (Raw[0][i]*U[0][j]+Raw[1][i]*U[1][j]+Raw[2][i]*U[2][j])/(U[0][j]^2+U[1][j]^2+U[2][j]^2)*U[1][j]
+				Uu[1] = Uu[1] - (Raw[0][i]*U[0][j]+Raw[1][i]*U[1][j]+Raw[2][i]*U[2][j])/(U[0][j]^2+U[1][j]^2+U[2][j]^2)*U[2][j]
+			}
+			U[0][i] = Uu[0];
+			U[1][i] = Uu[1];
+			U[2][i] = Uu[2];
+			
+			if((U[0][j]^2+U[1][j]^2+U[2][j]^2)==0)
+			{
+				Out[0][i] = 0;
+				Out[1][i] = 0;
+				Out[2][i] = 0;
+			}
+			else
+			{
+				Out[0][i] = U[0][i]/sqrt(U[0][j]^2+U[1][j]^2+U[2][j]^2);
+				Out[1][i] = U[0][i]/sqrt(U[0][j]^2+U[1][j]^2+U[2][j]^2);
+				Out[2][i] = U[0][i]/sqrt(U[0][j]^2+U[1][j]^2+U[2][j]^2);
+			}
+			
+		}
+	}
+}
