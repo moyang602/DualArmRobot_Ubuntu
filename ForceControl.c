@@ -31,7 +31,7 @@ int force_stepL = 1;		// 力传感器读数整体步骤值
 int nStatusL = 0;		// 力传感器设置步骤值
 int bIsSendFlagL = 1;	// 发送标志
 int bReceivedL	= 0;	// 接收标志
-int First_ForceL = 1;
+int First_ForceL = 0;
 
 int ForceClientSockR = -1;
 int ForceTCPFlagR = 0;
@@ -39,7 +39,7 @@ int force_stepR = 1;		// 力传感器读数整体步骤值
 int nStatusR = 0;		// 力传感器设置步骤值
 int bIsSendFlagR = 1;	// 发送标志
 int bReceivedR	= 0;	// 接收标志
-int First_ForceR = 1;
+int First_ForceR = 0;
 
 double ForceInitL[6] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 double ForceInitR[6] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
@@ -683,7 +683,9 @@ int GetData(int select, double* m_dDecouplingValue)
 			if(bReceivedL)
 			{
 				if(GetADCounts(mRxBufferL, m_nADCountsL))
+				{
 					ShowAlgorithmData(1,m_dDecouplingValue);
+				}
 				bReceivedL = 0;
 				return 1;
 			}
@@ -772,8 +774,6 @@ int GetADCounts(unsigned char mRxBuffer[dataBufferLen], int m_nADCounts[M812X_CH
 
 double F_recL[5][6] = {0.0};
 double F_recR[5][6] = {0.0};
-double F_thresholdL[6] = {0.5, 0.5, 1.0, 0.05, 0.05, 0.05};
-double F_thresholdR[6] = {0.5, 0.5, 1.0, 0.05, 0.05, 0.05};
 
 int ShowAlgorithmData(int select, double* m_dDecouplingValue)
 {
@@ -808,7 +808,7 @@ int ShowAlgorithmData(int select, double* m_dDecouplingValue)
 				ForceMean[i] = F_recL[0][i] + F_recL[1][i] + F_recL[2][i] + F_recL[3][i] + F_recL[4][i];
 			}
 
-			if(First_ForceL == 1)
+		/*	if(First_ForceL == 1)
 			{
 				for(i=0;i<6;i++)
 				{
@@ -820,13 +820,17 @@ int ShowAlgorithmData(int select, double* m_dDecouplingValue)
 			for(i=0;i<6;i++)
 			{
 				m_dDecouplingValue[i] = (ForceMean[i] - ForceInitL[i])/5.0;				// moyang602
+			}*/
+			for(i=0;i<6;i++)
+			{
+				m_dDecouplingValue[i] = ForceMean[i]/5.0;				// moyang602
 			}
 
-			for(i=0;i<6;i++)
+			/*for(i=0;i<6;i++)
 			{
 				if(fabs(m_dDecouplingValue[i])<F_thresholdL[i])
 					m_dDecouplingValue[i] = 0.0;
-			}
+			}*/
 
 			for(i=0;i<6;i++)
 			{
@@ -864,7 +868,7 @@ int ShowAlgorithmData(int select, double* m_dDecouplingValue)
 				ForceMean[i] = F_recR[0][i] + F_recR[1][i] + F_recR[2][i] + F_recR[3][i] + F_recR[4][i];
 			}
 
-			if(First_ForceR == 1)
+			/*if(First_ForceR == 1)
 			{
 				for(i=0;i<6;i++)
 				{
@@ -882,6 +886,10 @@ int ShowAlgorithmData(int select, double* m_dDecouplingValue)
 			{
 				if(fabs(m_dDecouplingValue[i])<F_thresholdR[i])
 					m_dDecouplingValue[i] = 0.0;
+			}*/
+			for(i=0;i<6;i++)
+			{
+				m_dDecouplingValue[i] = ForceMean[i]/5.0;				// moyang602
 			}
 
 			for(i=0;i<6;i++)
@@ -900,14 +908,17 @@ int ShowAlgorithmData(int select, double* m_dDecouplingValue)
 
 }
 
+double F_thresholdL[6] = {0.5, 0.5, 1.0, 0.05, 0.05, 0.05};
+double F_thresholdR[6] = {0.5, 0.5, 1.0, 0.05, 0.05, 0.05};
+
 int ForceCompensationL(double ForceBefore[6], double AngleNow[7], double ForceAfter[6])	//unit: N  rad  N
 {
-	double G = 20.58; // 末端工具  unit: N
+	double G = 0.0;//16.65; // 末端工具  unit: N
 	double GravityB[3] = {-G, 0, 0};	// 工具产生的重力在基坐标系下的表示
 	double GravityE[3];					// 工具产生的重力在末端力传感器坐标系下的表示
 	double MomentE[3];					// 工具产生的重力矩在末端力传感器坐标系下的表示
-	double ForceInit[6] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-	double P[3] = {0, 0, 0.1};			// 工具中心在末端力传感器坐标系下的表示
+	double ForceOffset[6] = {-180.417302, -103.603620, -126.257518, 2.469830, 2.590696, -8.179648};//{-139.525, -77.4, -101.45, 1.76, 2.1925, -6.445};
+	double P[3] = {0.0, 0.0, 0.0};//{-0.0001, 0.0051, 0.0715};		// 工具中心在末端力传感器坐标系下的表示
 
 	double TransMatrix[4][4];
 	KinL(AngleNow, TransMatrix);
@@ -925,24 +936,44 @@ int ForceCompensationL(double ForceBefore[6], double AngleNow[7], double ForceAf
 
 	Matrix_Multiply(3,3,1,*R_B2E, GravityB, GravityE);
 
-	VecCross(GravityE, P, MomentE);
+	VecCross(P, GravityE, MomentE);
 
 	for (i=0;i<3;i++)
 	{
-		ForceAfter[i] = ForceBefore[i] - GravityE[i] - ForceInit[i];
-		ForceAfter[i+3] = ForceBefore[i+3] - GravityE[i+3] - ForceInit[i+3];
+		ForceAfter[i] = ForceBefore[i] - GravityE[i] - ForceOffset[i];
+		ForceAfter[i+3] = ForceBefore[i+3] - GravityE[i+3] - ForceOffset[i+3];
 	}
+
+
+	if(First_ForceL == 1)
+	{
+		for(i=0;i<6;i++)
+		{
+			ForceInitL[i] = ForceAfter[i];
+		}
+		First_ForceL = 0;
+	}
+	for(i=0;i<6;i++)
+	{
+		ForceAfter[i] = (ForceAfter[i] - ForceInitL[i]);
+	}
+	for(i=0;i<6;i++)
+	{
+		if(fabs(ForceAfter[i])<F_thresholdL[i])
+			ForceAfter[i] = 0.0;
+	}
+
 	return 0;
 }
 
 int ForceCompensationR(double ForceBefore[6], double AngleNow[7], double ForceAfter[6])	//unit: N  rad  N
 {
-	double G = 20.58; // 末端工具  unit: N
-	double GravityB[3] = {-G, 0, 0};	// 工具产生的重力在基坐标系下的表示
-	double GravityE[3];					// 工具产生的重力在末端力传感器坐标系下的表示
-	double MomentE[3];					// 工具产生的重力矩在末端力传感器坐标系下的表示
-	double ForceInit[6] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-	double P[3] = {0, 0, 0.1};			// 工具中心在末端力传感器坐标系下的表示
+	double G = 16.7645; // 末端工具  unit: N
+	double GravityB[3] = {-G, 0, 0};		// 工具产生的重力在基坐标系下的表示
+	double GravityE[3];						// 工具产生的重力在末端力传感器坐标系下的表示
+	double MomentE[3];						// 工具产生的重力矩在末端力传感器坐标系下的表示
+	double ForceOffset[6] = {97.81, 97.9, -51.35, 1.340, -0.125, 3.1000};
+	double P[3] = {-0.0042, -0.0004, 0.0727};			// 工具中心在末端力传感器坐标系下的表示
 
 	double TransMatrix[4][4];
 	KinR(AngleNow, TransMatrix);
@@ -960,12 +991,31 @@ int ForceCompensationR(double ForceBefore[6], double AngleNow[7], double ForceAf
 
 	Matrix_Multiply(3,3,1,*R_B2E, GravityB, GravityE);
 
-	VecCross(GravityE, P, MomentE);
+	VecCross(P, GravityE, MomentE);
 
 	for (i=0;i<3;i++)
 	{
-		ForceAfter[i] = ForceBefore[i] - GravityE[i] - ForceInit[i];
-		ForceAfter[i+3] = ForceBefore[i+3] - GravityE[i+3] - ForceInit[i+3];
+		ForceAfter[i] = ForceBefore[i] - GravityE[i] - ForceOffset[i];
+		ForceAfter[i+3] = ForceBefore[i+3] - GravityE[i+3] - ForceOffset[i+3];
 	}
+
+	if(First_ForceR == 1)
+	{
+		for(i=0;i<6;i++)
+		{
+			ForceInitR[i] = ForceAfter[i];
+		}
+		First_ForceR = 0;
+	}
+	for(i=0;i<6;i++)
+	{
+		ForceAfter[i] = (ForceAfter[i] - ForceInitR[i]);
+	}
+	for(i=0;i<6;i++)
+	{
+		if(fabs(ForceAfter[i])<F_thresholdR[i])
+			ForceAfter[i] = 0.0;
+	}
+
 	return 0;
 }

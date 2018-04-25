@@ -171,9 +171,9 @@ int can_channel_number = 4;
 						{1, 1, 1, 1, 1, 1, 0},
 						{1, 1, 1, 1, 1, 1, 1}};*/
 int can_switch[4][7] = {{1, 1, 1, 1, 1, 1, 1},
-						{0, 0, 0, 0, 1, 1, 1},
-						{1, 1, 1, 1, 0, 0, 0},
-						{1, 1, 1, 1, 0, 0, 1}};
+						{0, 0, 0, 0, 0, 0, 0},
+						{1, 1, 0, 0, 0, 0, 0},
+						{1, 1, 0, 0, 0, 0, 1}};
 
 // 各节点速度方向
 double joint_direction[4][7] = {{1, 1, 1, 1, 1, -1, 1},
@@ -200,15 +200,15 @@ double AngleMin_deg[4][7] = {{0.0, 0.0, 0.0, 0.0, -90, -60, -90},
 							 {-90, -90, -90, -90, -30, -30}};
 */
 // 各节点最大位置限位
-double AngleMax_deg[4][7] = {{180, 80, 80, 80, 180, 90, 180},
-							 {180, 80, 80, 80, 180, 90, 180},
+double AngleMax_deg[4][7] = {{180, 80, 80, 80, 160, 90, 160},
+							 {180, 80, 80, 80, 160, 90, 160},
 							 {90, 90, 90, 90, 80, 80},
 							 {90, 90, 90, 90, 30, 30}};
 
 // 各节点最小位置限位
-double AngleMin_deg[4][7] = {{-2.0, 0.0, 0.0, 0.0, -180, -90, -180},
-							 {-2.0, 0.0, 0.0, 0.0, -180, -90, -180},
-							 {-90, -90, -60, -90, -80, -80},
+double AngleMin_deg[4][7] = {{-2.0, 0.0, 0.0, 0.0, -160, -90, -160},
+							 {-2.0, 0.0, 0.0, 0.0, -160, -90, -160},
+							 {-90, -90, -90, -90, -80, -80},
 							 {-90, -90, -90, -90, -30, -30}};
 
 // 各节点最大运动速度限制	deg/s
@@ -277,6 +277,14 @@ double Joint_Angle_ER_degree[4][7] = {0.0};
 double Joint_Angle_LastEP[4][7] = {0.0};
 // 各节点前一次期望角度角度值
 double Joint_Angle_LastEP_degree[4][7] = {0.0};
+
+//
+struct RealRobot_Struct RobotAngleFB;
+struct RealRobot_Struct RobotAngleEP;
+struct RealRobot_Struct RobotAngleFBDeg;
+struct RealRobot_Struct RobotAngleEPDeg;
+struct RealRobot_Struct RobotAngleERDeg;
+struct RealRobot_Struct RobotRealCurrent;
 
 // 头部绝对码盘角度弧度值
 double Head_Angle_FB[2] = {0.0};
@@ -867,6 +875,20 @@ void SYNC_Receive(void)
 		}
 	}
 
+
+	// Change Format
+	memset(&RobotAngleFB,0,sizeof(RobotAngleFB));
+	memset(&RobotAngleEP,0,sizeof(RobotAngleEP));
+	memset(&RobotAngleFBDeg,0,sizeof(RobotAngleFBDeg));
+	memset(&RobotAngleEPDeg,0,sizeof(RobotAngleEPDeg));
+	memset(&RobotAngleERDeg,0,sizeof(RobotAngleERDeg));
+
+	CanDef2RealRobot(Joint_Angle_FB, &RobotAngleFB);
+	CanDef2RealRobot(Joint_Angle_EP, &RobotAngleEP);
+	CanDef2RealRobot(Joint_Angle_FB_degree, &RobotAngleFBDeg);
+	CanDef2RealRobot(Joint_Angle_EP_degree, &RobotAngleEPDeg);
+	CanDef2RealRobot(Joint_Angle_ER_degree, &RobotAngleERDeg);
+
 	previous2 = rt_timer_read();
 	period2 = (previous2 - now2) / 1000;   //us
 
@@ -1412,9 +1434,8 @@ void rt_can_recv(void *arg)
 					static int firsttimeflag = 1;
 					if(RemoteMotion_enable_flag == 0)
 					{
-						memset(&RemoteRobotPos_deg,0,sizeof(RemoteRobotPos_deg));
+						memcpy(&RemoteRobotPos_deg,&RobotAngleFBDeg,sizeof(RemoteRobotPos_deg));
 						memset(&RemoteCrtPos_deg,0,sizeof(RemoteCrtPos_deg));
-						CanDef2RealRobot(Joint_Angle_FB_degree, &RemoteRobotPos_deg);
 						for(i_R=0;i_R<7;i_R++)
 						{
 							RemoteCrtPos_deg.LeftArm[i_R] = RemoteMotionData[i_R];
@@ -2176,9 +2197,7 @@ void rt_can_recv(void *arg)
 					int i_OA =0;
 					if(fisrt_time_ONE_ARM_MOTION == 0)
 					{
-						memset(&OneArmStart,0,sizeof(OneArmStart));
-						CanDef2RealRobot(Joint_Angle_FB, &OneArmStart);
-
+						memcpy(&OneArmStart,&RobotAngleFB,sizeof(OneArmStart));
 						fisrt_time_ONE_ARM_MOTION = 1;
 						t = 0;
 						printf("MOTION_MODE: ONE_ARM_MOTION\n");
@@ -2326,9 +2345,7 @@ void rt_can_recv(void *arg)
 					int i_j;
 					if(first_time_HOMEBACK == 0)
 		 			{
-		 				memset(&OneArmStart,0,sizeof(OneArmStart));
-						CanDef2RealRobot(Joint_Angle_FB, &OneArmStart);
-
+						memcpy(&OneArmStart,&RobotAngleFB,sizeof(OneArmStart));
 		 				first_time_HOMEBACK = 1;
 						t = 0.0;
 						moving_flag	= 1;
@@ -2475,8 +2492,8 @@ void rt_can_recv(void *arg)
 		 				first_move_flag = 0;
 		 				moving_flag	= 1;
 
-		 				memset(&RealTargetPos,0,sizeof(RealTargetPos));
-						CanDef2RealRobot(Joint_Angle_FB, &RealTargetPos);
+						memcpy(&RealTargetPos,&RobotAngleFB,sizeof(RealTargetPos));
+
 						RealTargetPos.LeftArm[0] = -8*Degree2Rad;
 						RealTargetPos.LeftArm[1] = -65*Degree2Rad;
 						RealTargetPos.LeftArm[2] = 8*Degree2Rad;
@@ -2494,7 +2511,7 @@ void rt_can_recv(void *arg)
 		 			}
 		 			else
 		 			{
-			 			return_value = AllJointMove(RealTargetPos,20,1,0,0,0);
+			 			return_value = AllJointMove(RealTargetPos,10,1,0,0,0);
 			 			if(return_value == 0)
 			 			{
 			 				motion_mode = 100;
@@ -2513,8 +2530,7 @@ void rt_can_recv(void *arg)
 		 				first_move_flag = 0;
 		 				moving_flag	= 1;
 
-		 				memset(&RealTargetPos,0,sizeof(RealTargetPos));
-						CanDef2RealRobot(Joint_Angle_FB, &RealTargetPos);
+						memcpy(&RealTargetPos,&RobotAngleFB,sizeof(RealTargetPos));
 						for(i=0; i<7; i++)
 						{
 							RealTargetPos.LeftArm[i] = 0.0*Degree2Rad;
@@ -2525,7 +2541,7 @@ void rt_can_recv(void *arg)
 		 			}
 		 			else
 		 			{
-			 			return_value = AllJointMove(RealTargetPos,20,1,0,0,0);
+			 			return_value = AllJointMove(RealTargetPos,12,1,0,0,0);
 			 			if(return_value == 0)
 			 			{
 			 				motion_mode = 100;
@@ -2548,7 +2564,7 @@ void rt_can_recv(void *arg)
 		 			}
 		 			else
 		 			{
-			 			return_value = AllJointMove(RealTargetPos,20,1,0,0,0);
+			 			return_value = AllJointMove(RealTargetPos,15,1,0,0,0);
 			 			if(return_value == 0)
 			 			{
 			 				motion_mode = 100;
@@ -2566,8 +2582,8 @@ void rt_can_recv(void *arg)
 		 				first_move_flag = 0;
 		 				moving_flag	= 1;
 
-		 				memset(&RealTargetPos,0,sizeof(RealTargetPos));
-						CanDef2RealRobot(Joint_Angle_FB, &RealTargetPos);
+						memcpy(&RealTargetPos,&RobotAngleFB,sizeof(RealTargetPos));
+
 						RealTargetPos.LeftArm[0] = -45*Degree2Rad;
 						RealTargetPos.LeftArm[1] = 60*Degree2Rad;
 						RealTargetPos.LeftArm[2] = 0*Degree2Rad;
@@ -2585,7 +2601,7 @@ void rt_can_recv(void *arg)
 		 			}
 		 			else
 		 			{
-			 			return_value = AllJointMove(RealTargetPos,20,1,0,0,0);
+			 			return_value = AllJointMove(RealTargetPos,12,1,0,0,0);
 			 			if(return_value == 0)
 			 			{
 			 				motion_mode = 100;
@@ -2776,11 +2792,22 @@ void rt_can_recv(void *arg)
 							break;
 
 							case 2:
-								ForceNewDataL = GetData(1,ForceDataL);				// twice get a data
+							{
+								ForceNewDataL = GetData(1,ForceDataRAWL);				// twice get a data
+								double Angle[7];
+								int i;
+
+								for (i = 0; i < 7; i++)
+								{
+									Angle[i] = RobotAngleFB.LeftArm[i];
+								}
+								ForceCompensationL(ForceDataRAWL, Angle, ForceDataL);
 
 								sprintf(buf21, "*********************************  Robot Force *********************************");
 
 								sprintf(buf22, "ForceL:   %8.3f  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f",ForceDataL[0],ForceDataL[1],ForceDataL[2],ForceDataL[3],ForceDataL[4],ForceDataL[5]);
+
+							}
 							break;
 							default:
 							break;
@@ -2809,9 +2836,19 @@ void rt_can_recv(void *arg)
 							break;
 
 							case 2:
-								ForceNewDataR = GetData(2,ForceDataR);				// twice get a data
+							{
+								ForceNewDataR = GetData(2,ForceDataRAWR);				// twice get a data
+								double Angle[7];
+								int i;
+
+								for (i = 0; i < 7; i++)
+								{
+									Angle[i] = RobotAngleFB.RightArm[i];
+								}
+								ForceCompensationR(ForceDataRAWR, Angle, ForceDataR);
 
 								sprintf(buf23, "ForceR:   %8.3f  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f",ForceDataR[0],ForceDataR[1],ForceDataR[2],ForceDataR[3],ForceDataR[4],ForceDataR[5]);
+							}
 							break;
 							default:
 							break;
@@ -2860,8 +2897,7 @@ void rt_can_recv(void *arg)
 
 							if(FirstForceControlL == 1)
 							{
-								memset(&OneArmStart,0,sizeof(OneArmStart));
-								CanDef2RealRobot(Joint_Angle_FB_degree, &OneArmStart);
+								memcpy(&OneArmStart,&RobotAngleFBDeg,sizeof(OneArmStart));
 								/*A6D_Joint_PL[0] = 0.0;
 								A6D_Joint_PL[1] = 20.0;
 								A6D_Joint_PL[2] = 0.0;
@@ -3007,8 +3043,7 @@ void rt_can_recv(void *arg)
 
 							if(FirstForceControlR == 1)
 							{
-								memset(&OneArmStart,0,sizeof(OneArmStart));
-								CanDef2RealRobot(Joint_Angle_FB_degree, &OneArmStart);
+								memcpy(&OneArmStart,&RobotAngleFBDeg,sizeof(OneArmStart));
 							/*	A6D_Joint_PR[0] = 0.0;
 								A6D_Joint_PR[1] = -20.0;
 								A6D_Joint_PR[2] = 0.0;
@@ -3121,9 +3156,12 @@ void rt_can_recv(void *arg)
 			 	{
 			 		//**********************    读取力传感器数据   *****************************//
 					int ForceNewDataL = 0;
+
 					double ForceDataL[6] = {0.0};
+					double ForceDataRAWL[6] = {0.0};
 					int ForceNewDataR = 0;
 					double ForceDataR[6] = {0.0};
+					double ForceDataRAWR[6] = {0.0};
 					// 左臂读数
 					if(ForceTCPFlagL <= 0)
 					{
@@ -3146,11 +3184,22 @@ void rt_can_recv(void *arg)
 							break;
 
 							case 2:
-								ForceNewDataL = GetData(1,ForceDataL);				// twice get a data
+							{
+								ForceNewDataL = GetData(1,ForceDataRAWL);				// twice get a data
+								double Angle[7];
+								int i;
+
+								for (i = 0; i < 7; i++)
+								{
+									Angle[i] = RobotAngleFB.LeftArm[i];
+								}
+								ForceCompensationL(ForceDataRAWL, Angle, ForceDataL);
 
 								sprintf(buf21, "*********************************  Robot Force *********************************");
 
 								sprintf(buf22, "ForceL:   %8.3f  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f",ForceDataL[0],ForceDataL[1],ForceDataL[2],ForceDataL[3],ForceDataL[4],ForceDataL[5]);
+
+							}
 							break;
 							default:
 							break;
@@ -3179,10 +3228,19 @@ void rt_can_recv(void *arg)
 							break;
 
 							case 2:
-								ForceNewDataR = GetData(2,ForceDataR);				// twice get a data
+							{
+								ForceNewDataR = GetData(2,ForceDataRAWR);				// twice get a data
+								double Angle[7];
+								int i;
+
+								for (i = 0; i < 7; i++)
+								{
+									Angle[i] = RobotAngleFB.RightArm[i];
+								}
+								ForceCompensationR(ForceDataRAWR, Angle, ForceDataR);
 
 								sprintf(buf23, "ForceR:   %8.3f  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f",ForceDataR[0],ForceDataR[1],ForceDataR[2],ForceDataR[3],ForceDataR[4],ForceDataR[5]);
-							break;
+							}							break;
 							default:
 							break;
 						}
@@ -3199,8 +3257,7 @@ void rt_can_recv(void *arg)
 								first_move_flag = 0;
 								moving_flag	= 1;
 
-								memset(&RealTargetPos,0,sizeof(RealTargetPos));
-								CanDef2RealRobot(Joint_Angle_FB, &RealTargetPos);
+								memcpy(&RealTargetPos,&RobotAngleFB,sizeof(RealTargetPos));
 								RealTargetPos.LeftArm[0] = -45*Degree2Rad;
 								RealTargetPos.LeftArm[1] = 60*Degree2Rad;
 								RealTargetPos.LeftArm[2] = 0*Degree2Rad;
@@ -3218,7 +3275,7 @@ void rt_can_recv(void *arg)
 							}
 							else
 							{
-								return_value = AllJointMove(RealTargetPos,20,1,0,0,0);
+								return_value = AllJointMove(RealTargetPos,5,1,0,0,0);
 								if(return_value == 0)
 								{
 									DutyStep = 2;
@@ -3236,9 +3293,8 @@ void rt_can_recv(void *arg)
 							static int fisrtBalanceFlag = 1;
 							if(RemoteMotion_enable_flag == 0)
 							{
-								memset(&RemoteRobotPos_deg,0,sizeof(RemoteRobotPos_deg));
 								memset(&RemoteCrtPos_deg,0,sizeof(RemoteCrtPos_deg));
-								CanDef2RealRobot(Joint_Angle_FB_degree, &RemoteRobotPos_deg);
+								memcpy(&RemoteRobotPos_deg,&RobotAngleFBDeg,sizeof(RemoteRobotPos_deg));
 								for(i_R=0;i_R<7;i_R++)
 								{
 									RemoteCrtPos_deg.LeftArm[i_R] = RemoteMotionData[i_R];
@@ -3304,8 +3360,10 @@ void rt_can_recv(void *arg)
 									RemoteRobotPos_deg.RightArm[i_R] = cubicInterpolate(i_R+7);
 								}
 
+								static double testangle = 60;
+								testangle-= FDeltaT*2;
 								RemoteRobotPos_deg.LeftArm[0] = -45;
-								RemoteRobotPos_deg.LeftArm[1] = 60;
+								RemoteRobotPos_deg.LeftArm[1] = testangle;
 								RemoteRobotPos_deg.LeftArm[2] = 0;
 								RemoteRobotPos_deg.LeftArm[3] = 30;
 								RemoteRobotPos_deg.LeftArm[4] = 0;
@@ -3340,27 +3398,6 @@ void rt_can_recv(void *arg)
 										double RemoteTend[4][4];	// 遥操作末端位姿
 										KinL(Angle, RemoteTend);	// input: rad  output: mm
 
-									/*	static double F_BalancePos_last[3] = {0.0, 0.0, 0.0};	// unit: mm
-										double deltaBalancePos[6];
-										if(fisrtBalanceFlag == 1)
-										{
-											fisrtBalanceFlag = 0;
-											F_BalancePos_last[0] = RemoteTend[0][3];
-											F_BalancePos_last[1] = RemoteTend[1][3];
-											F_BalancePos_last[2] = RemoteTend[2][3];
-										}
-
-										deltaBalancePos[0] = RemoteTend[0][3] - F_BalancePos_last[0];
-										deltaBalancePos[1] = RemoteTend[1][3] - F_BalancePos_last[1];
-										deltaBalancePos[2] = RemoteTend[2][3] - F_BalancePos_last[2];
-										deltaBalancePos[3] = 0.0;
-										deltaBalancePos[4] = 0.0;
-										deltaBalancePos[5] = 0.0;
-
-										F_BalancePos_last[0] = RemoteTend[0][3];
-										F_BalancePos_last[1] = RemoteTend[1][3];
-										F_BalancePos_last[2] = RemoteTend[2][3];	*/
-
 										// 计算阻抗控制下，此步移动量
 										for(i_R=0;i_R<6;i_R++)
 										{
@@ -3393,8 +3430,7 @@ void rt_can_recv(void *arg)
 
 										if(FirstForceControlL == 1)
 										{
-											memset(&OneArmStart,0,sizeof(OneArmStart));
-											CanDef2RealRobot(Joint_Angle_FB_degree, &OneArmStart);
+											memcpy(&OneArmStart,&RobotAngleFBDeg,sizeof(OneArmStart));
 											for(i_R=0;i_R<7;i_R++)
 											{
 												A6D_Joint_PL[i_R] = OneArmStart.LeftArm[i_R];
@@ -3416,17 +3452,17 @@ void rt_can_recv(void *arg)
 
 										matrix_multiply(RemoteTend,TotalDeltaT,TempT);
 
-										struct RealRobot_Struct Now;
-										memset(&Now,0,sizeof(Now));
-										CanDef2RealRobot(Joint_Angle_FB, &Now);
 										double AngleLNow[7];
 										for(i_R=0; i_R<7; i_R++)
 										{
-											AngleLNow[i_R] = Now.LeftArm[i_R];
+										//	AngleLNow[i_R] = RobotAngleFB.LeftArm[i_R];
+											AngleLNow[i_R] = RemoteRobotPos_deg.LeftArm[i_R]*Degree2Rad;
 										}
 										double betaL;
+
 										betaL = Beta_CalL(AngleLNow);	// input: rad
 										invKinL(AngleLNow, TempT, betaL, A6D_Joint_PL);	// input:
+
 
 									/*	double A6D_VmmL[6];
 										A6D_VmmL[0] = A6D_VL[0]*1000;		// change into mm/s
@@ -3817,60 +3853,51 @@ void rt_can_recv(void *arg)
 		/********************** UDP通讯相关 End ***************************/
 
 		/************************* 界面显示 **************************/
-		struct RealRobot_Struct AngleFBDeg;
-		struct RealRobot_Struct AngleEPDeg;
-		struct RealRobot_Struct AngleERDeg;
-		struct RealRobot_Struct RealCurrent;
-		memset(&AngleFBDeg,0,sizeof(AngleFBDeg));
-		memset(&AngleEPDeg,0,sizeof(AngleEPDeg));
-		memset(&AngleERDeg,0,sizeof(AngleERDeg));
-		memset(&RealCurrent,0,sizeof(RealCurrent));
 
-		CanDef2RealRobot(Joint_Angle_FB_degree, &AngleFBDeg);
-		CanDef2RealRobot(Joint_Angle_EP_degree, &AngleEPDeg);
-		CanDef2RealRobot(Joint_Angle_ER_degree, &AngleERDeg);
-		CanDef2RealRobot(motor_current, &RealCurrent);
+		memset(&RobotRealCurrent,0,sizeof(RobotRealCurrent));
+
+		CanDef2RealRobot(motor_current, &RobotRealCurrent);
 
 		sprintf(buf2, "Voltage:  %8.3f    Current:  %8.3f",VoltageFB,CurrentFB);
 		sprintf(buf3, "******************************  Robot Joint Angle  ******************************");
 
 		sprintf(buf4, "LArmRecv  %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f  %8.3f",
-		AngleFBDeg.LeftArm[0], AngleFBDeg.LeftArm[1], AngleFBDeg.LeftArm[2], AngleFBDeg.LeftArm[3], AngleFBDeg.LeftArm[4], AngleFBDeg.LeftArm[5], AngleFBDeg.LeftArm[6]);
+		RobotAngleFBDeg.LeftArm[0], RobotAngleFBDeg.LeftArm[1], RobotAngleFBDeg.LeftArm[2], RobotAngleFBDeg.LeftArm[3], RobotAngleFBDeg.LeftArm[4], RobotAngleFBDeg.LeftArm[5], RobotAngleFBDeg.LeftArm[6]);
 		sprintf(buf5, "LArmSend  %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f  %8.3f",
-		AngleEPDeg.LeftArm[0], AngleEPDeg.LeftArm[1], AngleEPDeg.LeftArm[2], AngleEPDeg.LeftArm[3], AngleEPDeg.LeftArm[4], AngleEPDeg.LeftArm[5], AngleEPDeg.LeftArm[6]);
+		RobotAngleEPDeg.LeftArm[0], RobotAngleEPDeg.LeftArm[1], RobotAngleEPDeg.LeftArm[2], RobotAngleEPDeg.LeftArm[3], RobotAngleEPDeg.LeftArm[4], RobotAngleEPDeg.LeftArm[5], RobotAngleEPDeg.LeftArm[6]);
 		sprintf(buf6, "LArmErr   %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f  %8.3f",
-		AngleERDeg.LeftArm[0], AngleERDeg.LeftArm[1], AngleERDeg.LeftArm[2], AngleERDeg.LeftArm[3], AngleERDeg.LeftArm[4], AngleERDeg.LeftArm[5], AngleERDeg.LeftArm[6]);
+		RobotAngleERDeg.LeftArm[0], RobotAngleERDeg.LeftArm[1], RobotAngleERDeg.LeftArm[2], RobotAngleERDeg.LeftArm[3], RobotAngleERDeg.LeftArm[4], RobotAngleERDeg.LeftArm[5], RobotAngleERDeg.LeftArm[6]);
 
 		sprintf(buf7, "RArmRecv  %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f  %8.3f",
-		AngleFBDeg.RightArm[0], AngleFBDeg.RightArm[1], AngleFBDeg.RightArm[2], AngleFBDeg.RightArm[3], AngleFBDeg.RightArm[4], AngleFBDeg.RightArm[5], AngleFBDeg.RightArm[6]);
+		RobotAngleFBDeg.RightArm[0], RobotAngleFBDeg.RightArm[1], RobotAngleFBDeg.RightArm[2], RobotAngleFBDeg.RightArm[3], RobotAngleFBDeg.RightArm[4], RobotAngleFBDeg.RightArm[5], RobotAngleFBDeg.RightArm[6]);
 		sprintf(buf8, "RArmSend  %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f  %8.3f",
-		AngleEPDeg.RightArm[0], AngleEPDeg.RightArm[1], AngleEPDeg.RightArm[2], AngleEPDeg.RightArm[3], AngleEPDeg.RightArm[4], AngleEPDeg.RightArm[5], AngleEPDeg.RightArm[6]);
+		RobotAngleEPDeg.RightArm[0], RobotAngleEPDeg.RightArm[1], RobotAngleEPDeg.RightArm[2], RobotAngleEPDeg.RightArm[3], RobotAngleEPDeg.RightArm[4], RobotAngleEPDeg.RightArm[5], RobotAngleEPDeg.RightArm[6]);
 		sprintf(buf9, "RArmErr   %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f  %8.3f",
-		AngleERDeg.RightArm[0], AngleERDeg.RightArm[1], AngleERDeg.RightArm[2], AngleERDeg.RightArm[3], AngleERDeg.RightArm[4], AngleERDeg.RightArm[5], AngleERDeg.RightArm[6]);
+		RobotAngleERDeg.RightArm[0], RobotAngleERDeg.RightArm[1], RobotAngleERDeg.RightArm[2], RobotAngleERDeg.RightArm[3], RobotAngleERDeg.RightArm[4], RobotAngleERDeg.RightArm[5], RobotAngleERDeg.RightArm[6]);
 
 		sprintf(buf10, "LHandRecv %8.3f  %8.3f  %8.3f  %8.3f    HeadRecv:%8.3f  %8.3f",
-		AngleFBDeg.LeftHand[0], AngleFBDeg.LeftHand[1], AngleFBDeg.LeftHand[2], AngleFBDeg.LeftHand[3], AngleFBDeg.Head[0], AngleFBDeg.Head[1]);
+		RobotAngleFBDeg.LeftHand[0], RobotAngleFBDeg.LeftHand[1], RobotAngleFBDeg.LeftHand[2], RobotAngleFBDeg.LeftHand[3], RobotAngleFBDeg.Head[0], RobotAngleFBDeg.Head[1]);
 		sprintf(buf11, "LHandSend %8.3f  %8.3f  %8.3f  %8.3f    HeadSend:%8.3f  %8.3f",
-		AngleEPDeg.LeftHand[0], AngleEPDeg.LeftHand[1], AngleEPDeg.LeftHand[2], AngleEPDeg.LeftHand[3], AngleEPDeg.Head[0], AngleEPDeg.Head[1]);
+		RobotAngleEPDeg.LeftHand[0], RobotAngleEPDeg.LeftHand[1], RobotAngleEPDeg.LeftHand[2], RobotAngleEPDeg.LeftHand[3], RobotAngleEPDeg.Head[0], RobotAngleEPDeg.Head[1]);
 		sprintf(buf12, "LHandErr  %8.3f  %8.3f  %8.3f  %8.3f    HeadErr: %8.3f  %8.3f",
-		AngleERDeg.LeftHand[0], AngleERDeg.LeftHand[1], AngleERDeg.LeftHand[2], AngleERDeg.LeftHand[3], AngleERDeg.Head[0], AngleERDeg.Head[1]);
+		RobotAngleERDeg.LeftHand[0], RobotAngleERDeg.LeftHand[1], RobotAngleERDeg.LeftHand[2], RobotAngleERDeg.LeftHand[3], RobotAngleERDeg.Head[0], RobotAngleERDeg.Head[1]);
 
 		sprintf(buf13, "RHandRecv %8.3f  %8.3f  %8.3f  %8.3f    WaistRecv:%7.3f  %8.3f",
-		AngleFBDeg.RightHand[0], AngleFBDeg.RightHand[1], AngleFBDeg.RightHand[2], AngleFBDeg.RightHand[3], AngleFBDeg.Waist[0], AngleFBDeg.Waist[1]);
+		RobotAngleFBDeg.RightHand[0], RobotAngleFBDeg.RightHand[1], RobotAngleFBDeg.RightHand[2], RobotAngleFBDeg.RightHand[3], RobotAngleFBDeg.Waist[0], RobotAngleFBDeg.Waist[1]);
 		sprintf(buf14, "RHandSend %8.3f  %8.3f  %8.3f  %8.3f    WaistSend:%7.3f  %8.3f",
-		AngleEPDeg.RightHand[0], AngleEPDeg.RightHand[1], AngleEPDeg.RightHand[2], AngleEPDeg.RightHand[3], AngleEPDeg.Waist[0], AngleEPDeg.Waist[1]);
+		RobotAngleEPDeg.RightHand[0], RobotAngleEPDeg.RightHand[1], RobotAngleEPDeg.RightHand[2], RobotAngleEPDeg.RightHand[3], RobotAngleEPDeg.Waist[0], RobotAngleEPDeg.Waist[1]);
 		sprintf(buf15, "RHandErr  %8.3f  %8.3f  %8.3f  %8.3f    WaistErr: %7.3f  %8.3f",
-		AngleERDeg.RightHand[0], AngleERDeg.RightHand[1], AngleERDeg.RightHand[2], AngleERDeg.RightHand[3], AngleERDeg.Waist[0], AngleERDeg.Waist[1]);
+		RobotAngleERDeg.RightHand[0], RobotAngleERDeg.RightHand[1], RobotAngleERDeg.RightHand[2], RobotAngleERDeg.RightHand[3], RobotAngleERDeg.Waist[0], RobotAngleERDeg.Waist[1]);
 
 		sprintf(buf16, "*********************************  Robot current *********************************");
 		sprintf(buf17, "LArmCur   %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f  %8.3f",
-		RealCurrent.LeftArm[0], RealCurrent.LeftArm[1], RealCurrent.LeftArm[2], RealCurrent.LeftArm[3], RealCurrent.LeftArm[4], RealCurrent.LeftArm[5], RealCurrent.LeftArm[6]);
+		RobotRealCurrent.LeftArm[0], RobotRealCurrent.LeftArm[1], RobotRealCurrent.LeftArm[2], RobotRealCurrent.LeftArm[3], RobotRealCurrent.LeftArm[4], RobotRealCurrent.LeftArm[5], RobotRealCurrent.LeftArm[6]);
 		sprintf(buf18, "RArmCur   %8.3f  %8.3f  %8.3f  %8.3f   %8.3f  %8.3f  %8.3f",
-		RealCurrent.RightArm[0], RealCurrent.RightArm[1], RealCurrent.RightArm[2], RealCurrent.RightArm[3], RealCurrent.RightArm[4], RealCurrent.RightArm[5], RealCurrent.RightArm[6]);
+		RobotRealCurrent.RightArm[0], RobotRealCurrent.RightArm[1], RobotRealCurrent.RightArm[2], RobotRealCurrent.RightArm[3], RobotRealCurrent.RightArm[4], RobotRealCurrent.RightArm[5], RobotRealCurrent.RightArm[6]);
 		sprintf(buf19, "LHandCur  %8.3f  %8.3f  %8.3f  %8.3f    HeadCur: %8.3f  %8.3f",
-		RealCurrent.LeftHand[0], RealCurrent.LeftHand[1], RealCurrent.LeftHand[2], RealCurrent.LeftHand[3], RealCurrent.Head[0], RealCurrent.Head[1]);
+		RobotRealCurrent.LeftHand[0], RobotRealCurrent.LeftHand[1], RobotRealCurrent.LeftHand[2], RobotRealCurrent.LeftHand[3], RobotRealCurrent.Head[0], RobotRealCurrent.Head[1]);
 		sprintf(buf20, "RHandCur  %8.3f  %8.3f  %8.3f  %8.3f    WaistCur:%8.3f  %8.3f",
-		RealCurrent.RightHand[0], RealCurrent.RightHand[1], RealCurrent.RightHand[2], RealCurrent.RightHand[3], RealCurrent.Waist[0], RealCurrent.Waist[1]);
+		RobotRealCurrent.RightHand[0], RobotRealCurrent.RightHand[1], RobotRealCurrent.RightHand[2], RobotRealCurrent.RightHand[3], RobotRealCurrent.Waist[0], RobotRealCurrent.Waist[1]);
 
 	}
 	GPS_end();
