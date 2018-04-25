@@ -170,7 +170,7 @@ int can_channel_number = 4;
 						{0, 0, 0, 0, 1, 1, 1},
 						{1, 1, 1, 1, 1, 1, 0},
 						{1, 1, 1, 1, 1, 1, 1}};*/
-int can_switch[4][7] = {{0, 0, 0, 0, 0, 0, 0},
+int can_switch[4][7] = {{0, 1, 1, 1, 0, 0, 0},
 						{1, 1, 1, 1, 1, 1, 1},
 						{0, 0, 1, 1, 0, 0, 0},
 						{0, 0, 1, 1, 0, 0, 1}};
@@ -459,11 +459,11 @@ int AllJointMove(struct RealRobot_Struct RealPos, double time, int joint, int ha
 				sleeptime.tv_nsec = 150000;
 				sleeptime.tv_sec = 0;
 				nanosleep(&sleeptime,NULL);
-				rad_send(2, 6, Joint_Angle_EP[2][6]);
+				rad_send(0, 6, Joint_Angle_EP[0][6]);
 				sleeptime.tv_nsec = 250000;
 				sleeptime.tv_sec = 0;
 				nanosleep(&sleeptime,NULL);
-				rad_send(3, 6, Joint_Angle_EP[3][6]);
+				rad_send(1, 6, Joint_Angle_EP[1][6]);
 				sleeptime.tv_nsec = 100000;
 				sleeptime.tv_sec = 0;
 				nanosleep(&sleeptime,NULL);
@@ -1519,16 +1519,17 @@ void rt_can_recv(void *arg)
 						{
 							printf("Detect collision!\n");
 							NoCollisionFlag = 0;
+							RemoteMotion_enable_flag = 0;
 						}
 						else
 						{
-							printf("No collision!\n");
+						//	printf("No collision!\n");
 							NoCollisionFlag = 1;
 						}
 
-						if(motion_enable_flag == 1)
+						if(motion_enable_flag == 1&&NoCollisionFlag==1)
 						{
-						/*	rad_send(0, 4, Joint_Angle_EP[0][4]);
+							rad_send(0, 4, Joint_Angle_EP[0][4]);
 							sleeptime.tv_nsec = 250000;
 							sleeptime.tv_sec = 0;
 							nanosleep(&sleeptime,NULL);
@@ -1555,7 +1556,7 @@ void rt_can_recv(void *arg)
 							rad_send(3, 1, Joint_Angle_EP[3][1]);
 							sleeptime.tv_nsec = 8000;
 							sleeptime.tv_sec = 0;
-							nanosleep(&sleeptime,NULL);*/
+							nanosleep(&sleeptime,NULL);
 
 							rad_send(1, 4, Joint_Angle_EP[1][4]);
 							sleeptime.tv_nsec = 250000;
