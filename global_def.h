@@ -70,7 +70,8 @@
 #define DUTY_START			0xB1
 #define DUTY_STOP			0xB2
 #define DUTY_RUN			0xB3
-
+#define DUTY_FORCESTART		0xB4
+#define DUTY_FORCESTOP		0xB5
 
 #define GLOABL_DEF
 #endif

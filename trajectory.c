@@ -1450,7 +1450,10 @@ int CollisionDetection(float jL[7],float jR[7],float jW[2])
 		{
 			ReLR[i][j] = OBB_Collision(OBB_ArmL[i],OBB_ArmR[j]);
 			if (ReLR[i][j] == 0)
+			{
 			    TestResult = 0;
+			    printf("Detect colission between two arm at ReLR[%d][%d]\n",i,j);
+			}
 		}
 	}
 
@@ -1464,7 +1467,10 @@ int CollisionDetection(float jL[7],float jR[7],float jW[2])
 			ReLB[0][0] = 1;
 			ReRB[0][0] = 1;
 			if ((ReLB[i][j] == 0)||(ReRB[i][j] == 0))
+			{
 				TestResult = 0;
+				printf("Detect colission between arm and base at ReLB[%d][%d]=%lf, ReRB[%d][%d]=%lf\n",i,j,ReLB[i][j],i,j,ReRB[i][j]);
+			}
 		}
 	}
 	//结果为0表示发生碰撞，结果为1表示未发生碰撞
