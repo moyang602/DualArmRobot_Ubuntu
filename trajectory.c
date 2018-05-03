@@ -2597,6 +2597,62 @@ void delta2tr(double delta[6], double tr[4][4])
 	}
 }
 
+// 矩阵转换为差分运动
+/*void tr2delta(double T0[4][4], double T1[4][4], double delta[6])
+{
+	delta[0] = T1[0][3] - T0[0][3];
+	delta[1] = T1[1][3] - T0[1][3];
+	delta[2] = T1[2][3] - T0[2][3];
+
+	double temp[4][4];
+	matrix_multiply(T1, T0, temp);
+
+	delta[3] = 0.5*(temp[2][1] - temp[1][2]);
+	delta[4] = 0.5*(temp[0][2] - temp[2][0]);
+	delta[5] = 0.5*(temp[1][0] - temp[0][2]);
+}*/
+void tr2delta(double R[3][3], double P[3], double delta[6])
+{
+	delta[0] = P[0];
+	delta[1] = P[1];
+	delta[2] = P[2];
+	delta[3] = 0.5*(R[2][1] - R[1][2]);
+	delta[4] = 0.5*(R[0][2] - R[2][0]);
+	delta[5] = 0.5*(R[1][0] - R[0][2]);
+	return;
+}
+
+void tr2rt(double Tr[4][4], double R[3][3], double T[3])
+{
+	int i,j;
+	for(i=0;i<3;i++)
+	{
+		for(j=0;j<3;j++)
+		{
+			R[i][j] = Tr[i][j];
+		}
+		T[i] = Tr[i][3];
+	}
+	return;
+}
+void rt2tr(double R[3][3], double T[3], double Tr[4][4])
+{
+	int i,j;
+	for(i=0;i<3;i++)
+	{
+		for(j=0;j<3;j++)
+		{
+			Tr[i][j] = R[i][j];
+		}
+		Tr[i][3] = T[i];
+	}
+	Tr[3][0] = 0.0;
+	Tr[3][1] = 0.0;
+	Tr[3][2] = 0.0;
+	Tr[3][3] = 1.0;
+	return;
+}
+
 void Matrix_Trans3(double MA[3][3], double MB[3][3])
 {
 	int i = 0;

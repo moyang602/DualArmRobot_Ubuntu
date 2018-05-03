@@ -40,6 +40,13 @@ int ChooseSolve(double Angle_now[7], double Solve[4][7]);	// input: rad
 
 // 差分运动转换为矩阵
 void delta2tr(double delta[6], double tr[4][4]);
+// 矩阵转换为差分运动
+//void tr2delta(double T0[4][4], double T1[4][4], double delta[6]);
+void tr2delta(double R[3][3], double P[3], double delta[6]);
+
+void tr2rt(double Tr[4][4], double R[3][3], double T[3]);
+void rt2tr(double R[3][3], double T[3], double Tr[4][4]);
+
 // 将旋转矩阵正交单位化
 void Schmidt(double Raw[4][4], double Out[4][4]);
 void Matrix_Trans3(double MA[3][3], double MB[3][3]);
