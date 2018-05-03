@@ -2995,7 +2995,7 @@ void rt_can_recv(void *arg)
 						FirstForceControlL = 1;
 					}
 
-				
+
 					if(ForceControl_flagR == 1&& ForceNewDataR==1)	//右臂control
 					{
 						int position_change_flagR = 1;
@@ -3305,7 +3305,7 @@ void rt_can_recv(void *arg)
 									cubic[i_R].interpolationRate = 0.24/time_interval + 1;
 									cubic[i_R].interpolationIncrement = 0.24/(double)(cubic[i_R].interpolationRate - 1);
 								}
-						
+
 								// 清空阻抗控制器
 								for(i_R=0;i_R<6;i_R++)
 								{
@@ -3382,8 +3382,8 @@ void rt_can_recv(void *arg)
 										ForceDataL[i_R] = 0;
 										ForceDataR[i_R] = 0;
 									}
-									FirstForceControlL == 1
-									FirstForceControlR == 1
+									FirstForceControlL == 1;
+									FirstForceControlR == 1;
 								}
 
 								// 当采集到力传感器数据时进行力控制
@@ -3409,16 +3409,16 @@ void rt_can_recv(void *arg)
 										{
 											// 力控输出角等于当前关节角
 											memcpy(&OneArmStart,&RobotAngleFBDeg,sizeof(OneArmStart));
-										//	A6D_Joint_PL[0] = -45.0;
-										//	A6D_Joint_PL[1] = 60.0;
-										//	A6D_Joint_PL[2] = 0.0;
-										//	A6D_Joint_PL[3] = 30.0;
-										//	A6D_Joint_PL[4] = 0.0;
-										//	A6D_Joint_PL[5] = 30.0;
-										//	A6D_Joint_PL[6] = 0.0;
+											A6D_Joint_PL[0] = -45.0;
+											A6D_Joint_PL[1] = 60.0;
+											A6D_Joint_PL[2] = 0.0;
+											A6D_Joint_PL[3] = 30.0;
+											A6D_Joint_PL[4] = 0.0;
+											A6D_Joint_PL[5] = 30.0;
+											A6D_Joint_PL[6] = 0.0;
 											for(i_R=0;i_R<7;i_R++)
 											{
-												A6D_Joint_PL[i_R] = OneArmStart.LeftArm[i_R];
+											//	A6D_Joint_PL[i_R] = OneArmStart.LeftArm[i_R];
 												A6D_Joint_VL[i_R] = 0;
 											}
 											// 计算初始力控末端位姿
@@ -3436,25 +3436,17 @@ void rt_can_recv(void *arg)
 
 										// 计算这次相对于上次在基坐标系下的变化矩阵
 										double invT[4][4];
-										inv_matrix(RemoteTend, invT);
+										inv_matrix(RemoteTendLast, invT);
 										double deltaT0[4][4];
-										matrix_multiply(invT, RemoteTendLast, deltaT0);
+										matrix_multiply(invT, RemoteTend, deltaT0);
+										printf("deltaT0:%lf %lf %lf %lf\n %lf %lf %lf %lf\n %lf %lf %lf %lf\n",deltaT0[0][0],deltaT0[0][1],deltaT0[0][2],deltaT0[0][3],deltaT0[1][0],deltaT0[1][1],deltaT0[1][2],deltaT0[1][3],deltaT0[2][0],deltaT0[2][1],deltaT0[2][2],deltaT0[2][3]);
 										// 计算基坐标系下的旋转矩阵与位移
-										double R0[3][3];
-										double T0[3];
-										tr2rt(deltaT0, R0, T0);
-										// 计算基坐标系在末端坐标系下的旋转矩阵
-										double TOE[4][4];
-										inv_matrix(RemoteTend,TOE);
-										double ROE[3][3],POE[3];
-										tr2rt(TOE, ROE, POE);
+										double RO[3][3];
+										double TO[3];
+										tr2rt(deltaT0, RO, TO);
 										// 计算在末端坐标系下的变化量
-										double deltaR[3][3];
-										double deltaP[3];
-										Matrix_Multiply(3,3,3,*ROE, *R0, *deltaR);
-										Matrix_Multiply(3,3,1,*ROE, T0, deltaP);
 										double deltaD[6];
-										tr2delta(deltaR, deltaP, deltaD);
+										tr2delta(RO, TO, deltaD);
 										deltaD[0] = deltaD[0]/1000.0;
 										deltaD[1] = deltaD[1]/1000.0;
 										deltaD[2] = deltaD[2]/1000.0;
@@ -3485,7 +3477,7 @@ void rt_can_recv(void *arg)
 											}
 										}
 
-										
+
 										double InvJacobinNowL[7][6] = {0.0};
 										InvJacobianL(A6D_Joint_PL, InvJacobinNowL);		// 雅可比奇异情况呢
 										double A6D_VmmL[6];
@@ -3520,7 +3512,7 @@ void rt_can_recv(void *arg)
 										{
 											A6D_Joint_PL[i_R] += A6D_Joint_VL[i_R]*FDeltaT*Rad2Degree;
 										}
-								
+
 										Joint_Angle_EP[2][0] = JointDetect(2, 0, A6D_Joint_PL[0]*Degree2Rad);
 										Joint_Angle_EP[3][0] = JointDetect(3, 0, A6D_Joint_PL[1]*Degree2Rad);
 										Joint_Angle_EP[3][1] = JointDetect(3, 1, A6D_Joint_PL[2]*Degree2Rad);
@@ -3665,7 +3657,7 @@ void rt_can_recv(void *arg)
 										{
 											A6D_Joint_PL[i_R] = RemoteRobotPos_deg.LeftArm[i_R] + A6D_Joint_VL[i_R]*FDeltaT*Rad2Degree;
 										}
-								
+
 										Joint_Angle_EP[2][0] = JointDetect(2, 0, A6D_Joint_PL[0]*Degree2Rad);
 										Joint_Angle_EP[3][0] = JointDetect(3, 0, A6D_Joint_PL[1]*Degree2Rad);
 										Joint_Angle_EP[3][1] = JointDetect(3, 1, A6D_Joint_PL[2]*Degree2Rad);
