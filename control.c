@@ -327,7 +327,7 @@ double A6D_K[6] = {150, 150, 200, 3, 3, 3};			/*刚度A6D_wn.^2.*A6D_m*/
 double A6D_C[6] = {1, 1, 1, 1, 1, 1};			/*阻尼系数 2.*A6D_ep.*A6D_wn.*A6D_m      ep*2*sqrt(k*m)*/
 int A6D_enable[6] = {1, 1, 1, 1, 1, 1};		/*control end velocity enable*/
 
-double FDeltaT = 0.003;		/*力控周期*/
+double FDeltaT = 0.006;		/*力控周期*/
 double AccL[6] = {0.0};
 double AccR[6] = {0.0};
 double A6D_D_totalL[6] = {0.0};
@@ -3364,15 +3364,22 @@ void rt_can_recv(void *arg)
 									RemoteRobotPos_deg.RightArm[i_R] = cubicInterpolate(i_R+7);
 								}
 
-								static double testangle = 60;
-								testangle-= FDeltaT*0;
+								static double testangle = 0;
+								testangle-= FDeltaT*1;
 								RemoteRobotPos_deg.LeftArm[0] = -45;
-								RemoteRobotPos_deg.LeftArm[1] = testangle;
+								RemoteRobotPos_deg.LeftArm[1] = 60+testangle;
 								RemoteRobotPos_deg.LeftArm[2] = 0;
 								RemoteRobotPos_deg.LeftArm[3] = 30;
 								RemoteRobotPos_deg.LeftArm[4] = 0;
 								RemoteRobotPos_deg.LeftArm[5] = 30;
 								RemoteRobotPos_deg.LeftArm[6] = 0;
+								RemoteRobotPos_deg.RightArm[0] = 45;
+								RemoteRobotPos_deg.RightArm[1] = -60-testangle;
+								RemoteRobotPos_deg.RightArm[2] = 0;
+								RemoteRobotPos_deg.RightArm[3] = -30;
+								RemoteRobotPos_deg.RightArm[4] = 0;
+								RemoteRobotPos_deg.RightArm[5] = -30;
+								RemoteRobotPos_deg.RightArm[6] = 0;
 
 								double force_limit[6] = {80.0, 80.0, 100.0, 7.0, 7.0, 7.0};
 								if(DutyForceFlag==0)	// 任务模式关闭力控时清空力传感器数值
@@ -3401,7 +3408,7 @@ void rt_can_recv(void *arg)
 											break;
 										}
 									}
-
+									static double TotalDeltaT[4][4] = {{1,0,0,0},{0,1,0,0},{0,0,1,0},{0,0,0,1}};
 									if(position_change_flagL == 1)
 									{
 										// 第一次进入力控制时
@@ -3430,7 +3437,7 @@ void rt_can_recv(void *arg)
 
 											FirstForceControlL = 0;
 										}
-										
+
 										// 计算遥操作输入末端位姿
 										double Angle[7];	// unit: rad
 										for(i_R=0;i_R<7;i_R++)
@@ -3468,7 +3475,7 @@ void rt_can_recv(void *arg)
 
 										// 计算阻抗控制末端变换矩阵
 										double deltaTRaw[4][4],deltaT[4][4];
-										static double TotalDeltaT[4][4] = {{1,0,0,0},{0,1,0,0},{0,0,1,0},{0,0,0,1}};
+
 										delta2tr(A6D_PL, deltaTRaw);
 										Schmidt(deltaTRaw, deltaT);
 
@@ -3480,21 +3487,23 @@ void rt_can_recv(void *arg)
 										double TempT[4][4];
 										matrix_multiply(TotalDeltaT, deltaT, TempT);
 										memcpy(TotalDeltaT,TempT,sizeof(TempT));
-									//	printf("TotalDeltaT:%lf %lf %lf %lf\n %lf %lf %lf %lf\n %lf %lf %lf %lf\n",TotalDeltaT[0][0],TotalDeltaT[0][1],TotalDeltaT[0][2],TotalDeltaT[0][3],TotalDeltaT[1][0],TotalDeltaT[1][1],TotalDeltaT[1][2],TotalDeltaT[1][3],TotalDeltaT[2][0],TotalDeltaT[2][1],TotalDeltaT[2][2],TotalDeltaT[2][3]);
+										//printf("TotalDeltaT:%lf %lf %lf %lf\n %lf %lf %lf %lf\n %lf %lf %lf %lf\n",TotalDeltaT[0][0],TotalDeltaT[0][1],TotalDeltaT[0][2],TotalDeltaT[0][3],TotalDeltaT[1][0],TotalDeltaT[1][1],TotalDeltaT[1][2],TotalDeltaT[1][3],TotalDeltaT[2][0],TotalDeltaT[2][1],TotalDeltaT[2][2],TotalDeltaT[2][3]);
 										// 计算叠加阻抗控制后末端矩阵
 										matrix_multiply(RemoteTend,TotalDeltaT,TempT);
 
 										// 通过逆运动学计算当前位姿下关节角
 										double AngleLNow[7];
+										double AngleLBeta[7];
 										for(i_R=0; i_R<7; i_R++)
 										{
 										//	AngleLNow[i_R] = RobotAngleFB.LeftArm[i_R];
 											AngleLNow[i_R] = A6D_Joint_PL[i_R]*Degree2Rad;
-										//	AngleLNow[i_R] = RemoteRobotPos_deg.LeftArm[i_R]*Degree2Rad;
+											AngleLBeta[i_R] = RemoteRobotPos_deg.LeftArm[i_R]*Degree2Rad;
 										}
 										double betaL;
-										betaL = Beta_CalL(AngleLNow);	// input: rad
+										betaL = Beta_CalL(AngleLBeta);	// input: rad
 										invKinL(AngleLNow, TempT, betaL, A6D_Joint_PL);	// input:
+									//	printf("AngleLNow = %f, %f, %f, %f, %f, %f, %f\n", AngleLNow[0],AngleLNow[1],AngleLNow[2],AngleLNow[3],AngleLNow[4],AngleLNow[5],AngleLNow[6]);
 
 										Joint_Angle_EP[2][0] = JointDetect(2, 0, A6D_Joint_PL[0]*Degree2Rad);
 										Joint_Angle_EP[3][0] = JointDetect(3, 0, A6D_Joint_PL[1]*Degree2Rad);
@@ -3505,10 +3514,11 @@ void rt_can_recv(void *arg)
 										Joint_Angle_EP[0][6] = JointDetect(0, 6, A6D_Joint_PL[6]*Degree2Rad);
 									}
 								}
-									
-						/*		if(ForceNewDataR==1)	//右臂control
+
+								if(ForceNewDataR==1)	//右臂control 利用逆运动学进行融合
 								{
 									int position_change_flagR = 1;
+									// 当末端力超过六维力传感器限制时关闭运动控制
 									for(i_R=0; i_R<6; i_R++)
 									{
 										if(fabs(ForceDataR[i_R]) > force_limit[i_R])
@@ -3519,9 +3529,35 @@ void rt_can_recv(void *arg)
 											break;
 										}
 									}
-
+									static double TotalDeltaT[4][4] = {{1,0,0,0},{0,1,0,0},{0,0,1,0},{0,0,0,1}};
 									if(position_change_flagR == 1)
 									{
+										// 第一次进入力控制时
+										if(FirstForceControlR == 1)
+										{
+											// 力控输出角等于当前关节角
+											memcpy(&OneArmStart,&RobotAngleFBDeg,sizeof(OneArmStart));
+											A6D_Joint_PR[0] = 45.0;
+											A6D_Joint_PR[1] = -60.0;
+											A6D_Joint_PR[2] = 0.0;
+											A6D_Joint_PR[3] = -30.0;
+											A6D_Joint_PR[4] = 0.0;
+											A6D_Joint_PR[5] = -30.0;
+											A6D_Joint_PR[6] = 0.0;
+											for(i_R=0;i_R<7;i_R++)
+											{
+											//	A6D_Joint_PR[i_R] = OneArmStart.RightArm[i_R];
+												A6D_Joint_VR[i_R] = 0;
+											}
+											// 初始化总位移矩阵
+											memset(TotalDeltaT,0,sizeof(TotalDeltaT));
+											TotalDeltaT[0][0] = 1;
+											TotalDeltaT[1][1] = 1;
+											TotalDeltaT[2][2] = 1;
+											TotalDeltaT[3][3] = 1;
+
+											FirstForceControlR = 0;
+										}
 
 										// 计算遥操作输入末端位姿
 										double Angle[7];	// unit: rad
@@ -3554,9 +3590,13 @@ void rt_can_recv(void *arg)
 												A6D_PR[i_R] = 0.0;
 											}
 										}
+										A6D_PR[3] = 0.0;
+										A6D_PR[4] = 0.0;
+										A6D_PR[5] = 0.0;
 
+										// 计算阻抗控制末端变换矩阵
 										double deltaTRaw[4][4],deltaT[4][4];
-										static double TotalDeltaT[4][4] = {{1,0,0,0},{0,1,0,0},{0,0,1,0},{0,0,0,1}};
+
 										delta2tr(A6D_PR, deltaTRaw);
 										Schmidt(deltaTRaw, deltaT);
 
@@ -3564,40 +3604,27 @@ void rt_can_recv(void *arg)
 										deltaT[1][3] = deltaT[1][3]*1000;
 										deltaT[2][3] = deltaT[2][3]*1000;  // mm
 
-										if(FirstForceControlR == 1)
-										{
-											memcpy(&OneArmStart,&RobotAngleFBDeg,sizeof(OneArmStart));
-											for(i_R=0;i_R<7;i_R++)
-											{
-												A6D_Joint_PR[i_R] = OneArmStart.RightArm[i_R];
-												A6D_Joint_VR[i_R] = 0;
-											}
-
-											memset(TotalDeltaT,0,sizeof(TotalDeltaT));
-											TotalDeltaT[0][0] = 1;
-											TotalDeltaT[1][1] = 1;
-											TotalDeltaT[2][2] = 1;
-											TotalDeltaT[3][3] = 1;
-
-											FirstForceControlR = 0;
-										}
-
+										// 计算阻抗控制总变换矩阵
 										double TempT[4][4];
 										matrix_multiply(TotalDeltaT, deltaT, TempT);
 										memcpy(TotalDeltaT,TempT,sizeof(TempT));
-
+										//printf("TotalDeltaT:%lf %lf %lf %lf\n %lf %lf %lf %lf\n %lf %lf %lf %lf\n",TotalDeltaT[0][0],TotalDeltaT[0][1],TotalDeltaT[0][2],TotalDeltaT[0][3],TotalDeltaT[1][0],TotalDeltaT[1][1],TotalDeltaT[1][2],TotalDeltaT[1][3],TotalDeltaT[2][0],TotalDeltaT[2][1],TotalDeltaT[2][2],TotalDeltaT[2][3]);
+										// 计算叠加阻抗控制后末端矩阵
 										matrix_multiply(RemoteTend,TotalDeltaT,TempT);
 
+										// 通过逆运动学计算当前位姿下关节角
 										double AngleRNow[7];
+										double AngleRBeta[7];
 										for(i_R=0; i_R<7; i_R++)
 										{
 										//	AngleRNow[i_R] = RobotAngleFB.RightArm[i_R];
 											AngleRNow[i_R] = A6D_Joint_PR[i_R]*Degree2Rad;
+											AngleRBeta[i_R] = RemoteRobotPos_deg.RightArm[i_R]*Degree2Rad;
 										}
 										double betaR;
-
-										betaR = Beta_CalR(AngleRNow);	// input: rad
+										betaR = Beta_CalR(AngleRBeta);	// input: rad
 										invKinR(AngleRNow, TempT, betaR, A6D_Joint_PR);	// input:
+									//	printf("AngleRNow = %f, %f, %f, %f, %f, %f, %f\n", AngleRNow[0],AngleRNow[1],AngleRNow[2],AngleRNow[3],AngleRNow[4],AngleRNow[5],AngleRNow[6]);
 
 										Joint_Angle_EP[2][2] = JointDetect(2, 2, A6D_Joint_PR[0]*Degree2Rad);
 										Joint_Angle_EP[3][2] = JointDetect(3, 2, A6D_Joint_PR[1]*Degree2Rad);
@@ -3608,7 +3635,7 @@ void rt_can_recv(void *arg)
 										Joint_Angle_EP[1][6] = JointDetect(1, 6, A6D_Joint_PR[6]*Degree2Rad);
 									}
 								}
-								*/
+
 
 								if(motion_enable_flag == 1)
 								{
