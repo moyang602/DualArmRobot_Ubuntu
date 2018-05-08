@@ -68,6 +68,10 @@ int set_serial(int fd,int nSpeed,int nBits,char nEvent,int nStop)
             cfsetispeed(&newttys1, B9600);
             cfsetospeed(&newttys1, B9600);
             break;
+        case 19200:
+            cfsetispeed(&newttys1, B19200);
+            cfsetospeed(&newttys1, B19200);
+            break;
         case 115200:
             cfsetispeed(&newttys1, B115200);
             cfsetospeed(&newttys1, B115200);
@@ -111,6 +115,7 @@ int JY901_analyse (unsigned char ucData[],int usLength)
 
     memcpy(chrTemp,ucData,usLength);
     usRxLength += usLength;
+
     int rtn = 0;
     while (usRxLength >= 11)
     {
@@ -141,7 +146,7 @@ int JY901_analyse (unsigned char ucData[],int usLength)
 
 int JY901_init()
 {
-    char *dev_name="/dev/ttyUSB0";
+    char *dev_name="/dev/ttyUSB1";
 
     if((fd_JY901=open(dev_name,O_RDWR|O_NOCTTY|O_NDELAY))<0)
     {
@@ -149,7 +154,7 @@ int JY901_init()
         return -1;
     }
     printf("The ttyUSB0 Serial Port open successfully!\n");
-    set_serial(fd_JY901,9600,8,'N',1);
+    set_serial(fd_JY901,19200,8,'N',1);
     return 0;
 }
 
@@ -207,7 +212,7 @@ int gps_analyse (char *buff,GPRMC *gps_data)
 
 int GPS_init()
 {
-    char *dev_name="/dev/ttyUSB1";
+    char *dev_name="/dev/ttyUSB0";
 
     if((fd_GPS=open(dev_name,O_RDWR|O_NOCTTY|O_NDELAY))<0)
     {
@@ -232,7 +237,7 @@ int GPS_GetData(double *latitude, double *longitude)
        *longitude = 0.0;
        return -1;
     }
-    printf("n = %d\n",n);
+    //printf("n = %d\n",n);
     memset(&gprmc, 0 , sizeof(gprmc));
     gps_analyse(buff,&gprmc);
     *latitude = gprmc.latitude;
