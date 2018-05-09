@@ -444,31 +444,6 @@ int AllJointMove(struct RealRobot_Struct RealPos, double time, int joint, int ha
 				Joint_Angle_EP[3][5] = JointDetect(3, 5, PlanPos[3][5]);
 			}
 
-			if(motion_enable_flag == 1)
-			{
-				for(j=0; j<6; j++)
-				{
-					for(i=0; i<4; i++)
-					{
-						rad_send(i, j, Joint_Angle_EP[i][j]);
-						sleeptime.tv_nsec = 5000;
-						sleeptime.tv_sec = 0;
-						nanosleep(&sleeptime,NULL);
-					}
-					sleeptime.tv_nsec = 200000;
-					sleeptime.tv_sec = 0;
-					nanosleep(&sleeptime,NULL);
-				}
-				rad_send(0, 6, Joint_Angle_EP[0][6]);
-				sleeptime.tv_nsec = 5000;
-				sleeptime.tv_sec = 0;
-				nanosleep(&sleeptime,NULL);
-				rad_send(1, 6, Joint_Angle_EP[1][6]);
-				sleeptime.tv_nsec = 100000;
-				sleeptime.tv_sec = 0;
-				nanosleep(&sleeptime,NULL);
-			}
-
 			return 1;
 		}
 		else
@@ -540,6 +515,7 @@ void view (void *n)
 
 			switch(ch[0])
 			{
+				/*
 				case 's':	// 关伺服
 				case 'S':
 					printf("servo off\n");
@@ -584,18 +560,7 @@ void view (void *n)
 	 				}
 
 				break;
-
-				case 'e':	// 关程序
-				case 'E':
-					//add code to stop the motors
-					XCloseDisplay(MyDisplay);
-					view_running = 0;
-					canrv_running = 0;
-					rt_task_delete(&rt_task_view);
-					rt_task_delete(&demo_task_rvcan);
-
-				break;
-
+				
 				case '5':
 					motion_enable_flag =1;
 					printf("motion_enable_flag = 1\n");
@@ -615,6 +580,18 @@ void view (void *n)
 				case '9':
 					motion_mode = RETURN_ORIGIN_POSITION;
 					printf("return_origin_position\n");
+				break;
+				*/
+				
+				case 'e':	// 关程序
+				case 'E':
+					//add code to stop the motors
+					XCloseDisplay(MyDisplay);
+					view_running = 0;
+					canrv_running = 0;
+					rt_task_delete(&rt_task_view);
+					rt_task_delete(&demo_task_rvcan);
+
 				break;
 
 			}
@@ -1172,13 +1149,6 @@ void rt_can_recv(void *arg)
 	struct RealRobot_Struct OneArmStart;
 	struct RealRobot_Struct RealTargetPos;
 
-	double end_position[4][4] = {{-0.510793, 0, 0.701553, 0.0},{0.510793, 0.0, 0.371256, 0.0},{pi/10, pi/10, pi/10, pi/10},{pi/10, pi/10, pi/10, pi/10}};
-
-	double T_END2[4][4] = {{1.0, 0.0, 0.0, 600.0},
-						{0.0, 1.0, 0.0, 0.0},
-						{0.0, 0.0, 1.0, -24.0},
-						{0.0, 0.0, 0.0, 1.0}};
-
 	int fisrt_time_SINGLE_JOINT_MOTION = 0;
 	int fisrt_time_ONE_ARM_MOTION = 0;
 	int first_time_TWO_ARMS_MOTION = 0;
@@ -1195,28 +1165,8 @@ void rt_can_recv(void *arg)
 	double one_arm_time = 15.0;
 	double two_arms_time = 30.0;
 	double homeback_time = 10.0;
-	double vision_motion_time = 3.0;
-
-	double T_Now[4][4] = {{1.0, 0.0, 0.0, 0.0},
-						{0.0, 1.0, 0.0, 0.0},
-						{0.0, 0.0, 1.0, 0.0},
-						{0.0, 0.0, 0.0, 1.0}};;
-	double T_Now2[4][4] = {{1.0, 0.0, 0.0, 0.0},
-						{0.0, 1.0, 0.0, 0.0},
-						{0.0, 0.0, 1.0, 0.0},
-						{0.0, 0.0, 0.0, 1.0}};
-
-	double T_Now1[4][4] = {{1.0, 0.0, 0.0, 0.0},
-						{0.0, 1.0, 0.0, 0.0},
-						{0.0, 0.0, 1.0, 0.0},
-						{0.0, 0.0, 0.0, 1.0}};
-	double anglein[8] = {0.5, 0.0, 0.2, 0.0, -0.5, 0.0, -0.2, 0.0};
-	double angle_out2[8];
 
 	int moving_flag = 0;   //when moving_flag == 0; motion_mode can be changed
-
-	double angle_2leg[6] = {0.0};
-	double delta_matrix2[4][4];
 
 	int return_value = 1;
 
@@ -1267,14 +1217,14 @@ void rt_can_recv(void *arg)
 		runtime = runtime + time_interval;
 
 		/******************* Step1: 机器人状态获取 *********************/
-		// 机器人关节数据获取
+		// a.机器人关节数据获取
 		if (elmo_init_flag==1)
 		{
 			// 数据同步接收 发送远程帧
 			SYNC_Receive_S();
 		}
 
-		// 姿态传感器数据获取
+		// b.姿态传感器数据获取
 		return_value = JY901_GetData(PostureRaw);
 		if (return_value > 0)
 		{
@@ -1282,7 +1232,7 @@ void rt_can_recv(void *arg)
 		//	printf("rtn = %d, Pos1 = %lf, Pos2 = %lf, Pos3 = %lf\n", return_value, Posture[0], Posture[1], Posture[2]);
 		}
 
-		// GPS信息获取
+		// c.GPS信息获取
 		n_gps++;
 		if(n_gps>333)
 		{
@@ -1292,7 +1242,7 @@ void rt_can_recv(void *arg)
 			n_gps = 0;
 		}
 		
-		// 六维力信号获取
+		// d.六维力信号获取
 		// 左臂读数
 		if(ForceTCPFlagL <= 0)
 		{
@@ -1379,7 +1329,7 @@ void rt_can_recv(void *arg)
 
 		}
 
-		// 机器人关节数据获取
+		// e.机器人关节数据获取
 		if (elmo_init_flag==1)
 		{
 			// 数据同步接收 接收关节数据
@@ -1387,14 +1337,14 @@ void rt_can_recv(void *arg)
 		}
 		
 		/******************* Step2: 指令获取 *********************/
-		// 接收上位机指令
+		// a.接收上位机指令
 		int rtnMode = UDPRecv();
-		// 控制指令提取
+		// b.控制指令提取
 		if (rtnMode == ROBOT_CONTROL)//机器人控制模式 单独提出，保证能够响应
 		{
 			control_mode = GetControlCMD();
 		}
-		// 运动指令提取
+		// c.运动指令提取
 		if(moving_flag == 0)	// 运动已完成
 		{
 			switch(rtnMode)
@@ -1589,7 +1539,7 @@ void rt_can_recv(void *arg)
 		}
 
 		/******************* Step3: 运动控制 *********************/	
-		// 控制指令响应
+		// a.控制指令响应
 		switch (control_mode)	
 		{
 			case CMD_POWER_ON:
@@ -1722,14 +1672,14 @@ void rt_can_recv(void *arg)
 			break;
 		}
 
-		// 自动控制
-		{
-			
-		}
-		
-		// 运动指令响应
 		if(servo_on_flag == 1) // when servo on, the motion control is able
 		{
+			// b.自动控制
+			{
+				
+			}
+			// c.运动指令响应
+			NoCollisionFlag = 1; // 初始化没有碰撞
 			switch (motion_mode)
 			{
 				case SINGLE_JOINT_MOTION:
@@ -1759,15 +1709,13 @@ void rt_can_recv(void *arg)
 
 							Joint_Angle_EP[can_channel_main][can_id_main] = JointDetect(can_channel_main, can_id_main, angleplan);
 
-
-
-							if(motion_enable_flag == 1)
+						/*	if(motion_enable_flag == 1)
 							{
 								rad_send(can_channel_main,can_id_main,Joint_Angle_EP[can_channel_main][can_id_main]);
 								sleeptime.tv_nsec = 200000;
 								sleeptime.tv_sec = 0;
 								nanosleep(&sleeptime,NULL);
-							}
+							}	*/
 
 						}
 						else
@@ -1872,6 +1820,7 @@ void rt_can_recv(void *arg)
 
 				//		fprintf(fp, "%8.3lf %8.3lf %8.3lf %8.3lf %8.3lf %8.3lf %8.3lf\n", Joint_Angle_EP[2][0]*Rad2Degree, Joint_Angle_EP[3][0]*Rad2Degree, Joint_Angle_EP[3][1]*Rad2Degree, Joint_Angle_EP[2][1]*Rad2Degree, Joint_Angle_EP[0][4]*Rad2Degree, Joint_Angle_EP[0][5]*Rad2Degree, Joint_Angle_EP[0][6]*Rad2Degree);
 
+						// 碰撞检测
 						int rtnn = 0;
 						struct RealRobot_Struct SendAngle;
 						memset(&SendAngle,0,sizeof(SendAngle));
@@ -1880,74 +1829,13 @@ void rt_can_recv(void *arg)
 						if (rtnn == 0)
 						{
 							printf("Detect collision!\n");
-							NoCollisionFlag = 1;
+							NoCollisionFlag = 0;
 							RemoteMotion_enable_flag = 0;
 						}
 						else
 						{
 						//	printf("No collision!\n");
 							NoCollisionFlag = 1;
-						}
-
-						if(motion_enable_flag == 1&&NoCollisionFlag==1)
-						{
-							rad_send(0, 4, Joint_Angle_EP[0][4]);
-							sleeptime.tv_nsec = 200000;
-							sleeptime.tv_sec = 0;
-							nanosleep(&sleeptime,NULL);
-							rad_send(0, 5, Joint_Angle_EP[0][5]);
-							sleeptime.tv_nsec = 200000;
-							sleeptime.tv_sec = 0;
-							nanosleep(&sleeptime,NULL);
-							rad_send(0, 6, Joint_Angle_EP[0][6]);
-							sleeptime.tv_nsec = 5000;
-							sleeptime.tv_sec = 0;
-							nanosleep(&sleeptime,NULL);
-							rad_send(2, 0, Joint_Angle_EP[2][0]);
-							sleeptime.tv_nsec = 200000;
-							sleeptime.tv_sec = 0;
-							nanosleep(&sleeptime,NULL);
-							rad_send(2, 1, Joint_Angle_EP[2][1]);
-							sleeptime.tv_nsec = 5000;
-							sleeptime.tv_sec = 0;
-							nanosleep(&sleeptime,NULL);
-							rad_send(3, 0, Joint_Angle_EP[3][0]);
-							sleeptime.tv_nsec = 200000;
-							sleeptime.tv_sec = 0;
-							nanosleep(&sleeptime,NULL);
-							rad_send(3, 1, Joint_Angle_EP[3][1]);
-							sleeptime.tv_nsec = 5000;
-							sleeptime.tv_sec = 0;
-							nanosleep(&sleeptime,NULL);
-
-							rad_send(1, 4, Joint_Angle_EP[1][4]);
-							sleeptime.tv_nsec = 200000;
-							sleeptime.tv_sec = 0;
-							nanosleep(&sleeptime,NULL);
-							rad_send(1, 5, Joint_Angle_EP[1][5]);
-							sleeptime.tv_nsec = 200000;
-							sleeptime.tv_sec = 0;
-							nanosleep(&sleeptime,NULL);
-							rad_send(1, 6, Joint_Angle_EP[1][6]);
-							sleeptime.tv_nsec = 5000;
-							sleeptime.tv_sec = 0;
-							nanosleep(&sleeptime,NULL);
-							rad_send(2, 2, Joint_Angle_EP[2][2]);
-							sleeptime.tv_nsec = 200000;
-							sleeptime.tv_sec = 0;
-							nanosleep(&sleeptime,NULL);
-							rad_send(2, 3, Joint_Angle_EP[2][3]);
-							sleeptime.tv_nsec = 5000;
-							sleeptime.tv_sec = 0;
-							nanosleep(&sleeptime,NULL);
-							rad_send(3, 2, Joint_Angle_EP[3][2]);
-							sleeptime.tv_nsec = 200000;
-							sleeptime.tv_sec = 0;
-							nanosleep(&sleeptime,NULL);
-							rad_send(3, 3, Joint_Angle_EP[3][3]);
-							sleeptime.tv_nsec = 200000;
-							sleeptime.tv_sec = 0;
-							nanosleep(&sleeptime,NULL);
 						}
 
 						double AngleH[2][4] = {{0.0, 0.0, 0.0, 0.0},{0.0, 0.0, 0.0, 0.0}};
@@ -1961,22 +1849,6 @@ void rt_can_recv(void *arg)
 							Joint_Angle_EP[i_R][2] = JointDetect(i_R, 2, AngleH[i_R][2]*Degree2Rad);
 							Joint_Angle_EP[i_R][3] = JointDetect(i_R, 3, AngleH[i_R][3]*Degree2Rad);
 						}
-
-						if(motion_enable_flag == 1)
-						{
-							for (i_R = 0; i_R < 4; i_R++)
-							{
-								rad_send(0,i_R,Joint_Angle_EP[0][i_R]);
-								sleeptime.tv_nsec = 5000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(1,i_R,Joint_Angle_EP[1][i_R]);
-								sleeptime.tv_nsec = 200000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-							}
-						}
-
 
 						NowTime = rt_timer_read();
 						double period1 = 0;
@@ -2029,21 +1901,6 @@ void rt_can_recv(void *arg)
 							{
 								Joint_Angle_EP[0][i_H] = JointDetect(0, i_H, angleplan[0][i_H]);
 								Joint_Angle_EP[1][i_H] = JointDetect(1, i_H, angleplan[1][i_H]);
-							}
-
-							if(motion_enable_flag == 1)
-							{
-								for (i_H = 0; i_H < 4; i_H++)
-								{
-									rad_send(0,i_H,Joint_Angle_EP[0][i_H]);
-									sleeptime.tv_nsec = 5000;
-									sleeptime.tv_sec = 0;
-									nanosleep(&sleeptime,NULL);
-									rad_send(1,i_H,Joint_Angle_EP[1][i_H]);
-									sleeptime.tv_nsec = 200000;
-									sleeptime.tv_sec = 0;
-									nanosleep(&sleeptime,NULL);
-								}
 							}
 
 						}
@@ -2110,34 +1967,12 @@ void rt_can_recv(void *arg)
 									{
 										Joint_Angle_EP[0][i_H] = JointDetect(0, i_H, angleplan[0][i_H]);
 									}
-									if(motion_enable_flag == 1)
-									{
-										for (i_H = 0; i_H < 4; i_H++)
-										{
-											rad_send(0,i_H,Joint_Angle_EP[0][i_H]);
-											sleeptime.tv_nsec = 200000;
-											sleeptime.tv_sec = 0;
-											nanosleep(&sleeptime,NULL);
-										}
-										printf("%lf %lf %lf %lf \n",Joint_Angle_EP[0][0],Joint_Angle_EP[0][1],Joint_Angle_EP[0][2],Joint_Angle_EP[0][3]);
-									}
-
 								break;
 
 								case 0x0A:
 									for (i_H = 0; i_H < 4; i_H++)
 									{
 										Joint_Angle_EP[1][i_H] = JointDetect(1, i_H, angleplan[1][i_H]);
-									}
-									if(motion_enable_flag == 1)
-									{
-										for (i_H = 0; i_H < 4; i_H++)
-										{
-											rad_send(1,i_H,Joint_Angle_EP[1][i_H]);
-											sleeptime.tv_nsec = 200000;
-											sleeptime.tv_sec = 0;
-											nanosleep(&sleeptime,NULL);
-										}
 									}
 								break;
 
@@ -2146,17 +1981,6 @@ void rt_can_recv(void *arg)
 									{
 										Joint_Angle_EP[0][i_H] = JointDetect(0, i_H, angleplan[0][i_H]);
 										Joint_Angle_EP[1][i_H] = JointDetect(1, i_H, angleplan[1][i_H]);
-									}
-									if(motion_enable_flag == 1)
-									{
-										for (i_H = 0; i_H < 4; i_H++)
-										{
-											rad_send(0,i_H,Joint_Angle_EP[0][i_H]);
-											rad_send(1,i_H,Joint_Angle_EP[1][i_H]);
-											sleeptime.tv_nsec = 200000;
-											sleeptime.tv_sec = 0;
-											nanosleep(&sleeptime,NULL);
-										}
 									}
 								break;
 
@@ -2224,17 +2048,6 @@ void rt_can_recv(void *arg)
 									{
 										Joint_Angle_EP[0][i_H] = JointDetect(0, i_H, angleplan[0][i_H]);
 									}
-
-									if(motion_enable_flag == 1)
-									{
-										for (i_H = 0; i_H < 4; i_H++)
-										{
-											rad_send(0,i_H,Joint_Angle_EP[0][i_H]);
-											sleeptime.tv_nsec = 200000;
-											sleeptime.tv_sec = 0;
-											nanosleep(&sleeptime,NULL);
-										}
-									}
 								break;
 
 								case 0x0A:
@@ -2242,16 +2055,7 @@ void rt_can_recv(void *arg)
 									{
 										Joint_Angle_EP[1][i_H] = JointDetect(1, i_H, angleplan[1][i_H]);
 									}
-									if(motion_enable_flag == 1)
-									{
-										for (i_H = 0; i_H < 4; i_H++)
-										{
-											rad_send(1,i_H,Joint_Angle_EP[1][i_H]);
-											sleeptime.tv_nsec = 200000;
-											sleeptime.tv_sec = 0;
-											nanosleep(&sleeptime,NULL);
-										}
-									}
+
 								break;
 
 								case 0xAA:
@@ -2259,17 +2063,6 @@ void rt_can_recv(void *arg)
 									{
 										Joint_Angle_EP[0][i_H] = JointDetect(0, i_H, angleplan[0][i_H]);
 										Joint_Angle_EP[1][i_H] = JointDetect(1, i_H, angleplan[1][i_H]);
-									}
-									if(motion_enable_flag == 1)
-									{
-										for (i_H = 0; i_H < 4; i_H++)
-										{
-											rad_send(0,i_H,Joint_Angle_EP[0][i_H]);
-											rad_send(1,i_H,Joint_Angle_EP[1][i_H]);
-											sleeptime.tv_nsec = 200000;
-											sleeptime.tv_sec = 0;
-											nanosleep(&sleeptime,NULL);
-										}
 									}
 								break;
 
@@ -2341,32 +2134,12 @@ void rt_can_recv(void *arg)
 									{
 										Joint_Angle_EP[0][i_H] = JointDetect(0, i_H, angleplan[0][i_H]);
 									}
-									if(motion_enable_flag == 1)
-									{
-										for (i_H = 0; i_H < 4; i_H++)
-										{
-											rad_send(0,i_H,Joint_Angle_EP[0][i_H]);
-											sleeptime.tv_nsec = 200000;
-											sleeptime.tv_sec = 0;
-											nanosleep(&sleeptime,NULL);
-										}
-									}
 								break;
 
 								case 0x0A:
 									for (i_H = 0; i_H < 4; i_H++)
 									{
 										Joint_Angle_EP[1][i_H] = JointDetect(1, i_H, angleplan[1][i_H]);
-									}
-									if(motion_enable_flag == 1)
-									{
-										for (i_H = 0; i_H < 4; i_H++)
-										{
-											rad_send(1,i_H,Joint_Angle_EP[1][i_H]);
-											sleeptime.tv_nsec = 200000;
-											sleeptime.tv_sec = 0;
-											nanosleep(&sleeptime,NULL);
-										}
 									}
 								break;
 
@@ -2375,17 +2148,6 @@ void rt_can_recv(void *arg)
 									{
 										Joint_Angle_EP[0][i_H] = JointDetect(0, i_H, angleplan[0][i_H]);
 										Joint_Angle_EP[1][i_H] = JointDetect(1, i_H, angleplan[1][i_H]);
-									}
-									if(motion_enable_flag == 1)
-									{
-										for (i_H = 0; i_H < 4; i_H++)
-										{
-											rad_send(0,i_H,Joint_Angle_EP[0][i_H]);
-											rad_send(1,i_H,Joint_Angle_EP[1][i_H]);
-											sleeptime.tv_nsec = 200000;
-											sleeptime.tv_sec = 0;
-											nanosleep(&sleeptime,NULL);
-										}
 									}
 								break;
 
@@ -2457,32 +2219,12 @@ void rt_can_recv(void *arg)
 									{
 										Joint_Angle_EP[0][i_H] = JointDetect(0, i_H, angleplan[0][i_H]);
 									}
-									if(motion_enable_flag == 1)
-									{
-										for (i_H = 0; i_H < 4; i_H++)
-										{
-											rad_send(0,i_H,Joint_Angle_EP[0][i_H]);
-											sleeptime.tv_nsec = 200000;
-											sleeptime.tv_sec = 0;
-											nanosleep(&sleeptime,NULL);
-										}
-									}
 								break;
 
 								case 0x0A:
 									for (i_H = 0; i_H < 4; i_H++)
 									{
 										Joint_Angle_EP[1][i_H] = JointDetect(1, i_H, angleplan[1][i_H]);
-									}
-									if(motion_enable_flag == 1)
-									{
-										for (i_H = 0; i_H < 4; i_H++)
-										{
-											rad_send(1,i_H,Joint_Angle_EP[1][i_H]);
-											sleeptime.tv_nsec = 200000;
-											sleeptime.tv_sec = 0;
-											nanosleep(&sleeptime,NULL);
-										}
 									}
 								break;
 
@@ -2491,17 +2233,6 @@ void rt_can_recv(void *arg)
 									{
 										Joint_Angle_EP[0][i_H] = JointDetect(0, i_H, angleplan[0][i_H]);
 										Joint_Angle_EP[1][i_H] = JointDetect(1, i_H, angleplan[1][i_H]);
-									}
-									if(motion_enable_flag == 1)
-									{
-										for (i_H = 0; i_H < 4; i_H++)
-										{
-											rad_send(0,i_H,Joint_Angle_EP[0][i_H]);
-											rad_send(1,i_H,Joint_Angle_EP[1][i_H]);
-											sleeptime.tv_nsec = 200000;
-											sleeptime.tv_sec = 0;
-											nanosleep(&sleeptime,NULL);
-										}
 									}
 								break;
 
@@ -2524,6 +2255,7 @@ void rt_can_recv(void *arg)
 				break;
 
 				case FIND_HOME_MOTION:
+				{
 					if (can_id_main == 9)
 					{
 						find_home(0,9);
@@ -2546,6 +2278,7 @@ void rt_can_recv(void *arg)
 					}
 					motion_mode = 100;
 					printf("MOTION_MODE: FIND_HOME_MOTION\n");
+				}
 				break;
 
 				case ONE_ARM_MOTION:
@@ -2588,39 +2321,6 @@ void rt_can_recv(void *arg)
 									Joint_Angle_EP[0][4] = JointDetect(0, 4, plan[4]);
 									Joint_Angle_EP[0][5] = JointDetect(0, 5, plan[5]);
 									Joint_Angle_EP[0][6] = JointDetect(0, 6, plan[6]);
-
-									if(motion_enable_flag == 1)
-									{
-										rad_send(0, 4, Joint_Angle_EP[0][4]);
-										sleeptime.tv_nsec = 200000;
-										sleeptime.tv_sec = 0;
-										nanosleep(&sleeptime,NULL);
-										rad_send(0, 5, Joint_Angle_EP[0][5]);
-										sleeptime.tv_nsec = 200000;
-										sleeptime.tv_sec = 0;
-										nanosleep(&sleeptime,NULL);
-										rad_send(0, 6, Joint_Angle_EP[0][6]);
-										sleeptime.tv_nsec = 200000;
-										sleeptime.tv_sec = 0;
-										nanosleep(&sleeptime,NULL);
-										rad_send(2, 0, Joint_Angle_EP[2][0]);
-										sleeptime.tv_nsec = 200000;
-										sleeptime.tv_sec = 0;
-										nanosleep(&sleeptime,NULL);
-										rad_send(2, 1, Joint_Angle_EP[2][1]);
-										sleeptime.tv_nsec = 200000;
-										sleeptime.tv_sec = 0;
-										nanosleep(&sleeptime,NULL);
-										rad_send(3, 0, Joint_Angle_EP[3][0]);
-										sleeptime.tv_nsec = 200000;
-										sleeptime.tv_sec = 0;
-										nanosleep(&sleeptime,NULL);
-										rad_send(3, 1, Joint_Angle_EP[3][1]);
-										sleeptime.tv_nsec = 200000;
-										sleeptime.tv_sec = 0;
-										nanosleep(&sleeptime,NULL);
-									}
-
 								}
 								break;
 
@@ -2646,38 +2346,6 @@ void rt_can_recv(void *arg)
 									Joint_Angle_EP[1][4] = JointDetect(1, 4, plan[4]);
 									Joint_Angle_EP[1][5] = JointDetect(1, 5, plan[5]);
 									Joint_Angle_EP[1][6] = JointDetect(1, 6, plan[6]);
-
-									if(motion_enable_flag == 1)
-									{
-										rad_send(1, 4, Joint_Angle_EP[1][4]);
-										sleeptime.tv_nsec = 200000;
-										sleeptime.tv_sec = 0;
-										nanosleep(&sleeptime,NULL);
-										rad_send(1, 5, Joint_Angle_EP[1][5]);
-										sleeptime.tv_nsec = 200000;
-										sleeptime.tv_sec = 0;
-										nanosleep(&sleeptime,NULL);
-										rad_send(1, 6, Joint_Angle_EP[1][6]);
-										sleeptime.tv_nsec = 200000;
-										sleeptime.tv_sec = 0;
-										nanosleep(&sleeptime,NULL);
-										rad_send(2, 2, Joint_Angle_EP[2][2]);
-										sleeptime.tv_nsec = 200000;
-										sleeptime.tv_sec = 0;
-										nanosleep(&sleeptime,NULL);
-										rad_send(2, 3, Joint_Angle_EP[2][3]);
-										sleeptime.tv_nsec = 200000;
-										sleeptime.tv_sec = 0;
-										nanosleep(&sleeptime,NULL);
-										rad_send(3, 2, Joint_Angle_EP[3][2]);
-										sleeptime.tv_nsec = 200000;
-										sleeptime.tv_sec = 0;
-										nanosleep(&sleeptime,NULL);
-										rad_send(3, 3, Joint_Angle_EP[3][3]);
-										sleeptime.tv_nsec = 200000;
-										sleeptime.tv_sec = 0;
-										nanosleep(&sleeptime,NULL);
-									}
 								}
 								break;
 								default:
@@ -2746,68 +2414,6 @@ void rt_can_recv(void *arg)
 							Joint_Angle_EP[1][4] = JointDetect(1, 4, plan[1][4]);
 							Joint_Angle_EP[1][5] = JointDetect(1, 5, plan[1][5]);
 							Joint_Angle_EP[1][6] = JointDetect(1, 6, plan[1][6]);
-
-
-							if(motion_enable_flag == 1)
-							{
-								rad_send(0, 4, Joint_Angle_EP[0][4]);		//moyang602 	可根据通道发送减少时间
-								sleeptime.tv_nsec = 200000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(0, 5, Joint_Angle_EP[0][5]);
-								sleeptime.tv_nsec = 200000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(0, 6, Joint_Angle_EP[0][6]);
-								sleeptime.tv_nsec = 5000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(2, 0, Joint_Angle_EP[2][0]);
-								sleeptime.tv_nsec = 200000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(2, 1, Joint_Angle_EP[2][1]);
-								sleeptime.tv_nsec = 5000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(3, 0, Joint_Angle_EP[3][0]);
-								sleeptime.tv_nsec = 200000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(3, 1, Joint_Angle_EP[3][1]);
-								sleeptime.tv_nsec = 5000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-
-								rad_send(1, 4, Joint_Angle_EP[1][4]);
-								sleeptime.tv_nsec = 200000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(1, 5, Joint_Angle_EP[1][5]);
-								sleeptime.tv_nsec = 200000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(1, 6, Joint_Angle_EP[1][6]);
-								sleeptime.tv_nsec = 5000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(2, 2, Joint_Angle_EP[2][2]);
-								sleeptime.tv_nsec = 200000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(2, 3, Joint_Angle_EP[2][3]);
-								sleeptime.tv_nsec = 5000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(3, 2, Joint_Angle_EP[3][2]);
-								sleeptime.tv_nsec = 200000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(3, 3, Joint_Angle_EP[3][3]);
-								sleeptime.tv_nsec = 200000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-							}
 						}
 						else
 						{
@@ -2968,156 +2574,6 @@ void rt_can_recv(void *arg)
 				}
 		 		break;
 
-				case VISION_MOTION:
-
-					if(first_time_VISION_MOTION == 0)
-					{
-						first_time_VISION_MOTION = 1;
-						moving_flag	= 1;
-						t = 0.0;
-						printf("MOTION_MODE = VISION_MOTION\n");
-
-						for(i=0; i<3; i++)
-						{
-							for(j=0; j<4; j++)
-							{
-								start_position[i][j] = Joint_Angle_FB[i][j];
-							}
-						}
-
-						printf("present agnle  %f   %f   %f   %f   %f   %f   %f   %f    %f   %f   %f   %f\n", start_position[0][0]*Rad2Degree,start_position[0][1]*Rad2Degree,start_position[0][2]*Rad2Degree,start_position[0][3]*Rad2Degree,start_position[1][0]*Rad2Degree, start_position[1][1]*Rad2Degree, start_position[1][2]*Rad2Degree,start_position[1][3]*Rad2Degree, start_position[2][0]*Rad2Degree, start_position[2][1]*Rad2Degree, start_position[2][2]*Rad2Degree,start_position[2][3]*Rad2Degree);
-
-						if(End_Numb == ARM1)
-						{
-							angle_2leg[0] = start_position[1][0];
-							angle_2leg[1] = start_position[1][1];
-							angle_2leg[2] = start_position[1][2];
-							angle_2leg[3] = start_position[1][3];
-
-							angle_2leg[4] = start_position[0][0];
-							angle_2leg[5] = start_position[0][1];
-							angle_2leg[6] = start_position[0][2];
-							angle_2leg[7] = start_position[0][3];
-
-							printf("ARM1 end\n");
-							printf("present agnle  %f   %f   %f   %f   %f   %f   %f   %f\n", angle_2leg[0]*Rad2Degree, angle_2leg[1]*Rad2Degree, angle_2leg[2]*Rad2Degree, angle_2leg[3]*Rad2Degree, angle_2leg[4]*Rad2Degree, angle_2leg[5]*Rad2Degree, angle_2leg[6]*Rad2Degree, angle_2leg[7]*Rad2Degree);
-						}
-
-						KinTwoLegR(angle_2leg,  T_Now);
-
-						for(i=0; i<4; i++)
-						{
-							for(j=0; j<4;j++)
-								delta_matrix2[i][j] = DeltaMatrix[i][j];
-						}
-
-						matrix_multiply(T_Now, T_hand_end_inv, T_Now1);
-						matrix_multiply(T_Now1, delta_matrix2, T_Now2);
-						matrix_multiply(T_Now2, T_hand_end, T_END2);
-
-						printf("\nT_Now1 = ");
-						for(i=0; i<4; i++)
-						{
-							for(j=0; j<4;j++)
-								printf("%f   ",T_Now1[i][j]);
-							printf("\n");
-						}
-
-						printf("\nDeltaMatrix = ");
-						for(i=0; i<4; i++)
-						{
-							for(j=0; j<4;j++)
-								printf("%f   ", DeltaMatrix[i][j]);
-							printf("\n");
-						}
-
-
-						printf("\nT_Now2 = ");
-						for(i=0; i<4; i++)
-						{
-							for(j=0; j<4;j++)
-								printf("%f   ",T_Now2[i][j]);
-							printf("\n");
-						}
-
-						printf("\nT_END2 = ");
-						for(i=0; i<4; i++)
-						{
-							for(j=0; j<4;j++)
-								printf("%f   ",T_END2[i][j]);
-							printf("\n");
-						}
-
-
-						printf("angle_in= %f  %f   %f  %f  %f  %f  %f  %f\n", angle_2leg[0]*180.0/pi, angle_2leg[1]*180.0/pi,angle_2leg[2]*180.0/pi,angle_2leg[3]*180.0/pi,angle_2leg[4]*180.0/pi,angle_2leg[5]*180.0/pi,angle_2leg[6]*180.0/pi,angle_2leg[7]*180.0/pi);
-
-						InvCham(T_END2, angle_2leg, 0.0, angle_out2);
-
-						if(End_Numb == ARM1)
-						{
-
-							end_position[1][0] = angle_out2[0];
-							end_position[1][1] = angle_out2[1];
-							end_position[1][2] = angle_out2[2];
-							end_position[1][3] = angle_out2[3];
-
-							end_position[0][0] = angle_out2[4];
-							end_position[0][1] = angle_out2[5];
-							end_position[0][2] = angle_out2[6];
-							end_position[0][3] = angle_out2[7];
-
-							end_position[2][0] = start_position[2][0];
-							end_position[2][1] = start_position[2][1];
-							end_position[2][2] = start_position[2][2];
-							end_position[2][3] = start_position[2][3];
-
-							printf("ARM1 end\n");
-							printf("expect agnle  %f   %f   %f   %f   %f   %f   %f   %f   %f   %f   %f   %f\n", end_position[0][0]*Rad2Degree,end_position[0][1]*Rad2Degree,end_position[0][2]*Rad2Degree, end_position[0][3]*Rad2Degree, end_position[1][0]*Rad2Degree, end_position[1][1]*Rad2Degree, end_position[1][2]*Rad2Degree, end_position[1][3]*Rad2Degree, end_position[2][0]*Rad2Degree, end_position[2][1]*Rad2Degree, end_position[2][2]*Rad2Degree, end_position[2][3]*Rad2Degree);
-						}
-					}
-					else
-					{
-						if(t < vision_motion_time)
-						{
-
-							t = t + time_interval;
-							for(j=0; j<4; j++)
-							{
-								for(i=0; i<3; i++)
-								{
-
-									Joint_Angle_EP[i][j] = Five_Interpolation(start_position[i][j],0,0, end_position[i][j],0,0,vision_motion_time,t);
-
-									if(t > vision_motion_time)
-									{
-										Joint_Angle_EP[i][j] = end_position[i][j];
-									}
-
-									if(motion_enable_flag == 1)
-									{
-										rad_send(i,j,Joint_Angle_EP[i][j]);
-									}
-
-									sleeptime.tv_nsec = 5000;
-									sleeptime.tv_sec = 0;
-									nanosleep(&sleeptime,NULL);
-								}
-								sleeptime.tv_nsec = 200000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-							}
-						}
-						else
-						{
-							t = 0;
-							motion_mode = 100;
-							first_time_VISION_MOTION = 0;
-							moving_flag	= 0;
-						}
-					}
-
-				break;
-
 				case FORCE_MOTION:
 				{
 					int i_f = 0;
@@ -3223,38 +2679,6 @@ void rt_can_recv(void *arg)
 
 							// 缺少末端限位
 
-							if(motion_enable_flag == 1)
-							{
-								rad_send(0, 4, Joint_Angle_EP[0][4]);
-								sleeptime.tv_nsec = 200000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(0, 5, Joint_Angle_EP[0][5]);
-								sleeptime.tv_nsec = 200000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(0, 6, Joint_Angle_EP[0][6]);
-								sleeptime.tv_nsec = 5000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(2, 0, Joint_Angle_EP[2][0]);
-								sleeptime.tv_nsec = 200000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(2, 1, Joint_Angle_EP[2][1]);
-								sleeptime.tv_nsec = 5000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(3, 0, Joint_Angle_EP[3][0]);
-								sleeptime.tv_nsec = 200000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(3, 1, Joint_Angle_EP[3][1]);
-								sleeptime.tv_nsec = 200000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-
-							}
 						}
 					}
 					else if(ForceControl_flagL == 0)
@@ -3369,37 +2793,6 @@ void rt_can_recv(void *arg)
 
 							// 缺少末端限位
 
-							if(motion_enable_flag == 1)
-							{
-								rad_send(1, 4, Joint_Angle_EP[1][4]);
-								sleeptime.tv_nsec = 200000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(1, 5, Joint_Angle_EP[1][5]);
-								sleeptime.tv_nsec = 200000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(1, 6, Joint_Angle_EP[1][6]);
-								sleeptime.tv_nsec = 5000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(2, 2, Joint_Angle_EP[2][2]);
-								sleeptime.tv_nsec = 200000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(2, 3, Joint_Angle_EP[2][3]);
-								sleeptime.tv_nsec = 5000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(3, 2, Joint_Angle_EP[3][2]);
-								sleeptime.tv_nsec = 200000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-								rad_send(3, 3, Joint_Angle_EP[3][3]);
-								sleeptime.tv_nsec = 200000;
-								sleeptime.tv_sec = 0;
-								nanosleep(&sleeptime,NULL);
-							}
 						}
 					}
 					else if(ForceControl_flagR == 0)
@@ -3873,74 +3266,13 @@ void rt_can_recv(void *arg)
 								if (rtnn == 0)
 								{
 									printf("Detect collision!\n");
-									NoCollisionFlag = 1;
+									NoCollisionFlag = 0;
 									RemoteMotion_enable_flag = 0;
 								}
 								else
 								{
 								//	printf("No collision!\n");
 									NoCollisionFlag = 1;
-								}
-
-								if(motion_enable_flag == 1)
-								{
-									rad_send(0, 4, Joint_Angle_EP[0][4]);		//moyang602 	可根据通道发送减少时间
-									sleeptime.tv_nsec = 200000;
-									sleeptime.tv_sec = 0;
-									nanosleep(&sleeptime,NULL);
-									rad_send(0, 5, Joint_Angle_EP[0][5]);
-									sleeptime.tv_nsec = 200000;
-									sleeptime.tv_sec = 0;
-									nanosleep(&sleeptime,NULL);
-									rad_send(0, 6, Joint_Angle_EP[0][6]);
-									sleeptime.tv_nsec = 5000;
-									sleeptime.tv_sec = 0;
-									nanosleep(&sleeptime,NULL);
-									rad_send(2, 0, Joint_Angle_EP[2][0]);
-									sleeptime.tv_nsec = 200000;
-									sleeptime.tv_sec = 0;
-									nanosleep(&sleeptime,NULL);
-									rad_send(2, 1, Joint_Angle_EP[2][1]);
-									sleeptime.tv_nsec = 5000;
-									sleeptime.tv_sec = 0;
-									nanosleep(&sleeptime,NULL);
-									rad_send(3, 0, Joint_Angle_EP[3][0]);
-									sleeptime.tv_nsec = 200000;
-									sleeptime.tv_sec = 0;
-									nanosleep(&sleeptime,NULL);
-									rad_send(3, 1, Joint_Angle_EP[3][1]);
-									sleeptime.tv_nsec = 5000;
-									sleeptime.tv_sec = 0;
-									nanosleep(&sleeptime,NULL);
-
-									rad_send(1, 4, Joint_Angle_EP[1][4]);
-									sleeptime.tv_nsec = 200000;
-									sleeptime.tv_sec = 0;
-									nanosleep(&sleeptime,NULL);
-									rad_send(1, 5, Joint_Angle_EP[1][5]);
-									sleeptime.tv_nsec = 200000;
-									sleeptime.tv_sec = 0;
-									nanosleep(&sleeptime,NULL);
-									rad_send(1, 6, Joint_Angle_EP[1][6]);
-									sleeptime.tv_nsec = 5000;
-									sleeptime.tv_sec = 0;
-									nanosleep(&sleeptime,NULL);
-									rad_send(2, 2, Joint_Angle_EP[2][2]);
-									sleeptime.tv_nsec = 200000;
-									sleeptime.tv_sec = 0;
-									nanosleep(&sleeptime,NULL);
-									rad_send(2, 3, Joint_Angle_EP[2][3]);
-									sleeptime.tv_nsec = 5000;
-									sleeptime.tv_sec = 0;
-									nanosleep(&sleeptime,NULL);
-									rad_send(3, 2, Joint_Angle_EP[3][2]);
-									sleeptime.tv_nsec = 200000;
-									sleeptime.tv_sec = 0;
-									nanosleep(&sleeptime,NULL);
-									rad_send(3, 3, Joint_Angle_EP[3][3]);
-									sleeptime.tv_nsec = 200000;
-									sleeptime.tv_sec = 0;
-									nanosleep(&sleeptime,NULL);
 								}
 
 								double AngleH[2][4] = {{0.0, 0.0, 0.0, 0.0},{0.0, 0.0, 0.0, 0.0}};
@@ -3956,21 +3288,6 @@ void rt_can_recv(void *arg)
 									Joint_Angle_EP[i_R][3] = JointDetect(i_R, 3, AngleH[i_R][3]*Degree2Rad);
 								}
 
-
-								if(motion_enable_flag == 1)
-								{
-									for (i_R = 0; i_R < 4; i_R++)
-									{
-										rad_send(0,i_R,Joint_Angle_EP[0][i_R]);
-										sleeptime.tv_nsec = 5000;
-										sleeptime.tv_sec = 0;
-										nanosleep(&sleeptime,NULL);
-										rad_send(1,i_R,Joint_Angle_EP[1][i_R]);
-										sleeptime.tv_nsec = 200000;
-										sleeptime.tv_sec = 0;
-										nanosleep(&sleeptime,NULL);
-									}
-								}
 							}
 						}
 						break;
@@ -3991,13 +3308,39 @@ void rt_can_recv(void *arg)
 				break;
 
 			}
-
-
+			
+			// d.运动保护
+			
+			// e.指令下发
+			if(motion_enable_flag == 1&& NoCollisionFlag == 1)
+			{
+				for(j=0; j<6; j++)
+				{
+					for(i=0; i<4; i++)
+					{
+						rad_send(i, j, Joint_Angle_EP[i][j]);
+						sleeptime.tv_nsec = 5000;
+						sleeptime.tv_sec = 0;
+						nanosleep(&sleeptime,NULL);
+					}
+					sleeptime.tv_nsec = 200000;
+					sleeptime.tv_sec = 0;
+					nanosleep(&sleeptime,NULL);
+				}
+				rad_send(0, 6, Joint_Angle_EP[0][6]);
+				sleeptime.tv_nsec = 5000;
+				sleeptime.tv_sec = 0;
+				nanosleep(&sleeptime,NULL);
+				rad_send(1, 6, Joint_Angle_EP[1][6]);
+				sleeptime.tv_nsec = 100000;
+				sleeptime.tv_sec = 0;
+				nanosleep(&sleeptime,NULL);
+			}
 		}
 
 		/******************* Step4: 回传与显示 *********************/		
 
-		//数据回传
+		// a.数据回传
 		UDPTimes = 0;
 		struct RobotDataUDP_Struct UploadData;
 		memset(&UploadData,0,sizeof(UploadData));
@@ -4032,7 +3375,7 @@ void rt_can_recv(void *arg)
 
 		RobotFBSend(UploadData);
 
-		// 界面显示
+		// b.界面显示
 		memset(&RobotRealCurrent,0,sizeof(RobotRealCurrent));
 
 		CanDef2RealRobot(motor_current, &RobotRealCurrent);
