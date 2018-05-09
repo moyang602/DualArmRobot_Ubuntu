@@ -79,13 +79,15 @@ void find_home(int channel_num, int id_num);
 void rad_send(int i, int j, double angle_in);
 double JointDetect(int Can_CH, int Can_ID, double angle_in);
 
-void SYNC_Receive(void);
+void SYNC_Receive_S(void);
+void SYNC_Receive_R(void);
 int AllJointMove(struct RealRobot_Struct RealPos, double time, int joint, int hand, int head, int waist);
 
 // CAN定义到实际机器人数据结构转换
 void CanDef2RealRobot(double CanDef[4][7], struct RealRobot_Struct* RealRobot);
 // 实际机器人数据结构到CAN定义转换
 void RealRobot2CanDef(struct RealRobot_Struct RealRobot, double CanDef[4][7]);
+// 手爪控制
 int  control_handL(short u16_sig, double I_f1, double I_f2, double I_f3,double * output);
 int  control_handR(short u16_sig, double I_f1, double I_f2, double I_f3,double * output);
 /*********************************变量声明**********************************/
@@ -173,7 +175,7 @@ int can_channel_number = 4;
 int can_switch[4][7] = {{0, 0, 0, 0, 1, 1, 1},
 						{1, 1, 1, 1, 1, 1, 1},
 						{1, 1, 1, 1, 0, 0, 0},
-						{1, 1, 1, 1, 0, 0, 1}};
+						{1, 1, 1, 1, 1, 1, 1}};
 
 // 各节点速度方向
 double joint_direction[4][7] = {{1, 1, 1, 1, 1, -1, 1},
@@ -237,7 +239,7 @@ double Rad2Count[4][7] = {{7.00281748,636.619772,636.619772,636.619772,2607.5945
 double reduction_ratio[4][7] = {{34.0,100.0,100.0,100.0,160.0,160.0,160.0},
 								{34.0,100.0,100.0,100.0,160.0,160.0,160.0},
 								{160.0,160.0,160.0,160.0,21.0,21.0,100.0},
-								{160.0,160.0,160.0,160.0,120.0,120.0}};
+								{160.0,160.0,160.0,160.0,160.0,160.0}};
 double zero_comp[4][7] = {0.0};
 // 各节点CAN工作状态
 int can_work_states[27] = {0};
@@ -298,6 +300,7 @@ double T_hand_end_inv[4][4] = {{1.0, 0.0, 0.0, 0.0},
 
 // 标志量
 int power_on_flag = 0;
+int elmo_init_flag = 0;
 int servo_on_flag = 0;
 int motion_enable_flag= 0;
 int RemoteMotion_enable_flag = 0;
@@ -766,7 +769,28 @@ int can_send(int channel, long can_id, int can_mode, long can_content[8], int ca
 	}
 }
 
-void SYNC_Receive(void)
+void SYNC_Receive_S(void)
+{
+	struct timespec sleeptime;
+	long count_out[8] = {0};
+	long can_id = 0;
+	int i;
+
+	// receive Motor Driver data
+	sleeptime.tv_nsec = 5000;
+	sleeptime.tv_sec = 0;
+
+	for(i=0; i<4; i++)
+	{
+		can_id = 0x80;
+		can_send(i, can_id, 0, count_out, 0);   //SYNC
+		nanosleep(&sleeptime,NULL);
+	}
+	now2 = rt_timer_read();
+}
+
+
+void SYNC_Receive_R(void)
 {
 	struct timespec sleeptime;
 	long count_out[8] = {0};
@@ -779,19 +803,12 @@ void SYNC_Receive(void)
 	int canRecvStatus[4];
 	int motor_current_feedback[4][7] = {0};
 	int Encoder_Count_FB[4][7] = {0};
-	now2 = rt_timer_read();
+
+	previous2 = rt_timer_read();
+	period2 = (previous2 - now2) / 1000;   //us
+	printf("period2 = %ld us\n", (long)period2);
 
 	// receive Motor Driver data
-	sleeptime.tv_nsec = 5000;
-	sleeptime.tv_sec = 0;
-
-	for(i=0; i<4; i++)
-	{
-		can_id = 0x80;
-		can_send(i, can_id, 0, count_out, 0);   //SYNC
-		nanosleep(&sleeptime,NULL);
-	}
-
 	sleeptime.tv_nsec = 900000;		//moyang602  sleeptime.tv_nsec = 2000000;
 	sleeptime.tv_sec = 0;
 	nanosleep(&sleeptime,NULL);
@@ -875,8 +892,7 @@ void SYNC_Receive(void)
 	CanDef2RealRobot(Joint_Angle_EP_degree, &RobotAngleEPDeg);
 	CanDef2RealRobot(Joint_Angle_ER_degree, &RobotAngleERDeg);
 
-	previous2 = rt_timer_read();
-	period2 = (previous2 - now2) / 1000;   //us
+
 
 /*
 	// receive Head Encoder data
@@ -1158,10 +1174,6 @@ void rt_can_recv(void *arg)
 
 	double end_position[4][4] = {{-0.510793, 0, 0.701553, 0.0},{0.510793, 0.0, 0.371256, 0.0},{pi/10, pi/10, pi/10, pi/10},{pi/10, pi/10, pi/10, pi/10}};
 
-	double T_END_main[4][4] = {{1.0, 0.0, 0.0, 600.0},
-						{0.0, 1.0, 0.0, 0.0},
-						{0.0, 0.0, 1.0, -24.0},
-						{0.0, 0.0, 0.0, 1.0}};
 	double T_END2[4][4] = {{1.0, 0.0, 0.0, 600.0},
 						{0.0, 1.0, 0.0, 0.0},
 						{0.0, 0.0, 1.0, -24.0},
@@ -1215,23 +1227,35 @@ void rt_can_recv(void *arg)
 	rt_task_set_periodic(NULL, TM_NOW, 6000000);
 	RTIME LastTime, NowTime;
 
+	// 状态获取
+	double Posture[3]={0.0, 0.0, 0.0};
+	double PostureRaw[3]={0.0, 0.0, 0.0};
+	double latitude = 0;
+	double longitude = 0;
+	double ForceDataL[6] = {0.0};
+	double ForceDataR[6] = {0.0};
+	int ForceNewDataL = 0;
+	double ForceDataRAWL[6] = {0.0};
+	int ForceNewDataR = 0;
+	double ForceDataRAWR[6] = {0.0};
+	
 /**********************************************************************************/
 	//    开始循环
 /**********************************************************************************/
 	FILE *fp;
 	fp = fopen("current.txt","w");
-	double Posture[3]={0.0, 0.0, 0.0};
-	double latitude = 0;
-	double longitude = 0;
+	
 	int n_gps;
 	while(canrv_running)
 	{
 		rt_task_wait_period(NULL);
+		// 获取运行周期时间
 		now = rt_timer_read();
 
 		period = (now - previous) / 1000;   //us
 		previous = now;
 
+		// 10个周期更新一下下位机界面显示
 		if(view_time > 10)
 		{
 			send_event();
@@ -1239,13 +1263,26 @@ void rt_can_recv(void *arg)
 		}
 		view_time++;
 
+		// 计算程序总运行时间
 		runtime = runtime + time_interval;
 
-		return_value = JY901_GetData(Posture);
+		/******************* Step1: 机器人状态获取 *********************/
+		// 机器人关节数据获取
+		if (elmo_init_flag==1)
+		{
+			// 数据同步接收 发送远程帧
+			SYNC_Receive_S();
+		}
+
+		// 姿态传感器数据获取
+		return_value = JY901_GetData(PostureRaw);
 		if (return_value > 0)
 		{
+			memcpy(Posture,PostureRaw,sizeof(PostureRaw));
 		//	printf("rtn = %d, Pos1 = %lf, Pos2 = %lf, Pos3 = %lf\n", return_value, Posture[0], Posture[1], Posture[2]);
 		}
+
+		// GPS信息获取
 		n_gps++;
 		if(n_gps>333)
 		{
@@ -1254,41 +1291,353 @@ void rt_can_recv(void *arg)
    		//	printf("==   经度 : 东经:%d度%d分%d秒                              \n", ((int)longitude) / 100, (int)(longitude - ((int)longitude / 100 * 100)), (int)(((	longitude - ((int)longitude / 100 * 100)) - ((int)longitude - ((int)longitude / 100 * 100))) * 60.0));
 			n_gps = 0;
 		}
+		
+		// 六维力信号获取
+		// 左臂读数
+		if(ForceTCPFlagL <= 0)
+		{
+			ForceTCPFlagL = ForceSensorTCP_init(0x01);	//0x01 代表左臂
+			printf("ForceTCPFlagL is %d\n",ForceTCPFlagL);
+		}
+		else
+		{
+			switch(force_stepL)
+			{
+				case 1:
+				{
+					int Cfg = 0;
+					Cfg = ConfigSystemL(&nStatusL, &bIsSendFlagL, &bReceivedL);
+					if(Cfg == 2)
+						force_stepL = 2;
 
-		switch (control_mode)
+					ForceTCPRecv(1);
+				}
+				break;
+
+				case 2:
+				{
+					ForceNewDataL = GetData(1,ForceDataRAWL);				// twice get a data
+					double Angle[7];
+					int i;
+
+					for (i = 0; i < 7; i++)
+					{
+						Angle[i] = RobotAngleFB.LeftArm[i];
+					}
+					ForceCompensationL(ForceDataRAWL, Angle, ForceDataL);
+
+					sprintf(buf21, "*********************************  Robot Force *********************************");
+
+					sprintf(buf22, "ForceL:   %8.3f  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f",ForceDataL[0],ForceDataL[1],ForceDataL[2],ForceDataL[3],ForceDataL[4],ForceDataL[5]);
+
+				}
+				break;
+				default:
+				break;
+			}
+
+		}
+		// 右臂读数
+		if(ForceTCPFlagR <= 0)
+		{
+			ForceTCPFlagR = ForceSensorTCP_init(0x02);	//0x01 代表左臂
+			printf("ForceTCPFlagR is %d\n",ForceTCPFlagR);
+		}
+		else
+		{
+			switch(force_stepR)
+			{
+				case 1:
+				{
+					int Cfg = 0;
+					Cfg = ConfigSystemR(&nStatusR, &bIsSendFlagR, &bReceivedR);
+					if(Cfg == 2)
+						force_stepR = 2;
+
+					ForceTCPRecv(2);
+				}
+				break;
+
+				case 2:
+				{
+					ForceNewDataR = GetData(2,ForceDataRAWR);				// twice get a data
+					double Angle[7];
+					int i;
+
+					for (i = 0; i < 7; i++)
+					{
+						Angle[i] = RobotAngleFB.RightArm[i];
+					}
+					ForceCompensationR(ForceDataRAWR, Angle, ForceDataR);
+
+					sprintf(buf23, "ForceR:   %8.3f  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f",ForceDataR[0],ForceDataR[1],ForceDataR[2],ForceDataR[3],ForceDataR[4],ForceDataR[5]);
+				}
+				break;
+				default:
+				break;
+			}
+
+		}
+
+		// 机器人关节数据获取
+		if (elmo_init_flag==1)
+		{
+			// 数据同步接收 接收关节数据
+			SYNC_Receive_R();
+		}
+		
+		/******************* Step2: 指令获取 *********************/
+		// 接收上位机指令
+		int rtnMode = UDPRecv();
+		// 控制指令提取
+		if (rtnMode == ROBOT_CONTROL)//机器人控制模式 单独提出，保证能够响应
+		{
+			control_mode = GetControlCMD();
+		}
+		// 运动指令提取
+		if(moving_flag == 0)	// 运动已完成
+		{
+			switch(rtnMode)
+			{
+				case SINGLE_JOINT_MOTION:	//单关节运动模式
+				{
+					GetSingleJointData(&can_channel_main,&can_id_main,&JointMoveData,&singe_joint_time);
+					motion_mode = SINGLE_JOINT_MOTION;
+				}
+				break;
+
+				case ONE_ARM_MOTION:
+				{
+					GetSingleArmData(&ArmSelect,One_arm_Data, &one_arm_time);
+					motion_mode = ONE_ARM_MOTION;
+				}
+				break;
+
+				case REMOTE_DATA:
+				{
+					GetRemoteData(&rockerL, &rockerR, RemoteMotionData);
+					RemoteNewData = 1;
+				}
+				break;
+
+				case REMOTE_CONTROL:
+				{
+					int RemoteMode = 0;
+					RemoteMode = GetRemoteCMD();
+					switch(RemoteMode)
+					{
+						case REMOTE_START:
+							motion_mode = REMOTE_MOTION;
+						break;
+						case REMOTE_STOP:
+							motion_mode = 100;
+						break;
+						case REMOTE_ENABLE:
+							RemoteMotion_enable_flag = 1;
+						break;
+						case REMOTE_DISABLE:
+							RemoteMotion_enable_flag = 0;
+						break;
+						default:
+						break;
+					}
+				}
+				break;
+
+				case HAND_MOTION:
+				{
+					motion_mode = GetHandCMD(&HandSelect, &HandAngleL, &HandAngleR);
+					HandAngleL = HandAngleL*Degree2Rad;
+					HandAngleR = HandAngleR*Degree2Rad;
+					HandNewData = 1;
+
+				}
+				break;
+
+				case FIND_HOME_MOTION:
+				{
+					GetFindHomeData(&can_channel_main,&can_id_main);
+					motion_mode = FIND_HOME_MOTION;
+				}
+				break;
+
+				case FORCE_CONTROL:
+				{
+					int ForceMode = 0;
+					int ParamType = 0;
+					float ForceParam[6] = {0.0};
+					ForceMode = GetForceCMD(&ParamType, ForceParam);
+					switch(ForceMode)
+					{
+						case FORCE_START:
+							motion_mode = FORCE_MOTION;
+							printf("ForceControl Start\n");
+						break;
+						case FORCE_ENABLE:
+							ForceControl_flagL = 1;
+							ForceControl_flagR = 1;
+							printf("ForceControl Enable\n");
+						break;
+						case FORCE_DISABLE:
+							ForceControl_flagL = 0;
+							ForceControl_flagR = 0;
+							printf("ForceControl Disable\n");
+							memset(buf24,0,sizeof(buf24));
+							memset(buf25,0,sizeof(buf25));
+						break;
+						case FORCE_STOP:
+							motion_mode = 100;
+							
+							printf("ForceControl Stop\n");
+							memset(buf24,0,sizeof(buf24));
+							memset(buf25,0,sizeof(buf25));
+							ForceSensorTCP_end();
+						break;
+						case FORCE_CLEAR:
+							First_ForceL = 1;
+							First_ForceR = 1;
+						break;
+						case FORCE_SETPARAM:
+						{
+							int ii = 0;
+							if(ParamType == 1)
+							{
+								for(ii=0;ii<6;ii++)
+									A6D_m[ii] = ForceParam[ii];
+								printf("Set A6D_M: %8.3lf %8.3lf %8.3lf %8.3lf %8.3lf %8.3lf\n",A6D_m[0],A6D_m[1],A6D_m[2],A6D_m[3],A6D_m[4],A6D_m[5]);
+							}
+							else if(ParamType == 2)
+							{
+								for(ii=0;ii<6;ii++)
+									force_velocity_limit[ii] = ForceParam[ii];
+								printf("Set force_velocity_limit: %8.3lf %8.3lf %8.3lf %8.3lf %8.3lf %8.3lf\n",force_velocity_limit[0],force_velocity_limit[1],force_velocity_limit[2],force_velocity_limit[3],force_velocity_limit[4],force_velocity_limit[5]);
+							}
+							else if(ParamType == 3)
+							{
+								for(ii=0;ii<6;ii++)
+									A6D_K[ii] = ForceParam[ii];
+								printf("Set A6D_K: %8.3lf %8.3lf %8.3lf %8.3lf %8.3lf %8.3lf\n",A6D_K[0],A6D_K[1],A6D_K[2],A6D_K[3],A6D_K[4],A6D_K[5]);
+							}
+							else if(ParamType == 4)
+							{
+								for(ii=0;ii<6;ii++)
+									A6D_enable[ii] = ForceParam[ii];
+								printf("Set A6D_enable: %d   %d   %d   %d   %d   %d\n",A6D_enable[0],A6D_enable[1],A6D_enable[2],A6D_enable[3],A6D_enable[4],A6D_enable[5]);
+							}
+						}
+						break;
+						default:
+						break;
+					}
+				}
+				break;
+
+				case DUTY_MOTION:
+				{
+					int DutyFlag = 0;
+					DutyFlag = GetDutyCMD();
+					switch(DutyFlag)
+					{
+						case DUTY_START:
+							motion_mode = DUTY_MOTION;
+							DutyStep = 0;
+						break;
+						case DUTY_STOP:
+							DutyStep = 0;
+							motion_mode = 100;
+
+							printf("ForceControl Stop\n");
+							memset(buf24,0,sizeof(buf24));
+							memset(buf25,0,sizeof(buf25));
+							ForceSensorTCP_end();
+
+						break;
+						case FORCE_CLEAR:
+							First_ForceL = 1;
+							First_ForceR = 1;
+						break;
+						case DUTY_RUN:
+							DutyStep = 1;
+						break;
+						case REMOTE_ENABLE:
+							RemoteMotion_enable_flag = 1;
+						break;
+						case REMOTE_DISABLE:
+							RemoteMotion_enable_flag = 0;
+						break;
+						case DUTY_FORCESTART:
+							DutyForceFlag = 1;
+						break;
+						case DUTY_FORCESTOP:
+							DutyForceFlag = 0;
+						break;
+
+						default:
+						break;
+					}
+				}
+				break;
+
+				default:
+				break;
+			}
+
+		}
+		else if(moving_flag&&rtnMode)
+		{
+			printf("Motion has not completed!\n");
+		}
+
+		/******************* Step3: 运动控制 *********************/	
+		// 控制指令响应
+		switch (control_mode)	
 		{
 			case CMD_POWER_ON:
+			{
 				printf("power on by UDP\n");
 				power_on();
 				power_on_flag = 1;
 				control_mode = 0;
+			}
 			break;
 
 			case CMD_POWER_OFF:
+			{
 				printf("power off by UDP\n");
 				power_off();
 				power_on_flag = 0;
+				elmo_init_flag = 0;
+				servo_on_flag = 0;
+				motion_enable_flag = 0;
 				control_mode = 0;
+			}
 			break;
 
 			case CMD_ELMO_INIT:
+			{
 				elmo_init();
+				elmo_init_flag = 1;
 				printf("elmo init by UDP\n");
 				control_mode = 0;
+			}
 			break;
 
 			case CMD_SERVO_ON:
+			{
 				printf("servo on by UDP\n");
      			servo_on();
 				servo_on_flag = 1;
 				control_mode = 0;
+			}
 			break;
 
 			case CMD_SERVO_OFF:
+			{
 				printf("servo off by UDP\n");
 				servo_off();
 				servo_on_flag  = 0;
 				control_mode = 0;
+			}
 			break;
 
 			case CMD_CTR_ENABLE:
@@ -1311,18 +1660,23 @@ void rt_can_recv(void *arg)
 			break;
 
 			case CMD_CTR_DISENABLE:
+			{
 				motion_enable_flag = 0;
 				printf("motion_enable_flag = 0 by UDP\n");
 				control_mode = 0;
+			}
 			break;
 
 			case CMD_HOMEPREPARE:
+			{
 				motion_mode = PREPARE_FIND_HOME;
 				printf("find home prepare\n");
 				control_mode = 0;
+			}
 			break;
 
 			case CMD_HOMEZERO:
+			{
 				// 避免仿真运动切换到真实运动时出现大幅度运动的现象
 				for(i=0; i<can_channel_number; i++)
 				{
@@ -1337,37 +1691,49 @@ void rt_can_recv(void *arg)
 				motion_mode = HOMEBACK;
 				printf("home offset\n");
 				control_mode = 0;
+			}
 			break;
 
 			case CMD_RESET:
+			{
 				motion_mode = RETURN_ZERO;
 				printf("return to zero postion\n");
 				control_mode = 0;
+			}
 			break;
 
 			case CMD_BACKORIGIN:
+			{
 				motion_mode = RETURN_ORIGIN_POSITION;
 				printf("return origin position\n");
 				control_mode = 0;
+			}
 			break;
 
 			case CMD_MOVEPRE:
+			{
 				motion_mode = MOVE_PRE_POSITION;
 				printf("move to prepare position\n");
 				control_mode = 0;
+			}
 			break;
 
 			default:
 			break;
 		}
 
+		// 自动控制
+		{
+			
+		}
+		
+		// 运动指令响应
 		if(servo_on_flag == 1) // when servo on, the motion control is able
 		{
-/************************* 四通道CAN数据接收**************************/
 			switch (motion_mode)
 			{
 				case SINGLE_JOINT_MOTION:
-
+				{
 					if(fisrt_time_SINGLE_JOINT_MOTION == 0)
 					{
 						start_position[can_channel_main][can_id_main] = Joint_Angle_FB[can_channel_main][can_id_main];
@@ -1413,8 +1779,7 @@ void rt_can_recv(void *arg)
 						}
 
 					}
-
-
+				}
 				break;
 
 				case REMOTE_MOTION:
@@ -2755,98 +3120,6 @@ void rt_can_recv(void *arg)
 
 				case FORCE_MOTION:
 				{
-					int ForceNewDataL = 0;
-					double ForceDataL[6] = {0.0};
-					double ForceDataRAWL[6] = {0.0};
-					int ForceNewDataR = 0;
-					double ForceDataR[6] = {0.0};
-					double ForceDataRAWR[6] = {0.0};
-					// 左臂读数
-					if(ForceTCPFlagL <= 0)
-					{
-						ForceTCPFlagL = ForceSensorTCP_init(0x01);	//0x01 代表左臂
-						printf("ForceTCPFlagL is %d\n",ForceTCPFlagL);
-					}
-					else
-					{
-						switch(force_stepL)
-						{
-							case 1:
-							{
-								int Cfg = 0;
-								Cfg = ConfigSystemL(&nStatusL, &bIsSendFlagL, &bReceivedL);
-								if(Cfg == 2)
-									force_stepL = 2;
-
-								ForceTCPRecv(1);
-							}
-							break;
-
-							case 2:
-							{
-								ForceNewDataL = GetData(1,ForceDataRAWL);				// twice get a data
-								double Angle[7];
-								int i;
-
-								for (i = 0; i < 7; i++)
-								{
-									Angle[i] = RobotAngleFB.LeftArm[i];
-								}
-								ForceCompensationL(ForceDataRAWL, Angle, ForceDataL);
-
-								sprintf(buf21, "*********************************  Robot Force *********************************");
-
-								sprintf(buf22, "ForceL:   %8.3f  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f",ForceDataL[0],ForceDataL[1],ForceDataL[2],ForceDataL[3],ForceDataL[4],ForceDataL[5]);
-
-							}
-							break;
-							default:
-							break;
-						}
-
-					}
-					// 右臂读数
-					if(ForceTCPFlagR <= 0)
-					{
-						ForceTCPFlagR = ForceSensorTCP_init(0x02);	//0x01 代表左臂
-						printf("ForceTCPFlagR is %d\n",ForceTCPFlagR);
-					}
-					else
-					{
-						switch(force_stepR)
-						{
-							case 1:
-							{
-								int Cfg = 0;
-								Cfg = ConfigSystemR(&nStatusR, &bIsSendFlagR, &bReceivedR);
-								if(Cfg == 2)
-									force_stepR = 2;
-
-								ForceTCPRecv(2);
-							}
-							break;
-
-							case 2:
-							{
-								ForceNewDataR = GetData(2,ForceDataRAWR);				// twice get a data
-								double Angle[7];
-								int i;
-
-								for (i = 0; i < 7; i++)
-								{
-									Angle[i] = RobotAngleFB.RightArm[i];
-								}
-								ForceCompensationR(ForceDataRAWR, Angle, ForceDataR);
-
-								sprintf(buf23, "ForceR:   %8.3f  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f",ForceDataR[0],ForceDataR[1],ForceDataR[2],ForceDataR[3],ForceDataR[4],ForceDataR[5]);
-							}
-							break;
-							default:
-							break;
-						}
-
-					}
-
 					int i_f = 0;
 					double force_limit[6] = {80.0, 80.0, 100.0, 7.0, 7.0, 7.0};
 
@@ -3145,100 +3418,6 @@ void rt_can_recv(void *arg)
 
 			 	case DUTY_MOTION:
 			 	{
-			 		//**********************    读取力传感器数据   *****************************//
-					int ForceNewDataL = 0;
-
-					double ForceDataL[6] = {0.0};
-					double ForceDataRAWL[6] = {0.0};
-					int ForceNewDataR = 0;
-					double ForceDataR[6] = {0.0};
-					double ForceDataRAWR[6] = {0.0};
-					// 左臂读数
-					if(ForceTCPFlagL <= 0)
-					{
-						ForceTCPFlagL = ForceSensorTCP_init(0x01);	//0x01 代表左臂
-						printf("ForceTCPFlagL is %d\n",ForceTCPFlagL);
-					}
-					else
-					{
-						switch(force_stepL)
-						{
-							case 1:
-							{
-								int Cfg = 0;
-								Cfg = ConfigSystemL(&nStatusL, &bIsSendFlagL, &bReceivedL);
-								if(Cfg == 2)
-									force_stepL = 2;
-
-								ForceTCPRecv(1);
-							}
-							break;
-
-							case 2:
-							{
-								ForceNewDataL = GetData(1,ForceDataRAWL);				// twice get a data
-								double Angle[7];
-								int i;
-
-								for (i = 0; i < 7; i++)
-								{
-									Angle[i] = RobotAngleFB.LeftArm[i];
-								}
-								ForceCompensationL(ForceDataRAWL, Angle, ForceDataL);
-
-								sprintf(buf21, "*********************************  Robot Force *********************************");
-
-								sprintf(buf22, "ForceL:   %8.3f  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f",ForceDataL[0],ForceDataL[1],ForceDataL[2],ForceDataL[3],ForceDataL[4],ForceDataL[5]);
-
-							}
-							break;
-							default:
-							break;
-						}
-
-					}
-					// 右臂读数
-					if(ForceTCPFlagR <= 0)
-					{
-						ForceTCPFlagR = ForceSensorTCP_init(0x02);	//0x01 代表左臂
-						printf("ForceTCPFlagR is %d\n",ForceTCPFlagR);
-					}
-					else
-					{
-						switch(force_stepR)
-						{
-							case 1:
-							{
-								int Cfg = 0;
-								Cfg = ConfigSystemR(&nStatusR, &bIsSendFlagR, &bReceivedR);
-								if(Cfg == 2)
-									force_stepR = 2;
-
-								ForceTCPRecv(2);
-							}
-							break;
-
-							case 2:
-							{
-								ForceNewDataR = GetData(2,ForceDataRAWR);				// twice get a data
-								double Angle[7];
-								int i;
-
-								for (i = 0; i < 7; i++)
-								{
-									Angle[i] = RobotAngleFB.RightArm[i];
-								}
-								ForceCompensationR(ForceDataRAWR, Angle, ForceDataR);
-
-								sprintf(buf23, "ForceR:   %8.3f  %8.3f  %8.3f  %8.3f  %8.3f  %8.3f",ForceDataR[0],ForceDataR[1],ForceDataR[2],ForceDataR[3],ForceDataR[4],ForceDataR[5]);
-							}
-							break;
-							default:
-							break;
-						}
-
-					}
-
 					//**********************   任务序列   ***********************//
 					switch(DutyStep)
 					{
@@ -3813,266 +3992,47 @@ void rt_can_recv(void *arg)
 
 			}
 
-			// 数据同步接收
-			SYNC_Receive();
+
 		}
 
-		/********************** UDP通讯相关 Start ***************************/
-		UDPTimes++;
-		if(UDPTimes >= UDPCYCLE)
+		/******************* Step4: 回传与显示 *********************/		
+
+		//数据回传
+		UDPTimes = 0;
+		struct RobotDataUDP_Struct UploadData;
+		memset(&UploadData,0,sizeof(UploadData));
+
+		UploadData.TrustFlag = 0x5555;
+		if(motion_enable_flag)
 		{
-			UDPTimes = 0;
-			struct RobotDataUDP_Struct UploadData;
-			memset(&UploadData,0,sizeof(UploadData));
-
-			UploadData.TrustFlag = 0x5555;
-			if(motion_enable_flag)
-			{
-				CanDef2RealRobot(Joint_Angle_FB, &UploadData.RobotAngle);
-			}
-			else
-			{
-				CanDef2RealRobot(Joint_Angle_EP, &UploadData.RobotAngle);
-			}
-
-			CanDef2RealRobot(motor_current, &UploadData.RobotCurrent);
-
-			CanDef2RealRobot(Joint_Angle_EP, &UploadData.RobotAngleEX);
-
-			RobotFBSend(UploadData);
-			int rtnMode = UDPRecv();
-			if(moving_flag == 0)	// 运动已完成
-			{
-				switch(rtnMode)
-				{
-					case SINGLE_JOINT_MOTION:	//单关节运动模式
-					{
-						GetSingleJointData(&can_channel_main,&can_id_main,&JointMoveData,&singe_joint_time);
-						motion_mode = SINGLE_JOINT_MOTION;
-					}
-					break;
-
-					case ONE_ARM_MOTION:
-					{
-						GetSingleArmData(&ArmSelect,One_arm_Data, &one_arm_time);
-						motion_mode = ONE_ARM_MOTION;
-					}
-					break;
-
-					case ROBOT_CONTROL:		//机器人控制模式
-					{
-						control_mode = GetControlCMD();
-					}
-					break;
-
-					case REMOTE_DATA:
-					{
-						GetRemoteData(&rockerL, &rockerR, RemoteMotionData);
-						RemoteNewData = 1;
-					}
-					break;
-
-					case REMOTE_CONTROL:
-					{
-						int RemoteMode = 0;
-						RemoteMode = GetRemoteCMD();
-						switch(RemoteMode)
-						{
-							case REMOTE_START:
-								motion_mode = REMOTE_MOTION;
-							break;
-							case REMOTE_STOP:
-								motion_mode = 100;
-							break;
-							case REMOTE_ENABLE:
-								RemoteMotion_enable_flag = 1;
-							break;
-							case REMOTE_DISABLE:
-								RemoteMotion_enable_flag = 0;
-							break;
-							default:
-							break;
-						}
-					}
-					break;
-
-					case HAND_MOTION:
-					{
-						motion_mode = GetHandCMD(&HandSelect, &HandAngleL, &HandAngleR);
-						HandAngleL = HandAngleL*Degree2Rad;
-						HandAngleR = HandAngleR*Degree2Rad;
-						HandNewData = 1;
-
-					}
-					break;
-
-					case FIND_HOME_MOTION:
-					{
-						GetFindHomeData(&can_channel_main,&can_id_main);
-						motion_mode = FIND_HOME_MOTION;
-					}
-					break;
-
-					case FORCE_CONTROL:
-					{
-						int ForceMode = 0;
-						int ParamType = 0;
-						float ForceParam[6] = {0.0};
-						ForceMode = GetForceCMD(&ParamType, ForceParam);
-						switch(ForceMode)
-						{
-							case FORCE_START:
-								motion_mode = FORCE_MOTION;
-								printf("ForceControl Start\n");
-							break;
-							case FORCE_ENABLE:
-								ForceControl_flagL = 1;
-								ForceControl_flagR = 1;
-								printf("ForceControl Enable\n");
-							break;
-							case FORCE_DISABLE:
-								ForceControl_flagL = 0;
-								ForceControl_flagR = 0;
-								printf("ForceControl Disable\n");
-								memset(buf24,0,sizeof(buf24));
-								memset(buf25,0,sizeof(buf25));
-							break;
-							case FORCE_STOP:
-								motion_mode = 100;
-								force_stepL = 1;
-								nStatusL = 0;
-								bIsSendFlagL = 1;
-								bReceivedL = 0;
-								ForceTCPFlagL = 0;
-
-								force_stepR = 1;
-								nStatusR = 0;
-								bIsSendFlagR = 1;
-								bReceivedR = 0;
-								ForceTCPFlagR = 0;
-								printf("ForceControl Stop\n");
-								memset(buf21,0,sizeof(buf21));
-								memset(buf22,0,sizeof(buf22));
-								memset(buf23,0,sizeof(buf23));
-								memset(buf24,0,sizeof(buf24));
-								memset(buf25,0,sizeof(buf25));
-								ForceSensorTCP_end();
-							break;
-							case FORCE_CLEAR:
-								First_ForceL = 1;
-								First_ForceR = 1;
-							break;
-							case FORCE_SETPARAM:
-							{
-								int ii = 0;
-								if(ParamType == 1)
-								{
-									for(ii=0;ii<6;ii++)
-										A6D_m[ii] = ForceParam[ii];
-									printf("Set A6D_M: %8.3lf %8.3lf %8.3lf %8.3lf %8.3lf %8.3lf\n",A6D_m[0],A6D_m[1],A6D_m[2],A6D_m[3],A6D_m[4],A6D_m[5]);
-								}
-								else if(ParamType == 2)
-								{
-									for(ii=0;ii<6;ii++)
-										force_velocity_limit[ii] = ForceParam[ii];
-									printf("Set force_velocity_limit: %8.3lf %8.3lf %8.3lf %8.3lf %8.3lf %8.3lf\n",force_velocity_limit[0],force_velocity_limit[1],force_velocity_limit[2],force_velocity_limit[3],force_velocity_limit[4],force_velocity_limit[5]);
-								}
-								else if(ParamType == 3)
-								{
-									for(ii=0;ii<6;ii++)
-										A6D_K[ii] = ForceParam[ii];
-									printf("Set A6D_K: %8.3lf %8.3lf %8.3lf %8.3lf %8.3lf %8.3lf\n",A6D_K[0],A6D_K[1],A6D_K[2],A6D_K[3],A6D_K[4],A6D_K[5]);
-								}
-								else if(ParamType == 4)
-								{
-									for(ii=0;ii<6;ii++)
-										A6D_enable[ii] = ForceParam[ii];
-									printf("Set A6D_enable: %d   %d   %d   %d   %d   %d\n",A6D_enable[0],A6D_enable[1],A6D_enable[2],A6D_enable[3],A6D_enable[4],A6D_enable[5]);
-								}
-							}
-							break;
-							default:
-							break;
-						}
-					}
-					break;
-
-					case DUTY_MOTION:
-					{
-						int DutyFlag = 0;
-						DutyFlag = GetDutyCMD();
-						switch(DutyFlag)
-						{
-							case DUTY_START:
-								motion_mode = DUTY_MOTION;
-								DutyStep = 0;
-							break;
-							case DUTY_STOP:
-								DutyStep = 0;
-								motion_mode = 100;
-
-								force_stepL = 1;
-								nStatusL = 0;
-								bIsSendFlagL = 1;
-								bReceivedL = 0;
-								ForceTCPFlagL = 0;
-
-								force_stepR = 1;
-								nStatusR = 0;
-								bIsSendFlagR = 1;
-								bReceivedR = 0;
-								ForceTCPFlagR = 0;
-								printf("ForceControl Stop\n");
-								memset(buf21,0,sizeof(buf21));
-								memset(buf22,0,sizeof(buf22));
-								memset(buf23,0,sizeof(buf23));
-								memset(buf24,0,sizeof(buf24));
-								memset(buf25,0,sizeof(buf25));
-								ForceSensorTCP_end();
-
-							break;
-							case FORCE_CLEAR:
-								First_ForceL = 1;
-								First_ForceR = 1;
-							break;
-							case DUTY_RUN:
-								DutyStep = 1;
-							break;
-							case REMOTE_ENABLE:
-								RemoteMotion_enable_flag = 1;
-							break;
-							case REMOTE_DISABLE:
-								RemoteMotion_enable_flag = 0;
-							break;
-							case DUTY_FORCESTART:
-								DutyForceFlag = 1;
-							break;
-							case DUTY_FORCESTOP:
-								DutyForceFlag = 0;
-							break;
-
-							default:
-							break;
-						}
-					}
-					break;
-
-					default:
-					break;
-				}
-
-			}
-			else if(moving_flag&&rtnMode)
-			{
-				printf("Motion has not completed!\n");
-			}
-
+			CanDef2RealRobot(Joint_Angle_FB, &UploadData.RobotAngle);
+		}
+		else
+		{
+			CanDef2RealRobot(Joint_Angle_EP, &UploadData.RobotAngle);
 		}
 
-		/********************** UDP通讯相关 End ***************************/
+		CanDef2RealRobot(motor_current, &UploadData.RobotCurrent);
 
-		/************************* 界面显示 **************************/
+		CanDef2RealRobot(Joint_Angle_EP, &UploadData.RobotAngleEX);
 
+		for(i=0;i<7;i++)
+		{
+			UploadData.ForceL[i] = ForceDataL[i];
+			UploadData.ForceR[i] = ForceDataR[i];
+		}
+
+		UploadData.Posture[0] = Posture[0];
+		UploadData.Posture[1] = Posture[1];
+		UploadData.Posture[2] = Posture[2];
+		UploadData.GPS[0] = longitude;
+		UploadData.GPS[1] = latitude;
+		UploadData.Voltage = VoltageFB;
+		UploadData.Current = CurrentFB;
+
+		RobotFBSend(UploadData);
+
+		// 界面显示
 		memset(&RobotRealCurrent,0,sizeof(RobotRealCurrent));
 
 		CanDef2RealRobot(motor_current, &RobotRealCurrent);

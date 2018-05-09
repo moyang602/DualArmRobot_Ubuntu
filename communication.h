@@ -41,6 +41,10 @@ struct RobotDataUDP_Struct
 	struct RealRobot_Struct RobotAngle;
 	struct RealRobot_Struct RobotCurrent;
 	struct RealRobot_Struct RobotAngleEX;
+	float ForceL[6];
+	float ForceR[6];
+	float Posture[3];
+	float GPS[2];
 	unsigned int CheckSum;
 };
 #pragma pack(pop)
