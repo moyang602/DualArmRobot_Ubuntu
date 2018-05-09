@@ -175,7 +175,7 @@ int can_channel_number = 4;
 int can_switch[4][7] = {{0, 0, 0, 0, 1, 1, 1},
 						{1, 1, 1, 1, 1, 1, 1},
 						{1, 1, 1, 1, 0, 0, 0},
-						{1, 1, 1, 1, 1, 1, 1}};
+						{1, 1, 1, 1, 0, 0, 1}};
 
 // 各节点速度方向
 double joint_direction[4][7] = {{1, 1, 1, 1, 1, -1, 1},
@@ -560,7 +560,7 @@ void view (void *n)
 	 				}
 
 				break;
-				
+
 				case '5':
 					motion_enable_flag =1;
 					printf("motion_enable_flag = 1\n");
@@ -582,7 +582,7 @@ void view (void *n)
 					printf("return_origin_position\n");
 				break;
 				*/
-				
+
 				case 'e':	// 关程序
 				case 'E':
 					//add code to stop the motors
@@ -783,7 +783,7 @@ void SYNC_Receive_R(void)
 
 	previous2 = rt_timer_read();
 	period2 = (previous2 - now2) / 1000;   //us
-	printf("period2 = %ld us\n", (long)period2);
+//	printf("period2 = %ld us\n", (long)period2);
 
 	// receive Motor Driver data
 	sleeptime.tv_nsec = 900000;		//moyang602  sleeptime.tv_nsec = 2000000;
@@ -923,38 +923,44 @@ void SYNC_Receive_R(void)
 
 	count_out[0] = 0x49;
 	count_out[1] = 0x55;
-	can_send(3, 0x7, 0, count_out, 2);
+	can_send(3, 0x7, 0, count_out, 2);		// may result in error in Left joint3
 
-	sleeptime.tv_nsec = 40000;
-	sleeptime.tv_sec = 0;
-	nanosleep(&sleeptime,NULL);
-	ret = rt_dev_recvfrom(rxsock[3], (void *)&frame, sizeof(can_frame_t), 0, (struct sockaddr *)&addr, &addrlen);
-	if (ret < 0)
+	for(i=0;i<5;i++)
 	{
-		switch (ret)
+		sleeptime.tv_nsec = 10000;
+		sleeptime.tv_sec = 0;
+		nanosleep(&sleeptime,NULL);
+		ret = rt_dev_recvfrom(rxsock[3], (void *)&frame, sizeof(can_frame_t), 0, (struct sockaddr *)&addr, &addrlen);
+		if (ret < 0)
 		{
-			case -ETIMEDOUT:
-				if (verbose)
-			//		printf("rt_dev_recv: timed out\n");
-					canRecvStatus[3] = -1;
-				break;
-			case -EBADF:
-				if (verbose)
-					printf("rt_dev_recv: aborted because socket was closed");
-					canRecvStatus[3] = -2;
-				break;
-			default:
-				fprintf(stderr, "rt_dev_recv: %s\n", strerror(-ret));
-				canRecvStatus[3] = -3;
-				break;
+			switch (ret)
+			{
+				case -ETIMEDOUT:
+					if (verbose)
+						printf("rt_dev_recv: timed out\n");
+						canRecvStatus[3] = -1;
+					break;
+				case -EBADF:
+					if (verbose)
+						printf("rt_dev_recv: aborted because socket was closed");
+						canRecvStatus[3] = -2;
+					break;
+				default:
+					fprintf(stderr, "rt_dev_recv: %s\n", strerror(-ret));
+					canRecvStatus[3] = -3;
+					break;
+			}
+		}
+		else
+		{
+			if(frame.can_id == 0x307)
+			{
+				VoltageFB = (frame.data[1]*256 + frame.data[0])/1000.0;
+				CurrentFB = (frame.data[3]*256 + frame.data[2])/1000.0;
+				printf("VoltageFB = %lf,  CurrentFB = %lf\n", VoltageFB, CurrentFB);
+			}
 		}
 	}
-	else
-	{
-		VoltageFB = (frame.data[1]*256 + frame.data[0])/1000.0;
-		CurrentFB = (frame.data[3]*256 + frame.data[2])/1000.0;
-	}
-
 */
 }
 
@@ -1188,13 +1194,13 @@ void rt_can_recv(void *arg)
 	double ForceDataRAWL[6] = {0.0};
 	int ForceNewDataR = 0;
 	double ForceDataRAWR[6] = {0.0};
-	
+
 /**********************************************************************************/
 	//    开始循环
 /**********************************************************************************/
 	FILE *fp;
 	fp = fopen("current.txt","w");
-	
+
 	int n_gps;
 	while(canrv_running)
 	{
@@ -1241,7 +1247,7 @@ void rt_can_recv(void *arg)
    		//	printf("==   经度 : 东经:%d度%d分%d秒                              \n", ((int)longitude) / 100, (int)(longitude - ((int)longitude / 100 * 100)), (int)(((	longitude - ((int)longitude / 100 * 100)) - ((int)longitude - ((int)longitude / 100 * 100))) * 60.0));
 			n_gps = 0;
 		}
-		
+
 		// d.六维力信号获取
 		// 左臂读数
 		if(ForceTCPFlagL <= 0)
@@ -1335,7 +1341,7 @@ void rt_can_recv(void *arg)
 			// 数据同步接收 接收关节数据
 			SYNC_Receive_R();
 		}
-		
+
 		/******************* Step2: 指令获取 *********************/
 		// a.接收上位机指令
 		int rtnMode = UDPRecv();
@@ -1437,7 +1443,7 @@ void rt_can_recv(void *arg)
 						break;
 						case FORCE_STOP:
 							motion_mode = 100;
-							
+
 							printf("ForceControl Stop\n");
 							memset(buf24,0,sizeof(buf24));
 							memset(buf25,0,sizeof(buf25));
@@ -1538,9 +1544,9 @@ void rt_can_recv(void *arg)
 			printf("Motion has not completed!\n");
 		}
 
-		/******************* Step3: 运动控制 *********************/	
+		/******************* Step3: 运动控制 *********************/
 		// a.控制指令响应
-		switch (control_mode)	
+		switch (control_mode)
 		{
 			case CMD_POWER_ON:
 			{
@@ -1676,7 +1682,7 @@ void rt_can_recv(void *arg)
 		{
 			// b.自动控制
 			{
-				
+
 			}
 			// c.运动指令响应
 			NoCollisionFlag = 1; // 初始化没有碰撞
@@ -3308,9 +3314,9 @@ void rt_can_recv(void *arg)
 				break;
 
 			}
-			
+
 			// d.运动保护
-			
+
 			// e.指令下发
 			if(motion_enable_flag == 1&& NoCollisionFlag == 1)
 			{
@@ -3338,7 +3344,7 @@ void rt_can_recv(void *arg)
 			}
 		}
 
-		/******************* Step4: 回传与显示 *********************/		
+		/******************* Step4: 回传与显示 *********************/
 
 		// a.数据回传
 		UDPTimes = 0;

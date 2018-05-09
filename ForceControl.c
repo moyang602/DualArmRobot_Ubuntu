@@ -261,7 +261,7 @@ int ForceTCPRecv(int select)
 			}
 			else
 			{
-			//	printf("Recv:%d data, %s\n",RTN,recvbuff);
+				//printf("Recv:%d data, %s\n",RTN,recvbuff);
 				bReceivedL = 1;
 				int i=0;
 
@@ -673,10 +673,10 @@ int GetData(int select, double* m_dDecouplingValue)
 			memset(mRxBufferL,0,sizeof(mRxBufferL));
 			TCPSend(1,(void *)Command,CommandLens);
 
-			//	struct timespec sleeptime;
-			//	sleeptime.tv_nsec = 500000;
-			//	sleeptime.tv_sec = 0;
-			//	nanosleep(&sleeptime,NULL);
+			struct timespec sleeptime;
+			sleeptime.tv_nsec = 2000;
+			sleeptime.tv_sec = 0;
+			nanosleep(&sleeptime,NULL);
 
 			ForceTCPRecv(1);
 
@@ -691,7 +691,7 @@ int GetData(int select, double* m_dDecouplingValue)
 			}
 			else
 			{
-				printf("can't get force data\n");
+				printf("can't get left force data\n");
 			}
 
 			return 0;
@@ -702,10 +702,10 @@ int GetData(int select, double* m_dDecouplingValue)
 			memset(mRxBufferR,0,sizeof(mRxBufferR));
 			TCPSend(2,(void *)Command,CommandLens);
 
-			//	struct timespec sleeptime;
-			//	sleeptime.tv_nsec = 500000;
-			//	sleeptime.tv_sec = 0;
-			//	nanosleep(&sleeptime,NULL);
+			struct timespec sleeptime;
+			sleeptime.tv_nsec = 2000;
+			sleeptime.tv_sec = 0;
+			nanosleep(&sleeptime,NULL);
 
 			ForceTCPRecv(2);
 
@@ -718,7 +718,7 @@ int GetData(int select, double* m_dDecouplingValue)
 			}
 			else
 			{
-				printf("can't get force data\n");
+				printf("can't get right force data\n");
 			}
 
 			return 0;

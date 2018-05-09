@@ -45,6 +45,8 @@ struct RobotDataUDP_Struct
 	float ForceR[6];
 	float Posture[3];
 	float GPS[2];
+	float Voltage;
+	float Current;
 	unsigned int CheckSum;
 };
 #pragma pack(pop)
