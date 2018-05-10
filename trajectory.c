@@ -1039,7 +1039,6 @@ int cubicAddPoint(int index, double point)
 		return -1;
 	}
 
-
 	if (cubic[index].filled == 0)
 	{
 		cubic[index].x0 = point;
@@ -1067,7 +1066,6 @@ int cubicAddPoint(int index, double point)
 
 	cubic[index].interpolationTime = 0;
 	cubic[index].needNextPoint = 0;
-
 	return 1;
 }
 
@@ -1092,6 +1090,8 @@ double cubicInterpolate(int index)
 //	printf("cubictime = %f  x1 = %f  x2 = %f  x3 = %f  x4 = %f\n", cubic[index].interpolationTime, cubic[index].x0, cubic[index].x1, cubic[index].x2,cubic[index].x3);
 	return out;
 }
+
+struct Cubic_Struct cubic_Waist[2];
 
 
 //3维叉乘

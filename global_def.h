@@ -1,5 +1,7 @@
 #ifndef GLOABL_DEF
 
+#include "trajectory.h"
+
 #define Rad2Degree 	57.29577951308
 #define Degree2Rad 	0.0174532925
 #define sin15	0.2588190451025
@@ -72,6 +74,10 @@
 #define DUTY_RUN			0xB3
 #define DUTY_FORCESTART		0xB4
 #define DUTY_FORCESTOP		0xB5
+
+// 自控指令
+#define SELFCONTROL_START	0xE1
+#define SELFCONTROL_STOP	0xE2
 
 #define GLOABL_DEF
 #endif

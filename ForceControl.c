@@ -86,10 +86,10 @@ int ForceSensorTCP_init(int select)
 			ForceClientSockL = socket(AF_INET, SOCK_STREAM, 0);
 			if (ForceClientSockL<0)
 			{
-				perror("ForceClient created failed!\n");
+				perror("Left ForceClient created failed!\n");
 				return -1;
 			}
-			printf("ForceClient create successfully\n");
+			printf("Left ForceClient create successfully\n");
 
 			struct sockaddr_in HostAddr;
 			memset(&HostAddr,0,sizeof(HostAddr));
@@ -98,9 +98,9 @@ int ForceSensorTCP_init(int select)
 			HostAddr.sin_addr.s_addr = inet_addr(ForceHOST_IPL);
 			if (bind(ForceClientSockL, (struct sockaddr*)&HostAddr, sizeof(HostAddr)) < 0)
 			{
-				perror("PC socket binded failed!\n");
+				perror("Left PC socket binded failed!\n");
 			}
-			printf("ForceClient binded successfully\n");
+			printf("Left ForceClient binded successfully\n");
 			struct sockaddr_in ForceServerAddr;
 			memset(&ForceServerAddr,0,sizeof(ForceServerAddr));
 			ForceServerAddr.sin_family=AF_INET;
@@ -109,10 +109,10 @@ int ForceSensorTCP_init(int select)
 
 			if (connect(ForceClientSockL,(struct sockaddr*)&ForceServerAddr,sizeof(struct sockaddr_in))<0)
 			{
-				perror("Connect failed!\n");
+				perror("Left Connect failed!\n");
 				return -1;
 			}
-			printf("ForceServer connect successfully\n");
+			printf("Left ForceServer connect successfully\n");
 			return 1;
 		}
 		break;
@@ -122,10 +122,10 @@ int ForceSensorTCP_init(int select)
 			ForceClientSockR = socket(AF_INET, SOCK_STREAM, 0);
 			if (ForceClientSockR<0)
 			{
-				perror("ForceClient created failed!\n");
+				perror("Right ForceClient created failed!\n");
 				return -1;
 			}
-			printf("ForceClient create successfully\n");
+			printf("Right ForceClient create successfully\n");
 
 			struct sockaddr_in HostAddr;
 			memset(&HostAddr,0,sizeof(HostAddr));
@@ -134,9 +134,9 @@ int ForceSensorTCP_init(int select)
 			HostAddr.sin_addr.s_addr = inet_addr(ForceHOST_IPR);
 			if (bind(ForceClientSockR, (struct sockaddr*)&HostAddr, sizeof(HostAddr)) < 0)
 			{
-				perror("PC socket binded failed!\n");
+				perror("Right PC socket binded failed!\n");
 			}
-			printf("ForceClient binded successfully\n");
+			printf("Right ForceClient binded successfully\n");
 			struct sockaddr_in ForceServerAddr;
 			memset(&ForceServerAddr,0,sizeof(ForceServerAddr));
 			ForceServerAddr.sin_family=AF_INET;
@@ -145,10 +145,10 @@ int ForceSensorTCP_init(int select)
 
 			if (connect(ForceClientSockR,(struct sockaddr*)&ForceServerAddr,sizeof(struct sockaddr_in))<0)
 			{
-				perror("Connect failed!\n");
+				perror("Right Connect failed!\n");
 				return -1;
 			}
-			printf("ForceServer connect successfully\n");
+			printf("Right ForceServer connect successfully\n");
 			return 1;
 		}
 		break;
@@ -332,7 +332,7 @@ int ConfigSystemL(int *nStatus, int *bIsSendFlag, int *bReceived)
 						return 0;
 					}
 					*nStatus = 1;
-					printf("Get AMPZ successful\n");
+					printf("Left Get AMPZ successful\n");
 				}
 			}
 		}
@@ -359,7 +359,7 @@ int ConfigSystemL(int *nStatus, int *bIsSendFlag, int *bReceived)
 						return 0;
 					}
 					*nStatus = 2;
-					printf("Get CHNAPG successful\n");
+					printf("Left Get CHNAPG successful\n");
 				}
 
 			}
@@ -386,7 +386,7 @@ int ConfigSystemL(int *nStatus, int *bIsSendFlag, int *bReceived)
 						return 0;
 					}
 					*nStatus = 3;
-					printf("Get EXMV successful\n");
+					printf("Left Get EXMV successful\n");
 				}
 
 			}
@@ -408,7 +408,7 @@ int ConfigSystemL(int *nStatus, int *bIsSendFlag, int *bReceived)
 					*bReceived = 0;
 					*bIsSendFlag = 1;
 					*nStatus = 4;
-					printf("Set SMPR successful\n");
+					printf("Left Set SMPR successful\n");
 				}
 			}
 		}
@@ -429,8 +429,8 @@ int ConfigSystemL(int *nStatus, int *bIsSendFlag, int *bReceived)
 					*bReceived = 0;
 					*bIsSendFlag = 1;
 					*nStatus = 5;
-					printf("Set SGDM successful\n");
-					printf("Config system finish\n");
+					printf("Left Set SGDM successful\n");
+					printf("Left Config system finish\n");
 					return 2;
 				}
 			}
@@ -471,7 +471,7 @@ int ConfigSystemR(int *nStatus, int *bIsSendFlag, int *bReceived)
 						return 0;
 					}
 					*nStatus = 1;
-					printf("Get AMPZ successful\n");
+					printf("Right Get AMPZ successful\n");
 				}
 			}
 		}
@@ -498,7 +498,7 @@ int ConfigSystemR(int *nStatus, int *bIsSendFlag, int *bReceived)
 						return 0;
 					}
 					*nStatus = 2;
-					printf("Get CHNAPG successful\n");
+					printf("Right Get CHNAPG successful\n");
 				}
 
 			}
@@ -525,7 +525,7 @@ int ConfigSystemR(int *nStatus, int *bIsSendFlag, int *bReceived)
 						return 0;
 					}
 					*nStatus = 3;
-					printf("Get EXMV successful\n");
+					printf("Right Get EXMV successful\n");
 				}
 
 			}
@@ -547,7 +547,7 @@ int ConfigSystemR(int *nStatus, int *bIsSendFlag, int *bReceived)
 					*bReceived = 0;
 					*bIsSendFlag = 1;
 					*nStatus = 4;
-					printf("Set SMPR successful\n");
+					printf("Right Set SMPR successful\n");
 				}
 			}
 		}
@@ -568,8 +568,8 @@ int ConfigSystemR(int *nStatus, int *bIsSendFlag, int *bReceived)
 					*bReceived = 0;
 					*bIsSendFlag = 1;
 					*nStatus = 5;
-					printf("Set SGDM successful\n");
-					printf("Config system finish\n");
+					printf("Right Set SGDM successful\n");
+					printf("Right Config system finish\n");
 					return 2;
 				}
 			}
@@ -620,7 +620,7 @@ int GetChParameter(int select, char *pInstr,double *pdBuffer)
 
 			for(i = 0x00; i < 6; i++)
 				pdBuffer[i] = pdTemp[i];
-			printf("GetChParameter successful\n");
+			//printf("Left GetChParameter successful\n");
 			return 1;
 		}
 		break;
@@ -651,7 +651,7 @@ int GetChParameter(int select, char *pInstr,double *pdBuffer)
 
 			for(i = 0x00; i < 6; i++)
 				pdBuffer[i] = pdTemp[i];
-			printf("GetChParameter successful\n");
+			//printf("Right GetChParameter successful\n");
 			return 1;
 		}
 		break;

@@ -168,14 +168,10 @@ int can_channel_number = 4;
 //						{1, 1, 1, 1, 1, 1, 1},
 //						{1, 1, 1, 1, 1, 1, 1},
 //						{1, 1, 1, 1, 1, 1, 1}};
-/*int can_switch[4][7] = {{0, 0, 0, 0, 1, 1, 1},
-						{0, 0, 0, 0, 1, 1, 1},
-						{1, 1, 1, 1, 1, 1, 0},
-						{1, 1, 1, 1, 1, 1, 1}};*/
-int can_switch[4][7] = {{0, 0, 0, 0, 1, 1, 1},
+int can_switch[4][7] = {{1, 1, 1, 1, 1, 1, 1},
 						{1, 1, 1, 1, 1, 1, 1},
 						{1, 1, 1, 1, 0, 0, 0},
-						{1, 1, 1, 1, 0, 0, 1}};
+						{1, 1, 1, 1, 0, 1, 1}};
 
 // 各节点速度方向
 double joint_direction[4][7] = {{1, 1, 1, 1, 1, -1, 1},
@@ -303,8 +299,12 @@ int power_on_flag = 0;
 int elmo_init_flag = 0;
 int servo_on_flag = 0;
 int motion_enable_flag= 0;
+int finding_home_flag = 0;
+int self_waist_Ctrflag = 0;
 int RemoteMotion_enable_flag = 0;
 
+
+double SelfCtrAngle_deg = 0.0;
 // UDP通信数据
 float JointMoveData = 0.0;
 float RemoteMotionData[14] = {0.0};
@@ -354,6 +354,7 @@ int UDPTimes = 0;	// UDP 周期计数
 /********************** UDP通讯相关 End ***************************/
 
 struct Cubic_Struct cubic[14];
+struct Cubic_Struct cubic_Waist[2];
 /**********************  VisionControl Start ***********************/
 float DeltaMatrix[4][4] = {0.0};
 /**********************  VisionControl End ***********************/
@@ -589,6 +590,7 @@ void view (void *n)
 					XCloseDisplay(MyDisplay);
 					view_running = 0;
 					canrv_running = 0;
+					ForceSensorTCP_end();
 					rt_task_delete(&rt_task_view);
 					rt_task_delete(&demo_task_rvcan);
 
@@ -1224,7 +1226,7 @@ void rt_can_recv(void *arg)
 
 		/******************* Step1: 机器人状态获取 *********************/
 		// a.机器人关节数据获取
-		if (elmo_init_flag==1)
+		if (elmo_init_flag==1||servo_on_flag==1)
 		{
 			// 数据同步接收 发送远程帧
 			SYNC_Receive_S();
@@ -1336,7 +1338,7 @@ void rt_can_recv(void *arg)
 		}
 
 		// e.机器人关节数据获取
-		if (elmo_init_flag==1)
+		if (elmo_init_flag==1||servo_on_flag==1)
 		{
 			// 数据同步接收 接收关节数据
 			SYNC_Receive_R();
@@ -1447,7 +1449,6 @@ void rt_can_recv(void *arg)
 							printf("ForceControl Stop\n");
 							memset(buf24,0,sizeof(buf24));
 							memset(buf25,0,sizeof(buf25));
-							ForceSensorTCP_end();
 						break;
 						case FORCE_CLEAR:
 							First_ForceL = 1;
@@ -1502,11 +1503,9 @@ void rt_can_recv(void *arg)
 							DutyStep = 0;
 							motion_mode = 100;
 
-							printf("ForceControl Stop\n");
+							printf("DutyControl Stop\n");
 							memset(buf24,0,sizeof(buf24));
 							memset(buf25,0,sizeof(buf25));
-							ForceSensorTCP_end();
-
 						break;
 						case FORCE_CLEAR:
 							First_ForceL = 1;
@@ -1608,6 +1607,17 @@ void rt_can_recv(void *arg)
 						Joint_Angle_EP[i][j] = Joint_Angle_FB[i][j];
 						Joint_Angle_LastEP_degree[i][j] = Joint_Angle_FB_degree[i][j];
 						Joint_Angle_EP_degree[i][j] = Joint_Angle_FB_degree[i][j];
+						memset(&RobotAngleFB,0,sizeof(RobotAngleFB));
+						memset(&RobotAngleEP,0,sizeof(RobotAngleEP));
+						memset(&RobotAngleFBDeg,0,sizeof(RobotAngleFBDeg));
+						memset(&RobotAngleEPDeg,0,sizeof(RobotAngleEPDeg));
+						memset(&RobotAngleERDeg,0,sizeof(RobotAngleERDeg));
+
+						CanDef2RealRobot(Joint_Angle_FB, &RobotAngleFB);
+						CanDef2RealRobot(Joint_Angle_EP, &RobotAngleEP);
+						CanDef2RealRobot(Joint_Angle_FB_degree, &RobotAngleFBDeg);
+						CanDef2RealRobot(Joint_Angle_EP_degree, &RobotAngleEPDeg);
+						CanDef2RealRobot(Joint_Angle_ER_degree, &RobotAngleERDeg);
 					}
 				}
 				printf("motion_enable_flag = 1 by UDP\n");
@@ -1642,6 +1652,17 @@ void rt_can_recv(void *arg)
 						Joint_Angle_EP[i][j] = Joint_Angle_FB[i][j];
 						Joint_Angle_LastEP_degree[i][j] = Joint_Angle_FB_degree[i][j];
 						Joint_Angle_EP_degree[i][j] = Joint_Angle_FB_degree[i][j];
+						memset(&RobotAngleFB,0,sizeof(RobotAngleFB));
+						memset(&RobotAngleEP,0,sizeof(RobotAngleEP));
+						memset(&RobotAngleFBDeg,0,sizeof(RobotAngleFBDeg));
+						memset(&RobotAngleEPDeg,0,sizeof(RobotAngleEPDeg));
+						memset(&RobotAngleERDeg,0,sizeof(RobotAngleERDeg));
+
+						CanDef2RealRobot(Joint_Angle_FB, &RobotAngleFB);
+						CanDef2RealRobot(Joint_Angle_EP, &RobotAngleEP);
+						CanDef2RealRobot(Joint_Angle_FB_degree, &RobotAngleFBDeg);
+						CanDef2RealRobot(Joint_Angle_EP_degree, &RobotAngleEPDeg);
+						CanDef2RealRobot(Joint_Angle_ER_degree, &RobotAngleERDeg);
 					}
 				}
 				motion_mode = HOMEBACK;
@@ -1674,18 +1695,89 @@ void rt_can_recv(void *arg)
 			}
 			break;
 
+			case SELFCONTROL_START:
+			{
+				self_waist_Ctrflag = 1;
+				SelfCtrAngle_deg = Posture[1];
+
+			/*	memset(&cubic_Waist,0,sizeof(cubic_Waist));
+				cubic_Waist.needNextPoint = 1;
+				cubic_Waist.segmentTime = 0.06;
+				cubic_Waist.interpolationRate = 0.06/time_interval + 1;
+				cubic_Waist.interpolationIncrement = 0.06/(double)(cubic_Waist.interpolationRate - 1);*/
+
+				printf("Start self waist control\n");
+				control_mode = 0;
+			}
+			break;
+
+			case SELFCONTROL_STOP:
+			{
+				self_waist_Ctrflag = 0;
+				SelfCtrAngle_deg = Posture[1];
+				printf("Stop self waist control\n");
+				control_mode = 0;
+			}
+			break;
+
 			default:
 			break;
 		}
 
 		if(servo_on_flag == 1) // when servo on, the motion control is able
 		{
+			NoCollisionFlag = 1; // 初始化没有碰撞
 			// b.自动控制
 			{
+				if(self_waist_Ctrflag)
+				{
+					if (3 - Posture[1]>0.2)
+					{
+						SelfCtrAngle_deg += 1 * time_interval;
+					}
+					else if(3 - Posture[1]<-0.2)
+					{
+						SelfCtrAngle_deg -= 1 * time_interval;
+					}
 
+				/*	while(cubic_Waist.needNextPoint)
+					{
+						cubicAddPoint(i_R,RemotePlanPos_deg[i_R]);
+
+					}
+
+					for (i_R = 0; i_R < 7; i_R++)
+					{
+						RemoteRobotPos_deg.LeftArm[i_R] = cubicInterpolate(i_R);
+						RemoteRobotPos_deg.RightArm[i_R] = cubicInterpolate(i_R+7);
+					}
+				*/
+
+					Joint_Angle_EP[3][5] = JointDetect(3, 5, SelfCtrAngle_deg*Degree2Rad);
+
+					printf("Joint_Angle_EP[3][5] = %lf\n", Joint_Angle_EP[3][5]*Rad2Degree);
+
+					// 碰撞检测
+					int rtnn = 0;
+					struct RealRobot_Struct SendAngle;
+					memset(&SendAngle,0,sizeof(SendAngle));
+					CanDef2RealRobot(Joint_Angle_EP, &SendAngle);
+					rtnn = CollisionDetection(SendAngle.LeftArm, SendAngle.RightArm, SendAngle.Waist);
+					if (rtnn == 0)
+					{
+						printf("Detect collision!\n");
+						NoCollisionFlag = 0;
+						motion_enable_flag = 0;
+					}
+					else
+					{
+					//	printf("No collision!\n");
+						NoCollisionFlag = 1;
+					}
+				}
 			}
 			// c.运动指令响应
-			NoCollisionFlag = 1; // 初始化没有碰撞
+
 			switch (motion_mode)
 			{
 				case SINGLE_JOINT_MOTION:
@@ -2262,6 +2354,8 @@ void rt_can_recv(void *arg)
 
 				case FIND_HOME_MOTION:
 				{
+					motion_enable_flag = 0;		// 找零时停止发数，避免机器人突然运动
+					finding_home_flag = 1;
 					if (can_id_main == 9)
 					{
 						find_home(0,9);
@@ -2373,6 +2467,7 @@ void rt_can_recv(void *arg)
 				case HOMEBACK:
 				{
 					int i_j;
+					finding_home_flag = 0;
 					if(first_time_HOMEBACK == 0)
 		 			{
 						memcpy(&OneArmStart,&RobotAngleFB,sizeof(OneArmStart));
@@ -2445,6 +2540,18 @@ void rt_can_recv(void *arg)
 									Joint_Angle_EP[i][j] = 0.0;
 									Joint_Angle_LastEP_degree[i][j] = 0.0;
 									Joint_Angle_EP_degree[i][j] = 0.0;
+
+									memset(&RobotAngleFB,0,sizeof(RobotAngleFB));
+									memset(&RobotAngleEP,0,sizeof(RobotAngleEP));
+									memset(&RobotAngleFBDeg,0,sizeof(RobotAngleFBDeg));
+									memset(&RobotAngleEPDeg,0,sizeof(RobotAngleEPDeg));
+									memset(&RobotAngleERDeg,0,sizeof(RobotAngleERDeg));
+
+									CanDef2RealRobot(Joint_Angle_FB, &RobotAngleFB);
+									CanDef2RealRobot(Joint_Angle_EP, &RobotAngleEP);
+									CanDef2RealRobot(Joint_Angle_FB_degree, &RobotAngleFBDeg);
+									CanDef2RealRobot(Joint_Angle_EP_degree, &RobotAngleEPDeg);
+									CanDef2RealRobot(Joint_Angle_ER_degree, &RobotAngleERDeg);
 								}
 							}
 						}
@@ -3352,7 +3459,7 @@ void rt_can_recv(void *arg)
 		memset(&UploadData,0,sizeof(UploadData));
 
 		UploadData.TrustFlag = 0x5555;
-		if(motion_enable_flag)
+		if(motion_enable_flag||finding_home_flag)
 		{
 			CanDef2RealRobot(Joint_Angle_FB, &UploadData.RobotAngle);
 		}
