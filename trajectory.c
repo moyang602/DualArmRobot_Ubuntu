@@ -1091,8 +1091,62 @@ double cubicInterpolate(int index)
 	return out;
 }
 
-struct Cubic_Struct cubic_Waist[2];
+struct Cubic_Struct cubicWH[4];
+int cubicAddPoint_WaistHead(int index, double point)
+{
+	if (cubicWH[index].needNextPoint == 0)
+	{
+		return -1;
+	}
 
+	if (cubicWH[index].filled == 0)
+	{
+		cubicWH[index].x0 = point;
+		cubicWH[index].x1 = point;
+		cubicWH[index].x2 = point;
+		cubicWH[index].x3 = point;
+		cubicWH[index].filled = 1;
+	}
+	else
+	{
+		cubicWH[index].x0 = cubicWH[index].x1;
+		cubicWH[index].x1 = cubicWH[index].x2;
+		cubicWH[index].x2 = cubicWH[index].x3;
+		cubicWH[index].x3 = point;
+	}
+
+	cubicWH[index].wp0 = (cubicWH[index].x0 + 4*cubicWH[index].x1 + cubicWH[index].x2)/6.0;
+	cubicWH[index].wp1 = (cubicWH[index].x1 + 4*cubicWH[index].x2 + cubicWH[index].x3)/6.0;
+	cubicWH[index].vel0 = (cubicWH[index].x2 - cubicWH[index].x0)/(2.0*cubicWH[index].segmentTime);
+	cubicWH[index].vel1 = (cubicWH[index].x3 - cubicWH[index].x1)/(2.0*cubicWH[index].segmentTime);
+	cubicWH[index].coeffd = cubicWH[index].wp0;
+	cubicWH[index].coeffc = cubicWH[index].vel0;
+	cubicWH[index].coeffb = 3*(cubicWH[index].wp1 - cubicWH[index].wp0)/cubicWH[index].segmentTime/cubicWH[index].segmentTime - (2*cubicWH[index].vel0 + cubicWH[index].vel1)/cubicWH[index].segmentTime;
+	cubicWH[index].coeffa = (cubicWH[index].vel1 - cubicWH[index].vel0)/(3*cubicWH[index].segmentTime*cubicWH[index].segmentTime) - (2*cubicWH[index].coeffb)/(3*cubicWH[index].segmentTime);
+
+	cubicWH[index].interpolationTime = 0;
+	cubicWH[index].needNextPoint = 0;
+	return 1;
+}
+double cubicInterpolate_WaistHead(int index)
+{
+	if (cubicWH[index].needNextPoint == 1)
+	{
+		cubicAddPoint_WaistHead(index, cubicWH[index].x3);
+	}
+
+	cubicWH[index].interpolationTime = cubicWH[index].interpolationTime + cubicWH[index].interpolationIncrement;
+
+	if (fabs(cubicWH[index].segmentTime - cubicWH[index].interpolationTime)<0.5*cubicWH[index].interpolationIncrement)
+	{
+		cubicWH[index].needNextPoint = 1;
+	}
+
+	double out = 0.0;
+	out = cubicWH[index].coeffa*cubicWH[index].interpolationTime*cubicWH[index].interpolationTime*cubicWH[index].interpolationTime + cubicWH[index].coeffb*cubicWH[index].interpolationTime*cubicWH[index].interpolationTime + cubicWH[index].coeffc*cubicWH[index].interpolationTime + cubicWH[index].coeffd;
+
+	return out;
+}
 
 //3维叉乘
 void VecCross(double va[3],double vb[3],double vre[3])

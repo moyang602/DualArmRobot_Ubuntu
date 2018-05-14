@@ -168,10 +168,10 @@ int can_channel_number = 4;
 //						{1, 1, 1, 1, 1, 1, 1},
 //						{1, 1, 1, 1, 1, 1, 1},
 //						{1, 1, 1, 1, 1, 1, 1}};
-int can_switch[4][7] = {{1, 1, 1, 1, 1, 1, 1},
-						{1, 1, 1, 1, 1, 1, 1},
+int can_switch[4][7] = {{1, 1, 1, 1, 0, 0, 0},
 						{1, 1, 1, 1, 0, 0, 0},
-						{1, 1, 1, 1, 0, 1, 1}};
+						{0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 0, 0, 1}};
 
 // 各节点速度方向
 double joint_direction[4][7] = {{1, 1, 1, 1, 1, -1, 1},
@@ -302,16 +302,15 @@ int motion_enable_flag= 0;
 int finding_home_flag = 0;
 int self_waist_Ctrflag = 0;
 int RemoteMotion_enable_flag = 0;
-
+int Arm_enable_flag[2] = {0,0};
 
 double SelfCtrAngle_deg = 0.0;
 // UDP通信数据
 float JointMoveData = 0.0;
 float RemoteMotionData[14] = {0.0};
-float RemoteMotionDataLast[14] = {0.0};
 short rockerL = 0;
 short rockerR = 0;
-int RemoteNewData = 0;
+int RemoteNewData[2] = {0, 0};
 int NoCollisionFlag = 1;
 int RemoteStep = 0;
 
@@ -354,7 +353,7 @@ int UDPTimes = 0;	// UDP 周期计数
 /********************** UDP通讯相关 End ***************************/
 
 struct Cubic_Struct cubic[14];
-struct Cubic_Struct cubic_Waist[2];
+struct Cubic_Struct cubicWH[4];
 /**********************  VisionControl Start ***********************/
 float DeltaMatrix[4][4] = {0.0};
 /**********************  VisionControl End ***********************/
@@ -1374,7 +1373,11 @@ void rt_can_recv(void *arg)
 				case REMOTE_DATA:
 				{
 					GetRemoteData(&rockerL, &rockerR, RemoteMotionData);
-					RemoteNewData = 1;
+					Arm_enable_flag[0] = rockerL&0x1;
+					Arm_enable_flag[1] = rockerR&0x1;
+
+					RemoteNewData[0] = 1;
+					RemoteNewData[1] = 1;
 				}
 				break;
 
@@ -1698,13 +1701,13 @@ void rt_can_recv(void *arg)
 			case SELFCONTROL_START:
 			{
 				self_waist_Ctrflag = 1;
-				SelfCtrAngle_deg = Posture[1];
+				SelfCtrAngle_deg = RobotAngleFBDeg.Waist[1];
 
-			/*	memset(&cubic_Waist,0,sizeof(cubic_Waist));
-				cubic_Waist.needNextPoint = 1;
-				cubic_Waist.segmentTime = 0.06;
-				cubic_Waist.interpolationRate = 0.06/time_interval + 1;
-				cubic_Waist.interpolationIncrement = 0.06/(double)(cubic_Waist.interpolationRate - 1);*/
+				memset(&cubicWH[1],0,sizeof(cubicWH[1]));
+				cubicWH[1].needNextPoint = 1;
+				cubicWH[1].segmentTime = 0.06;
+				cubicWH[1].interpolationRate = 0.06/time_interval + 1;
+				cubicWH[1].interpolationIncrement = 0.06/(double)(cubicWH[1].interpolationRate - 1);
 
 				printf("Start self waist control\n");
 				control_mode = 0;
@@ -1714,7 +1717,7 @@ void rt_can_recv(void *arg)
 			case SELFCONTROL_STOP:
 			{
 				self_waist_Ctrflag = 0;
-				SelfCtrAngle_deg = Posture[1];
+				SelfCtrAngle_deg = RobotAngleFBDeg.Waist[1];
 				printf("Stop self waist control\n");
 				control_mode = 0;
 			}
@@ -1731,31 +1734,23 @@ void rt_can_recv(void *arg)
 			{
 				if(self_waist_Ctrflag)
 				{
-					if (3 - Posture[1]>0.2)
+					if (0 - Posture[1]>0.2)
 					{
 						SelfCtrAngle_deg += 1 * time_interval;
 					}
-					else if(3 - Posture[1]<-0.2)
+					else if(0 - Posture[1]<-0.2)
 					{
 						SelfCtrAngle_deg -= 1 * time_interval;
 					}
 
-				/*	while(cubic_Waist.needNextPoint)
+					while(cubicWH[1].needNextPoint)
 					{
-						cubicAddPoint(i_R,RemotePlanPos_deg[i_R]);
+						cubicAddPoint_WaistHead(1,SelfCtrAngle_deg);
 
 					}
-
-					for (i_R = 0; i_R < 7; i_R++)
-					{
-						RemoteRobotPos_deg.LeftArm[i_R] = cubicInterpolate(i_R);
-						RemoteRobotPos_deg.RightArm[i_R] = cubicInterpolate(i_R+7);
-					}
-				*/
-
-					Joint_Angle_EP[3][5] = JointDetect(3, 5, SelfCtrAngle_deg*Degree2Rad);
-
-					printf("Joint_Angle_EP[3][5] = %lf\n", Joint_Angle_EP[3][5]*Rad2Degree);
+					double cubicAngle_Deg = 0.0;
+					cubicAngle_Deg = cubicInterpolate_WaistHead(1);
+					Joint_Angle_EP[3][5] = JointDetect(3, 5, cubicAngle_Deg*Degree2Rad);
 
 					// 碰撞检测
 					int rtnn = 0;
@@ -1831,23 +1826,17 @@ void rt_can_recv(void *arg)
 				case REMOTE_MOTION:
 				{
 					int i_R;
-					static int firsttimeflag = 1;
-					if(RemoteMotion_enable_flag == 0)
+					static int firsttimeflag[2] = {1,1};
+
+					if(RemoteMotion_enable_flag == 0 || Arm_enable_flag[0] == 0)
 					{
-						memcpy(&RemoteRobotPos_deg,&RobotAngleFBDeg,sizeof(RemoteRobotPos_deg));
-						memset(&RemoteCrtPos_deg,0,sizeof(RemoteCrtPos_deg));
+						memcpy(&RemoteRobotPos_deg.LeftArm,&RobotAngleFBDeg.LeftArm,sizeof(RemoteRobotPos_deg.LeftArm));
 						for(i_R=0;i_R<7;i_R++)
 						{
-							RemoteCrtPos_deg.LeftArm[i_R] = RemoteMotionData[i_R];
-							RemoteCrtPos_deg.RightArm[i_R] = RemoteMotionData[i_R+7];
-							RemoteMotionDataLast[i_R] = RemoteMotionData[i_R];
-							RemoteMotionDataLast[i_R+7] = RemoteMotionData[i_R+7];
-
 							RemotePlanPos_deg[i_R] = RemoteRobotPos_deg.LeftArm[i_R];
-							RemotePlanPos_deg[i_R+7] = RemoteRobotPos_deg.RightArm[i_R];
 						}
 
-						for (i_R = 0; i_R < 14; i_R++)
+						for (i_R = 0; i_R < 7; i_R++)
 						{
 							memset(&cubic[i_R],0,sizeof(cubic[i_R]));
 							cubic[i_R].needNextPoint = 1;
@@ -1855,15 +1844,15 @@ void rt_can_recv(void *arg)
 							cubic[i_R].interpolationRate = 0.24/time_interval + 1;
 							cubic[i_R].interpolationIncrement = 0.24/(double)(cubic[i_R].interpolationRate - 1);
 						}
-						firsttimeflag = 1;
+						firsttimeflag[0] = 1;
 					}
 					else
 					{
 						while(cubic[1].needNextPoint)
 						{
-							if (RemoteNewData==1&&firsttimeflag==0)
+							if (RemoteNewData[0]==1&&firsttimeflag[0] ==0)
 							{
-								for (i_R = 0; i_R < 14; i_R++)
+								for (i_R = 0; i_R < 7; i_R++)
 								{
 									if (RemotePlanPos_deg[i_R] - RemoteMotionData[i_R]>10*0.24)
 									{
@@ -1881,15 +1870,15 @@ void rt_can_recv(void *arg)
 									cubicAddPoint(i_R,RemotePlanPos_deg[i_R]);
 								}
 
-								RemoteNewData = 0;
+								RemoteNewData[0] = 0;
 							}
 							else
 							{
-								for (i_R = 0; i_R < 14; i_R++)
+								for (i_R = 0; i_R < 7; i_R++)
 								{
 									cubicAddPoint(i_R,RemotePlanPos_deg[i_R]);
 								}
-								firsttimeflag = 0;
+								firsttimeflag[0] = 0;
 							}
 
 						}
@@ -1897,7 +1886,6 @@ void rt_can_recv(void *arg)
 						for (i_R = 0; i_R < 7; i_R++)
 						{
 							RemoteRobotPos_deg.LeftArm[i_R] = cubicInterpolate(i_R);
-							RemoteRobotPos_deg.RightArm[i_R] = cubicInterpolate(i_R+7);
 						}
 
 						Joint_Angle_EP[2][0] = JointDetect(2, 0, RemoteRobotPos_deg.LeftArm[0]*Degree2Rad);
@@ -1908,6 +1896,68 @@ void rt_can_recv(void *arg)
 						Joint_Angle_EP[0][5] = JointDetect(0, 5, RemoteRobotPos_deg.LeftArm[5]*Degree2Rad);
 						Joint_Angle_EP[0][6] = JointDetect(0, 6, RemoteRobotPos_deg.LeftArm[6]*Degree2Rad);
 
+					}
+
+					if(RemoteMotion_enable_flag == 0 || Arm_enable_flag[1] == 0)
+					{
+						memcpy(&RemoteRobotPos_deg.RightArm,&RobotAngleFBDeg.RightArm,sizeof(RemoteRobotPos_deg.RightArm));
+						for(i_R=0;i_R<7;i_R++)
+						{
+							RemotePlanPos_deg[i_R+7] = RemoteRobotPos_deg.RightArm[i_R];
+						}
+
+						for (i_R = 7; i_R < 14; i_R++)
+						{
+							memset(&cubic[i_R],0,sizeof(cubic[i_R]));
+							cubic[i_R].needNextPoint = 1;
+							cubic[i_R].segmentTime = 0.24;
+							cubic[i_R].interpolationRate = 0.24/time_interval + 1;
+							cubic[i_R].interpolationIncrement = 0.24/(double)(cubic[i_R].interpolationRate - 1);
+						}
+						firsttimeflag[1] = 1;
+					}
+					else
+					{
+						while(cubic[7].needNextPoint)
+						{
+							if (RemoteNewData[1]==1&&firsttimeflag[1]==0)
+							{
+								for (i_R = 7; i_R < 14; i_R++)
+								{
+									if (RemotePlanPos_deg[i_R] - RemoteMotionData[i_R]>10*0.24)
+									{
+										RemotePlanPos_deg[i_R] = RemotePlanPos_deg[i_R] - 10*0.24;
+									}
+									else if (RemotePlanPos_deg[i_R] - RemoteMotionData[i_R]<-10*0.24)
+									{
+										RemotePlanPos_deg[i_R] = RemotePlanPos_deg[i_R] + 10*0.24;
+									}
+									else
+									{
+										RemotePlanPos_deg[i_R] = RemoteMotionData[i_R];
+									}
+
+									cubicAddPoint(i_R,RemotePlanPos_deg[i_R]);
+								}
+
+								RemoteNewData[1] = 0;
+							}
+							else
+							{
+								for (i_R = 7; i_R < 14; i_R++)
+								{
+									cubicAddPoint(i_R,RemotePlanPos_deg[i_R]);
+								}
+								firsttimeflag[1] = 0;
+							}
+
+						}
+
+						for (i_R = 0; i_R < 7; i_R++)
+						{
+							RemoteRobotPos_deg.RightArm[i_R] = cubicInterpolate(i_R+7);
+						}
+
 						Joint_Angle_EP[2][2] = JointDetect(2, 2, RemoteRobotPos_deg.RightArm[0]*Degree2Rad);
 						Joint_Angle_EP[3][2] = JointDetect(3, 2, RemoteRobotPos_deg.RightArm[1]*Degree2Rad);
 						Joint_Angle_EP[3][3] = JointDetect(3, 3, RemoteRobotPos_deg.RightArm[2]*Degree2Rad);
@@ -1916,44 +1966,45 @@ void rt_can_recv(void *arg)
 						Joint_Angle_EP[1][5] = JointDetect(1, 5, RemoteRobotPos_deg.RightArm[5]*Degree2Rad);
 						Joint_Angle_EP[1][6] = JointDetect(1, 6, RemoteRobotPos_deg.RightArm[6]*Degree2Rad);
 
-				//		fprintf(fp, "%8.3lf %8.3lf %8.3lf %8.3lf %8.3lf %8.3lf %8.3lf\n", Joint_Angle_EP[2][0]*Rad2Degree, Joint_Angle_EP[3][0]*Rad2Degree, Joint_Angle_EP[3][1]*Rad2Degree, Joint_Angle_EP[2][1]*Rad2Degree, Joint_Angle_EP[0][4]*Rad2Degree, Joint_Angle_EP[0][5]*Rad2Degree, Joint_Angle_EP[0][6]*Rad2Degree);
 
-						// 碰撞检测
-						int rtnn = 0;
-						struct RealRobot_Struct SendAngle;
-						memset(&SendAngle,0,sizeof(SendAngle));
-						CanDef2RealRobot(Joint_Angle_EP, &SendAngle);
-						rtnn = CollisionDetection(SendAngle.LeftArm, SendAngle.RightArm, SendAngle.Waist);
-						if (rtnn == 0)
-						{
-							printf("Detect collision!\n");
-							NoCollisionFlag = 0;
-							RemoteMotion_enable_flag = 0;
-						}
-						else
-						{
-						//	printf("No collision!\n");
-							NoCollisionFlag = 1;
-						}
-
-						double AngleH[2][4] = {{0.0, 0.0, 0.0, 0.0},{0.0, 0.0, 0.0, 0.0}};
-						control_handL(rockerL, motor_current[0][1], motor_current[0][2], motor_current[0][3], AngleH[0]);
-						control_handR(rockerR, motor_current[1][1], motor_current[1][1], motor_current[1][1], AngleH[1]);
-
-						for (i_R=0; i_R<2; i_R++)
-						{
-							Joint_Angle_EP[i_R][0] = JointDetect(i_R, 0, AngleH[i_R][0]*Degree2Rad);
-							Joint_Angle_EP[i_R][1] = JointDetect(i_R, 1, AngleH[i_R][1]*Degree2Rad);
-							Joint_Angle_EP[i_R][2] = JointDetect(i_R, 2, AngleH[i_R][2]*Degree2Rad);
-							Joint_Angle_EP[i_R][3] = JointDetect(i_R, 3, AngleH[i_R][3]*Degree2Rad);
-						}
-
-						NowTime = rt_timer_read();
-						double period1 = 0;
-						period1 = (NowTime - LastTime) / 1000;   //us
-						LastTime = NowTime;
-					//	printf("period1 = %f\n", period1);
 					}
+
+					// 碰撞检测
+					int rtnn = 0;
+					struct RealRobot_Struct SendAngle;
+					memset(&SendAngle,0,sizeof(SendAngle));
+					CanDef2RealRobot(Joint_Angle_EP, &SendAngle);
+					rtnn = CollisionDetection(SendAngle.LeftArm, SendAngle.RightArm, SendAngle.Waist);
+					if (rtnn == 0)
+					{
+						printf("Detect collision!\n");
+						NoCollisionFlag = 0;
+						RemoteMotion_enable_flag = 0;
+					}
+					else
+					{
+					//	printf("No collision!\n");
+						NoCollisionFlag = 1;
+					}
+
+					// hand control
+					double AngleH[2][4] = {{0.0, 0.0, 0.0, 0.0},{0.0, 0.0, 0.0, 0.0}};
+					control_handL(rockerL, motor_current[0][1], motor_current[0][2], motor_current[0][3], AngleH[0]);
+					control_handR(rockerR, motor_current[1][1], motor_current[1][1], motor_current[1][1], AngleH[1]);
+
+					for (i_R=0; i_R<2; i_R++)
+					{
+						Joint_Angle_EP[i_R][0] = JointDetect(i_R, 0, AngleH[i_R][0]*Degree2Rad);
+						Joint_Angle_EP[i_R][1] = JointDetect(i_R, 1, AngleH[i_R][1]*Degree2Rad);
+						Joint_Angle_EP[i_R][2] = JointDetect(i_R, 2, AngleH[i_R][2]*Degree2Rad);
+						Joint_Angle_EP[i_R][3] = JointDetect(i_R, 3, AngleH[i_R][3]*Degree2Rad);
+					}
+
+					NowTime = rt_timer_read();
+					double period1 = 0;
+					period1 = (NowTime - LastTime) / 1000;   //us
+					LastTime = NowTime;
+				//	printf("period1 = %f\n", period1);
 				}
 				break;
 
@@ -3042,7 +3093,7 @@ void rt_can_recv(void *arg)
 								// 添加遥操作规划点
 								while(cubic[1].needNextPoint)
 								{
-									if (RemoteNewData==1&&firsttimeflag==0)
+									if (RemoteNewData[0]==1&&firsttimeflag==0)
 									{
 										if (RemoteMotionData[3] < 5)
 										{
@@ -3071,7 +3122,7 @@ void rt_can_recv(void *arg)
 											cubicAddPoint(i_R,RemotePlanPos_deg[i_R]);
 										}
 
-										RemoteNewData = 0;
+										RemoteNewData[0] = 0;
 
 									}
 									else
@@ -3485,6 +3536,10 @@ void rt_can_recv(void *arg)
 		UploadData.GPS[1] = latitude;
 		UploadData.Voltage = VoltageFB;
 		UploadData.Current = CurrentFB;
+		UploadData.PowerStatus = power_on_flag;
+		UploadData.InitStatus = elmo_init_flag;
+		UploadData.ServoStatus = servo_on_flag;
+		UploadData.MotionStatus = motion_enable_flag;
 
 		RobotFBSend(UploadData);
 
@@ -4681,19 +4736,19 @@ int control_handL(short u16_sig, double I_f1, double I_f2, double I_f3,double * 
 	s_last_mag_sig_des = s_current_mag_sig_des;
 
 	//检查各位，设定相应的信号值
-	if ((u16_sig & 0x01) != 0) //手指张合与旋转
+	if ((u16_sig & 0x80) != 0) //手指张合与旋转
 	{
 		finger_sig = -1;
 	}
-	if ((u16_sig & 0x02) != 0) //if ((u16_sig || key_number<<1 )!=0)
+	if ((u16_sig & 0x100) != 0) //if ((u16_sig || key_number<<1 )!=0)
 	{
 		theta_sig = 1;
 	}
-	if ((u16_sig & 0x04) != 0)
+	if ((u16_sig & 0x200) != 0)
 	{
 		theta_sig = -1;
 	}
-	if ((u16_sig & 0x08) != 0)
+	if ((u16_sig & 0x40) != 0)
 	{
 		finger_sig = 1;
 	}
@@ -4707,7 +4762,7 @@ int control_handL(short u16_sig, double I_f1, double I_f2, double I_f3,double * 
 	{
 		s_current_mag_sig_inc = 0;
 	}
-	if ((u16_sig & 0x100) != 0)//挡位减小键
+	if ((u16_sig & 0x04) != 0)//挡位减小键
 	{
 		s_current_mag_sig_des = 1;
 	}
@@ -4848,7 +4903,7 @@ int control_handL(short u16_sig, double I_f1, double I_f2, double I_f3,double * 
 	{
 		cur_modelKeyInc = 0;
 	}
-	if ((u16_sig & 0x200) != 0)//模式减
+	if ((u16_sig & 0x80) != 0)//模式减
 	{
 		cur_modelKeyDes = 1;
 	}
@@ -5167,19 +5222,19 @@ int control_handR(short u16_sig, double I_f1, double I_f2, double I_f3,double * 
 	s_last_mag_sig_des = s_current_mag_sig_des;
 
 	//检查各位，设定相应的信号值
-	if ((u16_sig & 0x01) != 0) //手指张合与旋转
+	if ((u16_sig & 0x80) != 0) //手指张合与旋转
 	{
 		finger_sig = -1;
 	}
-	if ((u16_sig & 0x02) != 0) //if ((u16_sig || key_number<<1 )!=0)
+	if ((u16_sig & 0x100) != 0) //if ((u16_sig || key_number<<1 )!=0)
 	{
 		theta_sig = 1;
 	}
-	if ((u16_sig & 0x04) != 0)
+	if ((u16_sig & 0x200) != 0)
 	{
 		theta_sig = -1;
 	}
-	if ((u16_sig & 0x08) != 0)
+	if ((u16_sig & 0x40) != 0)
 	{
 		finger_sig = 1;
 	}
@@ -5193,7 +5248,7 @@ int control_handR(short u16_sig, double I_f1, double I_f2, double I_f3,double * 
 	{
 		s_current_mag_sig_inc = 0;
 	}
-	if ((u16_sig & 0x100) != 0)//挡位减小键
+	if ((u16_sig & 0x04) != 0)//挡位减小键
 	{
 		s_current_mag_sig_des = 1;
 	}
@@ -5334,7 +5389,7 @@ int control_handR(short u16_sig, double I_f1, double I_f2, double I_f3,double * 
 	{
 		cur_modelKeyInc = 0;
 	}
-	if ((u16_sig & 0x200) != 0)//模式减
+	if ((u16_sig & 0x80) != 0)//模式减
 	{
 		cur_modelKeyDes = 1;
 	}

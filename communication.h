@@ -47,6 +47,10 @@ struct RobotDataUDP_Struct
 	float GPS[2];
 	float Voltage;
 	float Current;
+	uint8_t PowerStatus;
+	uint8_t InitStatus;
+	uint8_t ServoStatus;
+	uint8_t MotionStatus;
 	unsigned int CheckSum;
 };
 #pragma pack(pop)

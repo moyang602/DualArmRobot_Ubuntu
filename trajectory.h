@@ -75,6 +75,8 @@ struct Cubic_Struct
 };
 int cubicAddPoint(int index, double point);
 double cubicInterpolate(int index);
+int cubicAddPoint_WaistHead(int index, double point);
+double cubicInterpolate_WaistHead(int index);
 
 //3维向量叉乘点乘
 void VecCross(double va[3],double vb[3],double vre[3]);
