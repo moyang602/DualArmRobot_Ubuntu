@@ -168,10 +168,10 @@ int can_channel_number = 4;
 //						{1, 1, 1, 1, 1, 1, 1},
 //						{1, 1, 1, 1, 1, 1, 1},
 //						{1, 1, 1, 1, 1, 1, 1}};
-int can_switch[4][7] = {{1, 1, 1, 1, 0, 0, 0},
-						{1, 1, 1, 1, 0, 0, 0},
-						{0, 0, 0, 0, 0, 0, 0},
-						{0, 0, 0, 0, 0, 0, 1}};
+int can_switch[4][7] = {{1, 1, 1, 1, 1, 1, 1},
+						{1, 1, 1, 1, 1, 1, 1},
+						{1, 1, 1, 1, 1, 1, 0},
+						{1, 1, 1, 1, 1, 1, 1}};
 
 // 各节点速度方向
 double joint_direction[4][7] = {{1, 1, 1, 1, 1, -1, 1},
@@ -324,7 +324,8 @@ float One_arm_Data[7] = {0.0};
 
 /********************** 力控制相关 Start ***************************/
 double A6D_ep[6] = {1.1, 1.1, 1.1, 1.1, 1.1, 1.1};				/*阻尼比*/
-double A6D_m[6] = {180, 180, 300, 15, 15, 15};				/*质量*/
+//double A6D_m[6] = {180, 180, 300, 15, 15, 15};				/*质量*/
+double A6D_m[6] = {100, 100, 180, 5, 5, 5};				/*质量*/
 double A6D_K[6] = {150, 150, 200, 3, 3, 3};			/*刚度A6D_wn.^2.*A6D_m*/
 double A6D_C[6] = {1, 1, 1, 1, 1, 1};			/*阻尼系数 2.*A6D_ep.*A6D_wn.*A6D_m      ep*2*sqrt(k*m)*/
 int A6D_enable[6] = {1, 1, 1, 1, 1, 1};		/*control end velocity enable*/
@@ -1207,10 +1208,10 @@ void rt_can_recv(void *arg)
 	{
 		rt_task_wait_period(NULL);
 		// 获取运行周期时间
-		now = rt_timer_read();
-
-		period = (now - previous) / 1000;   //us
-		previous = now;
+	//	now = rt_timer_read();
+		previous = rt_timer_read();
+	//	period = (now - previous) / 1000;   //us
+	//	previous = now;
 
 		// 10个周期更新一下下位机界面显示
 		if(view_time > 10)
@@ -1852,7 +1853,7 @@ void rt_can_recv(void *arg)
 						{
 							if (RemoteNewData[0]==1&&firsttimeflag[0] ==0)
 							{
-								for (i_R = 0; i_R < 7; i_R++)
+								for (i_R = 0; i_R < 4; i_R++)
 								{
 									if (RemotePlanPos_deg[i_R] - RemoteMotionData[i_R]>10*0.24)
 									{
@@ -1861,6 +1862,23 @@ void rt_can_recv(void *arg)
 									else if (RemotePlanPos_deg[i_R] - RemoteMotionData[i_R]<-10*0.24)
 									{
 										RemotePlanPos_deg[i_R] = RemotePlanPos_deg[i_R] + 10*0.24;
+									}
+									else
+									{
+										RemotePlanPos_deg[i_R] = RemoteMotionData[i_R];
+									}
+
+									cubicAddPoint(i_R,RemotePlanPos_deg[i_R]);
+								}
+								for (i_R = 4; i_R < 7; i_R++)
+								{
+									if (RemotePlanPos_deg[i_R] - RemoteMotionData[i_R]>15*0.24)
+									{
+										RemotePlanPos_deg[i_R] = RemotePlanPos_deg[i_R] - 15*0.24;
+									}
+									else if (RemotePlanPos_deg[i_R] - RemoteMotionData[i_R]<-15*0.24)
+									{
+										RemotePlanPos_deg[i_R] = RemotePlanPos_deg[i_R] + 15*0.24;
 									}
 									else
 									{
@@ -1922,7 +1940,7 @@ void rt_can_recv(void *arg)
 						{
 							if (RemoteNewData[1]==1&&firsttimeflag[1]==0)
 							{
-								for (i_R = 7; i_R < 14; i_R++)
+								for (i_R = 7; i_R < 11; i_R++)
 								{
 									if (RemotePlanPos_deg[i_R] - RemoteMotionData[i_R]>10*0.24)
 									{
@@ -1939,7 +1957,23 @@ void rt_can_recv(void *arg)
 
 									cubicAddPoint(i_R,RemotePlanPos_deg[i_R]);
 								}
+								for (i_R = 11; i_R < 14; i_R++)
+								{
+									if (RemotePlanPos_deg[i_R] - RemoteMotionData[i_R]>15*0.24)
+									{
+										RemotePlanPos_deg[i_R] = RemotePlanPos_deg[i_R] - 15*0.24;
+									}
+									else if (RemotePlanPos_deg[i_R] - RemoteMotionData[i_R]<-15*0.24)
+									{
+										RemotePlanPos_deg[i_R] = RemotePlanPos_deg[i_R] + 15*0.24;
+									}
+									else
+									{
+										RemotePlanPos_deg[i_R] = RemoteMotionData[i_R];
+									}
 
+									cubicAddPoint(i_R,RemotePlanPos_deg[i_R]);
+								}
 								RemoteNewData[1] = 0;
 							}
 							else
@@ -2690,7 +2724,7 @@ void rt_can_recv(void *arg)
 		 			}
 		 			else
 		 			{
-			 			return_value = AllJointMove(RealTargetPos,15,1,0,0,0);
+			 			return_value = AllJointMove(RealTargetPos,15,1,1,0,0);
 			 			if(return_value == 0)
 			 			{
 			 				motion_mode = 100;
@@ -2986,14 +3020,14 @@ void rt_can_recv(void *arg)
 								moving_flag	= 1;
 
 								memcpy(&RealTargetPos,&RobotAngleFB,sizeof(RealTargetPos));
-								RealTargetPos.LeftArm[0] = -45*Degree2Rad;
+								RealTargetPos.LeftArm[0] = -60*Degree2Rad;
 								RealTargetPos.LeftArm[1] = 60*Degree2Rad;
 								RealTargetPos.LeftArm[2] = 0*Degree2Rad;
 								RealTargetPos.LeftArm[3] = 30*Degree2Rad;
 								RealTargetPos.LeftArm[4] = 0*Degree2Rad;
 								RealTargetPos.LeftArm[5] = 30*Degree2Rad;
 								RealTargetPos.LeftArm[6] = 0*Degree2Rad;
-								RealTargetPos.RightArm[0] = 45*Degree2Rad;
+								RealTargetPos.RightArm[0] = 60*Degree2Rad;
 								RealTargetPos.RightArm[1] = -60*Degree2Rad;
 								RealTargetPos.RightArm[2] = 0*Degree2Rad;
 								RealTargetPos.RightArm[3] = -30*Degree2Rad;
@@ -3017,21 +3051,21 @@ void rt_can_recv(void *arg)
 						case 2:
 						{
 							int i_R;
-							static int firsttimeflag = 1;		// 第一次进行遥操作标志
+							static int firsttimeflag[2] = {1,1};		// 第一次进行遥操作标志
 
-							if(RemoteMotion_enable_flag == 0)// 遥操作指令未开启时
+							// 左臂控制程序
+							if(RemoteMotion_enable_flag == 0 || Arm_enable_flag[0] == 0)// 遥操作指令未开启时
 							{
-								firsttimeflag = 1;
+								firsttimeflag[0] = 1;
 								// 遥操作控制器输出关节角设置为当前关节角
-								memcpy(&RemoteRobotPos_deg,&RobotAngleFBDeg,sizeof(RemoteRobotPos_deg));
+								memcpy(&RemoteRobotPos_deg.LeftArm,&RobotAngleFBDeg.LeftArm,sizeof(RemoteRobotPos_deg.LeftArm));
 								// 遥操作规划器输入关节角设置为当前关节角
 								for(i_R=0;i_R<7;i_R++)
 								{
 									RemotePlanPos_deg[i_R] = RemoteRobotPos_deg.LeftArm[i_R];
-									RemotePlanPos_deg[i_R+7] = RemoteRobotPos_deg.RightArm[i_R];
 								}
 								// 清空规划器
-								for (i_R = 0; i_R < 14; i_R++)
+								for (i_R = 0; i_R < 7; i_R++)
 								{
 									memset(&cubic[i_R],0,sizeof(cubic[i_R]));
 									cubic[i_R].needNextPoint = 1;
@@ -3046,14 +3080,9 @@ void rt_can_recv(void *arg)
 									AccL[i_R] = 0.0;
 									A6D_VL[i_R] = 0.0;
 									A6D_D_totalL[i_R] = 0.0;
-									AccR[i_R] = 0.0;
-									A6D_VR[i_R] = 0.0;
-									A6D_D_totalR[i_R] = 0.0;
 								}
 								FirstForceControlL = 1;
-								FirstForceControlR = 1;
 								AngleMin_deg[2][1] = -90;
-								AngleMax_deg[2][3] = 90;
 								VelocityLimit_deg[2][0] = 60;
 								VelocityLimit_deg[3][0] = 60;
 								VelocityLimit_deg[2][1] = 60;
@@ -3061,14 +3090,6 @@ void rt_can_recv(void *arg)
 								VelocityLimit_deg[0][4] = 60;
 								VelocityLimit_deg[0][5] = 60;
 								VelocityLimit_deg[0][6] = 60;
-
-								VelocityLimit_deg[2][2] = 60;
-								VelocityLimit_deg[3][2] = 60;
-								VelocityLimit_deg[2][3] = 60;
-								VelocityLimit_deg[3][3] = 60;
-								VelocityLimit_deg[1][4] = 60;
-								VelocityLimit_deg[1][5] = 60;
-								VelocityLimit_deg[1][6] = 60;
 							}
 							else// 遥操作指令开启时
 							{
@@ -3080,31 +3101,18 @@ void rt_can_recv(void *arg)
 								VelocityLimit_deg[0][5] = 20;
 								VelocityLimit_deg[0][6] = 20;
 
-								VelocityLimit_deg[2][2] = 20;
-								VelocityLimit_deg[3][2] = 20;
-								VelocityLimit_deg[2][3] = 20;
-								VelocityLimit_deg[3][3] = 20;
-								VelocityLimit_deg[1][4] = 20;
-								VelocityLimit_deg[1][5] = 20;
-								VelocityLimit_deg[1][6] = 20;
-
 								AngleMin_deg[2][1] = 4;	// left
-								AngleMax_deg[2][3] = -4;// right
 								// 添加遥操作规划点
 								while(cubic[1].needNextPoint)
 								{
-									if (RemoteNewData[0]==1&&firsttimeflag==0)
+									if (RemoteNewData[0]==1&&firsttimeflag[0]==0)
 									{
 										if (RemoteMotionData[3] < 5)
 										{
 											RemoteMotionData[3] = 5;
 										}
-										if(RemoteMotionData[10] > -5)
-										{
-											RemoteMotionData[10] = -5;
-										}
 
-										for (i_R = 0; i_R < 14; i_R++)
+										for (i_R = 0; i_R < 4; i_R++)
 										{
 											if (RemotePlanPos_deg[i_R] - RemoteMotionData[i_R]>10*0.24)
 											{
@@ -3122,16 +3130,34 @@ void rt_can_recv(void *arg)
 											cubicAddPoint(i_R,RemotePlanPos_deg[i_R]);
 										}
 
+										for (i_R = 4; i_R < 7; i_R++)
+										{
+											if (RemotePlanPos_deg[i_R] - RemoteMotionData[i_R]>15*0.24)
+											{
+												RemotePlanPos_deg[i_R] = RemotePlanPos_deg[i_R] - 15*0.24;
+											}
+											else if (RemotePlanPos_deg[i_R] - RemoteMotionData[i_R]<-15*0.24)
+											{
+												RemotePlanPos_deg[i_R] = RemotePlanPos_deg[i_R] + 15*0.24;
+											}
+											else
+											{
+												RemotePlanPos_deg[i_R] = RemoteMotionData[i_R];
+											}
+
+											cubicAddPoint(i_R,RemotePlanPos_deg[i_R]);
+										}
+
 										RemoteNewData[0] = 0;
 
 									}
 									else
 									{
-										for (i_R = 0; i_R < 14; i_R++)
+										for (i_R = 0; i_R < 7; i_R++)
 										{
 											cubicAddPoint(i_R,RemotePlanPos_deg[i_R]);
 										}
-										firsttimeflag = 0;
+										firsttimeflag[0] = 0;
 
 									}
 
@@ -3140,7 +3166,6 @@ void rt_can_recv(void *arg)
 								for (i_R = 0; i_R < 7; i_R++)
 								{
 									RemoteRobotPos_deg.LeftArm[i_R] = cubicInterpolate(i_R);
-									RemoteRobotPos_deg.RightArm[i_R] = cubicInterpolate(i_R+7);
 								}
 								/*static double testangle = 0;
 								testangle-= FDeltaT*1;
@@ -3150,14 +3175,7 @@ void rt_can_recv(void *arg)
 								RemoteRobotPos_deg.LeftArm[3] = 30;
 								RemoteRobotPos_deg.LeftArm[4] = 0;
 								RemoteRobotPos_deg.LeftArm[5] = 30;
-								RemoteRobotPos_deg.LeftArm[6] = 0;
-								RemoteRobotPos_deg.RightArm[0] = 45-testangle;
-								RemoteRobotPos_deg.RightArm[1] = -60;
-								RemoteRobotPos_deg.RightArm[2] = 0;
-								RemoteRobotPos_deg.RightArm[3] = -30;
-								RemoteRobotPos_deg.RightArm[4] = 0;
-								RemoteRobotPos_deg.RightArm[5] = -30;
-								RemoteRobotPos_deg.RightArm[6] = 0;*/
+								RemoteRobotPos_deg.LeftArm[6] = 0;*/
 
 								double force_limit[6] = {80.0, 80.0, 100.0, 7.0, 7.0, 7.0};
 								if(DutyForceFlag==0)	// 任务模式关闭力控时清空力传感器数值
@@ -3165,31 +3183,19 @@ void rt_can_recv(void *arg)
 									for(i_R=0; i_R<6; i_R++)
 									{
 										ForceDataL[i_R] = 0;
-										ForceDataR[i_R] = 0;
 									}
 									FirstForceControlL == 1;
-									FirstForceControlR == 1;
 								}
-
 
 								static double TotalDeltaTL[4][4] = {{1,0,0,0},{0,1,0,0},{0,0,1,0},{0,0,0,1}};
 								// 计算遥操作输入末端位姿
-								double Angle[7];	// unit: rad
+								double AngleL[7];	// unit: rad
 								for(i_R=0;i_R<7;i_R++)
 								{
-									Angle[i_R] = RemoteRobotPos_deg.LeftArm[i_R]*Degree2Rad;
+									AngleL[i_R] = RemoteRobotPos_deg.LeftArm[i_R]*Degree2Rad;
 								}
 								double RemoteTendL[4][4];	// 遥操作末端位姿
-								KinL(Angle, RemoteTendL);	// input: rad  output: mm
-
-								static double TotalDeltaTR[4][4] = {{1,0,0,0},{0,1,0,0},{0,0,1,0},{0,0,0,1}};
-								// 计算遥操作输入末端位姿
-								for(i_R=0;i_R<7;i_R++)
-								{
-									Angle[i_R] = RemoteRobotPos_deg.RightArm[i_R]*Degree2Rad;
-								}
-								double RemoteTendR[4][4];	// 遥操作末端位姿
-								KinR(Angle, RemoteTendR);	// input: rad  output: mm
+								KinL(AngleL, RemoteTendL);	// input: rad  output: mm
 
 								// 当采集到力传感器数据时进行力控制
 								if(ForceNewDataL==1)	//左臂control 利用逆运动学进行融合
@@ -3258,9 +3264,9 @@ void rt_can_recv(void *arg)
 												A6D_PL[i_R] = 0.0;
 											}
 										}
-										A6D_PL[3] = 0.0;
-										A6D_PL[4] = 0.0;
-										A6D_PL[5] = 0.0;
+								//		A6D_PL[3] = 0.0;
+								//		A6D_PL[4] = 0.0;
+								//		A6D_PL[5] = 0.0;
 
 										// 计算阻抗控制末端变换矩阵
 										double deltaTRaw[4][4],deltaT[4][4];
@@ -3305,7 +3311,155 @@ void rt_can_recv(void *arg)
 								Joint_Angle_EP[0][4] = JointDetect(0, 4, A6D_Joint_PL[4]*Degree2Rad);
 								Joint_Angle_EP[0][5] = JointDetect(0, 5, A6D_Joint_PL[5]*Degree2Rad);
 								Joint_Angle_EP[0][6] = JointDetect(0, 6, A6D_Joint_PL[6]*Degree2Rad);
+							}
 
+
+							// 右臂控制
+							if(RemoteMotion_enable_flag == 0 || Arm_enable_flag[1] == 0)// 遥操作指令未开启时
+							{
+								firsttimeflag[1] = 1;
+								// 遥操作控制器输出关节角设置为当前关节角
+								memcpy(&RemoteRobotPos_deg.RightArm,&RobotAngleFBDeg.RightArm,sizeof(RemoteRobotPos_deg.RightArm));
+								// 遥操作规划器输入关节角设置为当前关节角
+								for(i_R=0;i_R<7;i_R++)
+								{
+									RemotePlanPos_deg[i_R+7] = RemoteRobotPos_deg.RightArm[i_R];
+								}
+								// 清空规划器
+								for (i_R = 7; i_R < 14; i_R++)
+								{
+									memset(&cubic[i_R],0,sizeof(cubic[i_R]));
+									cubic[i_R].needNextPoint = 1;
+									cubic[i_R].segmentTime = 0.24;
+									cubic[i_R].interpolationRate = 0.24/time_interval + 1;
+									cubic[i_R].interpolationIncrement = 0.24/(double)(cubic[i_R].interpolationRate - 1);
+								}
+
+								// 清空阻抗控制器
+								for(i_R=0;i_R<6;i_R++)
+								{
+									AccR[i_R] = 0.0;
+									A6D_VR[i_R] = 0.0;
+									A6D_D_totalR[i_R] = 0.0;
+								}
+								FirstForceControlR = 1;
+								AngleMax_deg[2][3] = 90;
+								VelocityLimit_deg[2][2] = 60;
+								VelocityLimit_deg[3][2] = 60;
+								VelocityLimit_deg[2][3] = 60;
+								VelocityLimit_deg[3][3] = 60;
+								VelocityLimit_deg[1][4] = 60;
+								VelocityLimit_deg[1][5] = 60;
+								VelocityLimit_deg[1][6] = 60;
+							}
+							else// 遥操作指令开启时
+							{
+								VelocityLimit_deg[2][2] = 20;
+								VelocityLimit_deg[3][2] = 20;
+								VelocityLimit_deg[2][3] = 20;
+								VelocityLimit_deg[3][3] = 20;
+								VelocityLimit_deg[1][4] = 20;
+								VelocityLimit_deg[1][5] = 20;
+								VelocityLimit_deg[1][6] = 20;
+
+								AngleMax_deg[2][3] = -4;// right
+								// 添加遥操作规划点
+								while(cubic[7].needNextPoint)
+								{
+									if (RemoteNewData[1]==1&&firsttimeflag[1]==0)
+									{
+										if(RemoteMotionData[10] > -5)
+										{
+											RemoteMotionData[10] = -5;
+										}
+
+										for (i_R = 7; i_R < 11; i_R++)
+										{
+											if (RemotePlanPos_deg[i_R] - RemoteMotionData[i_R]>10*0.24)
+											{
+												RemotePlanPos_deg[i_R] = RemotePlanPos_deg[i_R] - 10*0.24;
+											}
+											else if (RemotePlanPos_deg[i_R] - RemoteMotionData[i_R]<-10*0.24)
+											{
+												RemotePlanPos_deg[i_R] = RemotePlanPos_deg[i_R] + 10*0.24;
+											}
+											else
+											{
+												RemotePlanPos_deg[i_R] = RemoteMotionData[i_R];
+											}
+
+											cubicAddPoint(i_R,RemotePlanPos_deg[i_R]);
+										}
+
+										for (i_R = 11; i_R < 14; i_R++)
+										{
+											if (RemotePlanPos_deg[i_R] - RemoteMotionData[i_R]>15*0.24)
+											{
+												RemotePlanPos_deg[i_R] = RemotePlanPos_deg[i_R] - 15*0.24;
+											}
+											else if (RemotePlanPos_deg[i_R] - RemoteMotionData[i_R]<-15*0.24)
+											{
+												RemotePlanPos_deg[i_R] = RemotePlanPos_deg[i_R] + 15*0.24;
+											}
+											else
+											{
+												RemotePlanPos_deg[i_R] = RemoteMotionData[i_R];
+											}
+
+											cubicAddPoint(i_R,RemotePlanPos_deg[i_R]);
+										}
+
+										RemoteNewData[1] = 0;
+
+									}
+									else
+									{
+										for (i_R = 7; i_R < 14; i_R++)
+										{
+											cubicAddPoint(i_R,RemotePlanPos_deg[i_R]);
+										}
+										firsttimeflag[1] = 0;
+
+									}
+
+								}
+								// 获取遥操作期望位置
+								for (i_R = 0; i_R < 7; i_R++)
+								{
+									RemoteRobotPos_deg.RightArm[i_R] = cubicInterpolate(i_R+7);
+								}
+								/*static double testangle = 0;
+								testangle-= FDeltaT*1;
+								RemoteRobotPos_deg.LeftArm[6] = 0;
+								RemoteRobotPos_deg.RightArm[0] = 45-testangle;
+								RemoteRobotPos_deg.RightArm[1] = -60;
+								RemoteRobotPos_deg.RightArm[2] = 0;
+								RemoteRobotPos_deg.RightArm[3] = -30;
+								RemoteRobotPos_deg.RightArm[4] = 0;
+								RemoteRobotPos_deg.RightArm[5] = -30;
+								RemoteRobotPos_deg.RightArm[6] = 0;*/
+
+								double force_limit[6] = {80.0, 80.0, 100.0, 7.0, 7.0, 7.0};
+								if(DutyForceFlag==0)	// 任务模式关闭力控时清空力传感器数值
+								{
+									for(i_R=0; i_R<6; i_R++)
+									{
+										ForceDataR[i_R] = 0;
+									}
+									FirstForceControlR == 1;
+								}
+
+								double AngleR[7];	// unit: rad
+								static double TotalDeltaTR[4][4] = {{1,0,0,0},{0,1,0,0},{0,0,1,0},{0,0,0,1}};
+								// 计算遥操作输入末端位姿
+								for(i_R=0;i_R<7;i_R++)
+								{
+									AngleR[i_R] = RemoteRobotPos_deg.RightArm[i_R]*Degree2Rad;
+								}
+								double RemoteTendR[4][4];	// 遥操作末端位姿
+								KinR(AngleR, RemoteTendR);	// input: rad  output: mm
+
+								// 当采集到力传感器数据时进行力控制
 								if(ForceNewDataR==1)	//右臂control 利用逆运动学进行融合
 								{
 									int position_change_flagR = 1;
@@ -3372,9 +3526,9 @@ void rt_can_recv(void *arg)
 												A6D_PR[i_R] = 0.0;
 											}
 										}
-										A6D_PR[3] = 0.0;
-										A6D_PR[4] = 0.0;
-										A6D_PR[5] = 0.0;
+									//	A6D_PR[3] = 0.0;
+									//	A6D_PR[4] = 0.0;
+									//	A6D_PR[5] = 0.0;
 
 										// 计算阻抗控制末端变换矩阵
 										double deltaTRaw[4][4],deltaT[4][4];
@@ -3421,37 +3575,37 @@ void rt_can_recv(void *arg)
 								Joint_Angle_EP[1][5] = JointDetect(1, 5, A6D_Joint_PR[5]*Degree2Rad);
 								Joint_Angle_EP[1][6] = JointDetect(1, 6, A6D_Joint_PR[6]*Degree2Rad);
 
-								// 加入碰撞检测
-								int rtnn = 0;
-								struct RealRobot_Struct SendAngle;
-								memset(&SendAngle,0,sizeof(SendAngle));
-								CanDef2RealRobot(Joint_Angle_EP, &SendAngle);
-								rtnn = CollisionDetection(SendAngle.LeftArm, SendAngle.RightArm, SendAngle.Waist);
-								if (rtnn == 0)
-								{
-									printf("Detect collision!\n");
-									NoCollisionFlag = 0;
-									RemoteMotion_enable_flag = 0;
-								}
-								else
-								{
-								//	printf("No collision!\n");
-									NoCollisionFlag = 1;
-								}
+							}
 
-								double AngleH[2][4] = {{0.0, 0.0, 0.0, 0.0},{0.0, 0.0, 0.0, 0.0}};
-								control_handL(rockerL, motor_current[0][1], motor_current[0][2], motor_current[0][3], AngleH[0]);
-								control_handR(rockerR, motor_current[1][1], motor_current[1][1], motor_current[1][1], AngleH[1]);
+							// 加入碰撞检测
+							int rtnn = 0;
+							struct RealRobot_Struct SendAngle;
+							memset(&SendAngle,0,sizeof(SendAngle));
+							CanDef2RealRobot(Joint_Angle_EP, &SendAngle);
+							rtnn = CollisionDetection(SendAngle.LeftArm, SendAngle.RightArm, SendAngle.Waist);
+							if (rtnn == 0)
+							{
+								printf("Detect collision!\n");
+								NoCollisionFlag = 0;
+								RemoteMotion_enable_flag = 0;
+							}
+							else
+							{
+							//	printf("No collision!\n");
+								NoCollisionFlag = 1;
+							}
 
+							// 手部运动控制
+							double AngleH[2][4] = {{0.0, 0.0, 0.0, 0.0},{0.0, 0.0, 0.0, 0.0}};
+							control_handL(rockerL, motor_current[0][1], motor_current[0][2], motor_current[0][3], AngleH[0]);
+							control_handR(rockerR, motor_current[1][1], motor_current[1][1], motor_current[1][1], AngleH[1]);
 
-								for (i_R=0; i_R<2; i_R++)
-								{
-									Joint_Angle_EP[i_R][0] = JointDetect(i_R, 0, AngleH[i_R][0]*Degree2Rad);
-									Joint_Angle_EP[i_R][1] = JointDetect(i_R, 1, AngleH[i_R][1]*Degree2Rad);
-									Joint_Angle_EP[i_R][2] = JointDetect(i_R, 2, AngleH[i_R][2]*Degree2Rad);
-									Joint_Angle_EP[i_R][3] = JointDetect(i_R, 3, AngleH[i_R][3]*Degree2Rad);
-								}
-
+							for (i_R=0; i_R<2; i_R++)
+							{
+								Joint_Angle_EP[i_R][0] = JointDetect(i_R, 0, AngleH[i_R][0]*Degree2Rad);
+								Joint_Angle_EP[i_R][1] = JointDetect(i_R, 1, AngleH[i_R][1]*Degree2Rad);
+								Joint_Angle_EP[i_R][2] = JointDetect(i_R, 2, AngleH[i_R][2]*Degree2Rad);
+								Joint_Angle_EP[i_R][3] = JointDetect(i_R, 3, AngleH[i_R][3]*Degree2Rad);
 							}
 						}
 						break;
@@ -3588,6 +3742,9 @@ void rt_can_recv(void *arg)
 		RobotRealCurrent.LeftHand[0], RobotRealCurrent.LeftHand[1], RobotRealCurrent.LeftHand[2], RobotRealCurrent.LeftHand[3], RobotRealCurrent.Head[0], RobotRealCurrent.Head[1]);
 		sprintf(buf20, "RHandCur  %8.3f  %8.3f  %8.3f  %8.3f    WaistCur:%8.3f  %8.3f",
 		RobotRealCurrent.RightHand[0], RobotRealCurrent.RightHand[1], RobotRealCurrent.RightHand[2], RobotRealCurrent.RightHand[3], RobotRealCurrent.Waist[0], RobotRealCurrent.Waist[1]);
+
+		now = rt_timer_read();
+		period = (now - previous) / 1000;   //us
 
 	}
 	GPS_end();
@@ -4903,7 +5060,7 @@ int control_handL(short u16_sig, double I_f1, double I_f2, double I_f3,double * 
 	{
 		cur_modelKeyInc = 0;
 	}
-	if ((u16_sig & 0x80) != 0)//模式减
+	if ((u16_sig & 0x08) != 0)//模式减
 	{
 		cur_modelKeyDes = 1;
 	}
@@ -5389,7 +5546,7 @@ int control_handR(short u16_sig, double I_f1, double I_f2, double I_f3,double * 
 	{
 		cur_modelKeyInc = 0;
 	}
-	if ((u16_sig & 0x80) != 0)//模式减
+	if ((u16_sig & 0x08) != 0)//模式减
 	{
 		cur_modelKeyDes = 1;
 	}

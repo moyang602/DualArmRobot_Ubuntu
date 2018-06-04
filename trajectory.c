@@ -9,7 +9,7 @@ double L2 = 311.357;
 double pi = 3.1415926;
 double d3 = 310.5;
 double d4 = 338;
-double dend = 100;
+double dend = 340;
 double Tool_Position[3] = {0.0, 0.0, 0.0};
 
 double sqrt3c2 = 0.8660254037844;

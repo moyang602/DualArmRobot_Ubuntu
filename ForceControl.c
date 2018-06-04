@@ -908,8 +908,8 @@ int ShowAlgorithmData(int select, double* m_dDecouplingValue)
 
 }
 
-double F_thresholdL[6] = {0.5, 0.5, 1.0, 0.05, 0.05, 0.05};
-double F_thresholdR[6] = {0.5, 0.5, 1.0, 0.05, 0.05, 0.05};
+double F_thresholdL[6] = {1.5, 1.5, 2.0, 0.06, 0.06, 0.06};
+double F_thresholdR[6] = {1.5, 1.5, 2.0, 0.06, 0.06, 0.06};
 
 int ForceCompensationL(double ForceBefore[6], double AngleNow[7], double ForceAfter[6])	//unit: N  rad  N
 {
