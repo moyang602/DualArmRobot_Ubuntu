@@ -2024,7 +2024,7 @@ void rt_can_recv(void *arg)
 					// hand control
 					double AngleH[2][4] = {{0.0, 0.0, 0.0, 0.0},{0.0, 0.0, 0.0, 0.0}};
 					control_handL(rockerL, motor_current[0][1], motor_current[0][2], motor_current[0][3], AngleH[0]);
-					control_handR(rockerR, motor_current[1][1], motor_current[1][1], motor_current[1][1], AngleH[1]);
+					control_handR(rockerR, motor_current[1][1], motor_current[1][2], motor_current[1][3], AngleH[1]);
 
 					for (i_R=0; i_R<2; i_R++)
 					{
@@ -2034,6 +2034,7 @@ void rt_can_recv(void *arg)
 						Joint_Angle_EP[i_R][3] = JointDetect(i_R, 3, AngleH[i_R][3]*Degree2Rad);
 					}
 
+				//	fprintf(fp,"%02x, %8.3f, %8.3f, %8.3f, %8.3f, %8.3f, %8.3f, %8.3f, %8.3f\n", rockerR, motor_current[1][0], motor_current[1][1], motor_current[1][2], motor_current[1][3],Joint_Angle_EP[1][0],Joint_Angle_EP[1][1],Joint_Angle_EP[1][2],Joint_Angle_EP[1][3]);
 					NowTime = rt_timer_read();
 					double period1 = 0;
 					period1 = (NowTime - LastTime) / 1000;   //us
@@ -3598,7 +3599,7 @@ void rt_can_recv(void *arg)
 							// 手部运动控制
 							double AngleH[2][4] = {{0.0, 0.0, 0.0, 0.0},{0.0, 0.0, 0.0, 0.0}};
 							control_handL(rockerL, motor_current[0][1], motor_current[0][2], motor_current[0][3], AngleH[0]);
-							control_handR(rockerR, motor_current[1][1], motor_current[1][1], motor_current[1][1], AngleH[1]);
+							control_handR(rockerR, motor_current[1][1], motor_current[1][2], motor_current[1][3], AngleH[1]);
 
 							for (i_R=0; i_R<2; i_R++)
 							{
