@@ -30,6 +30,10 @@ void InvJacobianR(double anglein[7], double InvJ[7][6]);	// input: deg
 // 运动学
 void KinL(double Angle[7], double TransMatrix[4][4]);
 void KinR(double Angle[7], double TransMatrix[4][4]);
+
+//
+void Matrix2Pose(double TransMatrix[4][4], double Pose[6]);
+void Pose2Matrix(double Pose[6], double TransMatrix[4][4]);
 // 冗余自由度规划计算
 double Beta_CalL(double Angle[7]);	// input: rad
 double Beta_CalR(double Angle[7]);	// input: rad

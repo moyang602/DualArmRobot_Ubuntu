@@ -95,6 +95,7 @@ struct EndCMD_Struct
 {
 	unsigned char Mode;
 	unsigned char ArmSelect;
+	unsigned char MotionSpace;
 	float Data[12];
 	float time;
 	unsigned char CheckSum;
@@ -205,7 +206,7 @@ int RobotFBSend(struct RobotDataUDP_Struct RobotFBData);
 int UDPRecv(void);
 int GetSingleJointData(long* can_channel_main,long* can_id_main,float* JointMoveData,double* JointMoveTime);
 int GetSingleArmData(int* ArmSelect,float ArmMoveData[7], double* ArmMoveTime);
-int GetEndData(int* ArmSelect,float EndData[12], double* EndMoveTime);
+int GetEndData(int* ArmSelect, int* MotionSpace, float EndData[12], double* EndMoveTime);
 int GetRemoteData(short *rockerL, short *rockerR, float RemoteMotionData[14]);
 int GetRemoteCMD(void);
 int GetControlCMD(void);

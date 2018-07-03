@@ -103,6 +103,25 @@ int UDPRecv()
 
 			break;
 
+			case END_MOTION:
+			{
+				unsigned char sum = 0;
+				for (i = 0; i < (sizeof(EndData) -1); ++i)
+				{
+					sum += recvbuff[i];
+				}
+				if (sum != recvbuff[sizeof(EndData) -1])	//校验和不正确直接退出
+				{
+					printf("recv %d bytes wrong data!\n",n);
+					return 0;
+				}
+				memcpy(&EndData,recvbuff,sizeof(EndData));
+
+				return END_MOTION;
+			}
+
+			break;
+
 			case ROBOT_CONTROL:
 			{
 				unsigned char sum = 0;
@@ -277,10 +296,11 @@ int GetSingleArmData(int* ArmSelect,float ArmMoveData[7], double* ArmMoveTime)
 	printf("motion_mode = ONE_ARM_MOTION  ARM %d TIME  %8.3f s\n", *ArmSelect, *ArmMoveTime);
 }
 
-int GetEndData(int* ArmSelect,float EndMoveData[12], double* EndMoveTime)
+int GetEndData(int* ArmSelect, int* MotionSpace, float EndMoveData[12], double* EndMoveTime)
 {
 	int i = 0;
 	*ArmSelect = EndData.ArmSelect;
+	*MotionSpace = EndData.MotionSpace;
 	for(i=0;i<12;i++)
 	{
 		EndMoveData[i] = EndData.Data[i];

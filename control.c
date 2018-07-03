@@ -320,7 +320,9 @@ int HandSelect = 0;
 int HandNewData = 0;
 
 int ArmSelect = 0;
+int MotionSpace = 0;
 float One_arm_Data[7] = {0.0};
+float EndMoveData[12];
 
 /********************** 力控制相关 Start ***************************/
 double A6D_ep[6] = {1.1, 1.1, 1.1, 1.1, 1.1, 1.1};				/*阻尼比*/
@@ -1159,7 +1161,7 @@ void rt_can_recv(void *arg)
 
 	int fisrt_time_SINGLE_JOINT_MOTION = 0;
 	int fisrt_time_ONE_ARM_MOTION = 0;
-	int first_time_TWO_ARMS_MOTION = 0;
+	int first_time_END_MOTION = 0;
 	int first_time_HOMEBACK = 0;
 	int first_time_VISION_MOTION = 0;
 
@@ -1171,7 +1173,7 @@ void rt_can_recv(void *arg)
 
 	double singe_joint_time = 5.0;
 	double one_arm_time = 15.0;
-	double two_arms_time = 30.0;
+	double end_time = 30.0;
 	double homeback_time = 10.0;
 
 	int moving_flag = 0;   //when moving_flag == 0; motion_mode can be changed
@@ -1368,6 +1370,15 @@ void rt_can_recv(void *arg)
 				{
 					GetSingleArmData(&ArmSelect,One_arm_Data, &one_arm_time);
 					motion_mode = ONE_ARM_MOTION;
+				}
+				break;
+
+				case END_MOTION:
+				{
+					GetEndData(&ArmSelect, &MotionSpace, EndMoveData, &end_time);
+					motion_mode = END_MOTION;
+
+				//	printf("%f %f %f %f \n %f %f %f %f \n %f %f %f %f\n",EndMoveData[0],EndMoveData[1],EndMoveData[2],EndMoveData[3],EndMoveData[4],EndMoveData[5],EndMoveData[6],EndMoveData[7],EndMoveData[8],EndMoveData[9],EndMoveData[10],EndMoveData[11]);
 				}
 				break;
 
@@ -2032,6 +2043,39 @@ void rt_can_recv(void *arg)
 						Joint_Angle_EP[i_R][1] = JointDetect(i_R, 1, AngleH[i_R][1]*Degree2Rad);
 						Joint_Angle_EP[i_R][2] = JointDetect(i_R, 2, AngleH[i_R][2]*Degree2Rad);
 						Joint_Angle_EP[i_R][3] = JointDetect(i_R, 3, AngleH[i_R][3]*Degree2Rad);
+					}
+
+					static int key_2_count=0;
+					static int key_left_count=0;			//是否是左键？
+					//rockerR指当前按下的键值
+					if (rockerL==0x02)
+					{
+						key_left_count=0;
+					}
+
+					if (rockerL==0x100)		//100是否是左键键值？
+					{
+						key_2_count=0;
+					}
+
+					//打印数据
+					if(rockerL==0x02&&key_2_count<50)
+					{
+						fprintf(fp,"%02x, %8.3f, %8.3f, %8.3f, %8.3f, %8.3f, %8.3f, %8.3f, %8.3f\n", rockerL, motor_current[0][0], motor_current[0][1], motor_current[0][2], motor_current[0][3],Joint_Angle_EP[0][0],Joint_Angle_EP[0][1],Joint_Angle_EP[0][2],Joint_Angle_EP[0][3]);
+						if(key_2_count<50)
+						{
+							key_2_count++;
+						}
+					}
+
+					//打印间隔符
+					if(rockerL==0x100&&key_left_count<5) 		//此处有100
+					{
+						fprintf(fp,"%02x, %8.3f, %8.3f, %8.3f, %8.3f, %8.3f, %8.3f, %8.3f, %8.3f\n", rockerL, motor_current[0][0], motor_current[0][1], motor_current[0][2], motor_current[0][3],Joint_Angle_EP[0][0],Joint_Angle_EP[0][1],Joint_Angle_EP[0][2],Joint_Angle_EP[0][3]);
+						if(key_left_count<5)
+						{
+							key_left_count++;
+						}
 					}
 
 				//	fprintf(fp,"%02x, %8.3f, %8.3f, %8.3f, %8.3f, %8.3f, %8.3f, %8.3f, %8.3f\n", rockerR, motor_current[1][0], motor_current[1][1], motor_current[1][2], motor_current[1][3],Joint_Angle_EP[1][0],Joint_Angle_EP[1][1],Joint_Angle_EP[1][2],Joint_Angle_EP[1][3]);
@@ -3622,6 +3666,228 @@ void rt_can_recv(void *arg)
 
 			 	}
 			 	break;
+
+			 	case END_MOTION:
+				{
+					int i_OA =0;
+					static double ControlT[4][4];
+					static double TNowL[4][4], TNowR[4][4];
+					static double AngleL[7],AngleR[7];
+					if(first_time_END_MOTION == 0)
+					{
+						memcpy(&OneArmStart,&RobotAngleFB,sizeof(OneArmStart));
+						first_time_END_MOTION = 1;
+						t = 0;
+						printf("MOTION_MODE: ONE_ARM_MOTION\n");
+						moving_flag = 1;
+						// 通过逆运动学计算当前位姿下关节角
+
+						for (i_OA = 0; i_OA < 7; ++i_OA)
+						{
+							AngleL[i_OA] = OneArmStart.LeftArm[i_OA];
+							AngleR[i_OA] = OneArmStart.RightArm[i_OA];
+						}
+						KinL(AngleL, TNowL);
+						KinR(AngleR, TNowR);
+
+						int ii = 0, jj = 0;
+
+						for(ii=0;ii<3;ii++)
+						{
+							for(jj=0;jj<4;jj++)
+							{
+								ControlT[ii][jj] = EndMoveData[ii*4+jj];
+							}
+						}
+						ControlT[3][0] = 0.0;
+						ControlT[3][1] = 0.0;
+						ControlT[3][2] = 0.0;
+						ControlT[3][3] = 1.0;
+
+					//	printf("ControlT = %.3f %.3f %.3f %.3f\n %.3f %.3f %.3f %.3f\n %.3f %.3f %.3f %.3f\n\n",ControlT[0][0],ControlT[0][1],ControlT[0][2],ControlT[0][3],ControlT[1][0],ControlT[1][1],ControlT[1][2],ControlT[1][3],ControlT[2][0],ControlT[2][1],ControlT[2][2],ControlT[2][3]);
+
+					}
+					else
+					{
+						if(t <= end_time)
+						{
+							t = t+time_interval;
+
+							switch(MotionSpace)
+							{
+								case 0x01: //JointSpace
+								{
+									switch(ArmSelect)
+									{
+										case 1: //LeftArm
+										{
+											float plan[7]= {0.0};
+											double betaL;
+											betaL = Beta_CalL(AngleL);	// input: rad
+											double Angle_calL[7];
+											invKinL(AngleL, ControlT, betaL, Angle_calL);	// input:
+
+											printf("%f %f %f %f %f %f %f\n",Angle_calL[0],Angle_calL[1],Angle_calL[2],Angle_calL[3],Angle_calL[4],Angle_calL[5],Angle_calL[6]);
+											for(i_OA=0;i_OA<7;i_OA++)
+											{
+												plan[i_OA] = Five_Interpolation(OneArmStart.LeftArm[i_OA]*Rad2Degree, 0, 0, Angle_calL[i_OA], 0, 0, end_time,t);
+											}
+											if (t>end_time)
+											{
+												for(i_OA=0;i_OA<7;i_OA++)
+												{
+													plan[i_OA] = Angle_calL[i_OA];
+												}
+											}
+											Joint_Angle_EP[2][0] = JointDetect(2, 0, plan[0]*Degree2Rad);
+											Joint_Angle_EP[3][0] = JointDetect(3, 0, plan[1]*Degree2Rad);
+											Joint_Angle_EP[3][1] = JointDetect(3, 1, plan[2]*Degree2Rad);
+											Joint_Angle_EP[2][1] = JointDetect(2, 1, plan[3]*Degree2Rad);
+											Joint_Angle_EP[0][4] = JointDetect(0, 4, plan[4]*Degree2Rad);
+											Joint_Angle_EP[0][5] = JointDetect(0, 5, plan[5]*Degree2Rad);
+											Joint_Angle_EP[0][6] = JointDetect(0, 6, plan[6]*Degree2Rad);
+										}
+										break;
+
+										case 2: // RightArm
+										{
+											float plan[7]= {0.0};
+											double betaR;
+											betaR = Beta_CalL(AngleR);	// input: rad
+											double Angle_calR[7];
+											invKinR(AngleR, ControlT, betaR, Angle_calR);	// input:
+											for(i_OA=0;i_OA<7;i_OA++)
+											{
+												plan[i_OA] = Five_Interpolation(OneArmStart.RightArm[i_OA]*Rad2Degree, 0, 0, Angle_calR[i_OA], 0, 0, end_time,t);
+											}
+											if (t>end_time)
+											{
+												for(i_OA=0;i_OA<7;i_OA++)
+												{
+													plan[i_OA] = Angle_calR[i_OA];
+												}
+											}
+
+											Joint_Angle_EP[2][2] = JointDetect(2, 2, plan[0]*Degree2Rad);
+											Joint_Angle_EP[3][2] = JointDetect(3, 2, plan[1]*Degree2Rad);
+											Joint_Angle_EP[3][3] = JointDetect(3, 3, plan[2]*Degree2Rad);
+											Joint_Angle_EP[2][3] = JointDetect(2, 3, plan[3]*Degree2Rad);
+											Joint_Angle_EP[1][4] = JointDetect(1, 4, plan[4]*Degree2Rad);
+											Joint_Angle_EP[1][5] = JointDetect(1, 5, plan[5]*Degree2Rad);
+											Joint_Angle_EP[1][6] = JointDetect(1, 6, plan[6]*Degree2Rad);
+										}
+										break;
+										default:
+										break;
+									}
+								}
+								break;
+
+								case 0x02: //CartesianSpace
+								{
+									switch(ArmSelect)
+									{
+										case 1:
+										{
+											double PoseStart[6];
+											double PoseStop[6];
+											double PlanPose[6];
+											Matrix2Pose(TNowL, PoseStart);
+											Matrix2Pose(ControlT, PoseStop);
+											printf("PoseStop = %.3f %.3f %.3f %.3f %.3f %.3f\n",PoseStop[0],PoseStop[1],PoseStop[2],PoseStop[3],PoseStop[4],PoseStop[5]);
+
+											for(i_OA=0;i_OA<6;i_OA++)
+											{
+												PlanPose[i_OA] = Five_Interpolation(PoseStart[i_OA], 0, 0, PoseStop[i_OA], 0, 0, end_time,t);
+											}
+											if (t>end_time)
+											{
+												for(i_OA=0;i_OA<6;i_OA++)
+												{
+													PlanPose[i_OA] = PoseStop[i_OA];
+												}
+											}
+											printf("PlanPose = %.3f %.3f %.3f %.3f %.3f %.3f\n",PlanPose[0],PlanPose[1],PlanPose[2],PlanPose[3],PlanPose[4],PlanPose[5]);
+											double PlanMatrix[4][4];
+											Pose2Matrix(PlanPose, PlanMatrix);
+											double betaL;
+											betaL = Beta_CalL(AngleL);	// input: rad
+											double Angle_calL[7];
+											invKinL(AngleL, PlanMatrix, betaL, Angle_calL);	// input:
+
+										//	printf("Angle_calL = %.3f %.3f %.3f %.3f %.3f %.3f %.3f\n",Angle_calL[0],Angle_calL[1],Angle_calL[2],Angle_calL[3],Angle_calL[4],Angle_calL[5],Angle_calL[6]);
+
+											Joint_Angle_EP[2][0] = JointDetect(2, 0, Angle_calL[0]*Degree2Rad);
+											Joint_Angle_EP[3][0] = JointDetect(3, 0, Angle_calL[1]*Degree2Rad);
+											Joint_Angle_EP[3][1] = JointDetect(3, 1, Angle_calL[2]*Degree2Rad);
+											Joint_Angle_EP[2][1] = JointDetect(2, 1, Angle_calL[3]*Degree2Rad);
+											Joint_Angle_EP[0][4] = JointDetect(0, 4, Angle_calL[4]*Degree2Rad);
+											Joint_Angle_EP[0][5] = JointDetect(0, 5, Angle_calL[5]*Degree2Rad);
+											Joint_Angle_EP[0][6] = JointDetect(0, 6, Angle_calL[6]*Degree2Rad);
+										}
+										break;
+
+										case 2:
+										{
+											double PoseStart[6];
+											double PoseStop[6];
+											double PlanPose[6];
+											Matrix2Pose(TNowR, PoseStart);
+											Matrix2Pose(ControlT, PoseStop);
+
+											for(i_OA=0;i_OA<6;i_OA++)
+											{
+												PlanPose[i_OA] = Five_Interpolation(PoseStart[i_OA], 0, 0, PoseStop[i_OA], 0, 0, end_time,t);
+											}
+											if (t>end_time)
+											{
+												for(i_OA=0;i_OA<6;i_OA++)
+												{
+													PlanPose[i_OA] = PoseStop[i_OA];
+												}
+											}
+
+											double PlanMatrix[4][4];
+											Pose2Matrix(PlanPose, PlanMatrix);
+											double betaR;
+											betaR = Beta_CalR(AngleR);	// input: rad
+											double Angle_calR[7];
+											invKinR(AngleR, PlanMatrix, betaR, Angle_calR);	// input:
+
+											printf("%f %f %f %f %f %f %f\n",Angle_calR[0],Angle_calR[1],Angle_calR[2],Angle_calR[3],Angle_calR[4],Angle_calR[5],Angle_calR[6]);
+
+
+											Joint_Angle_EP[2][2] = JointDetect(2, 2, Angle_calR[0]*Degree2Rad);
+											Joint_Angle_EP[3][2] = JointDetect(3, 2, Angle_calR[1]*Degree2Rad);
+											Joint_Angle_EP[3][3] = JointDetect(3, 3, Angle_calR[2]*Degree2Rad);
+											Joint_Angle_EP[2][3] = JointDetect(2, 3, Angle_calR[3]*Degree2Rad);
+											Joint_Angle_EP[1][4] = JointDetect(1, 4, Angle_calR[4]*Degree2Rad);
+											Joint_Angle_EP[1][5] = JointDetect(1, 5, Angle_calR[5]*Degree2Rad);
+											Joint_Angle_EP[1][6] = JointDetect(1, 6, Angle_calR[6]*Degree2Rad);
+										}
+										break;
+										default:
+										break;
+									}
+
+								}
+								break;
+								default:
+								break;
+
+							}
+
+						}
+						else
+						{
+							t = 0;
+							motion_mode = 100;
+							first_time_END_MOTION = 0;
+							moving_flag	= 0;
+						}
+					}
+				}
+				break;
 
 				default:
 				break;

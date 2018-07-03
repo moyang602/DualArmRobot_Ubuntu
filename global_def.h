@@ -10,7 +10,7 @@
 // 机器人运动模式
 #define SINGLE_JOINT_MOTION	101
 #define ONE_ARM_MOTION		102
-#define TWO_ARMS_MOTION 	103
+#define END_MOTION 			103
 #define VISION_MOTION   	104
 #define FIND_HOME_MOTION  	106
 #define ROBOT_CONTROL 		107

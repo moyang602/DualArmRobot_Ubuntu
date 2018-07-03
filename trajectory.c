@@ -10,7 +10,7 @@ double pi = 3.1415926;
 double d3 = 310.5;
 double d4 = 338;
 double dend = 340;
-double Tool_Position[3] = {0.0, 0.0, 0.0};
+double Tool_Position[3] = {0.0, 0.0, 340.0};
 
 double sqrt3c2 = 0.8660254037844;
 double beta_L1 = 270.0;
@@ -3241,4 +3241,40 @@ void Schmidt(double Raw[4][4], double Out[4][4])
 
 		}
 	}
+}
+
+void Matrix2Pose(double TransMatrix[4][4], double Pose[6])
+{
+	Pose[0] = TransMatrix[0][3];
+	Pose[1] = TransMatrix[1][3];
+	Pose[2] = TransMatrix[2][3];
+	Pose[3] = -atan2(TransMatrix[1][2],TransMatrix[2][2]);
+	Pose[4] = atan2(TransMatrix[0][2],(cos(Pose[3])*TransMatrix[2][2]-sin(Pose[3])*TransMatrix[1][2]));
+	Pose[5] = -atan2(TransMatrix[0][1],TransMatrix[0][0]);
+}
+
+void Pose2Matrix(double Pose[6], double TransMatrix[4][4])
+{
+	TransMatrix[0][0] = cos(Pose[4]) * cos(Pose[5]);
+	TransMatrix[0][1] = -cos(Pose[4]) * sin(Pose[5]);
+	TransMatrix[0][2] = sin(Pose[4]);
+	TransMatrix[1][0] = sin(Pose[3]) * sin(Pose[4]) * cos(Pose[5]) +
+		cos(Pose[3]) * sin(Pose[5]);
+	TransMatrix[1][1] = -sin(Pose[3]) * sin(Pose[4]) * sin(Pose[5]) +
+		cos(Pose[3]) * cos(Pose[5]);
+	TransMatrix[1][2] = -sin(Pose[3]) * cos(Pose[4]);
+	TransMatrix[2][0] = -cos(Pose[3]) * sin(Pose[4]) * cos(Pose[5]) +
+		sin(Pose[3]) * sin(Pose[5]);
+	TransMatrix[2][1] = cos(Pose[3]) * sin(Pose[4]) * sin(Pose[5]) +
+		sin(Pose[3]) * cos(Pose[5]);
+	TransMatrix[2][2] = cos(Pose[3]) * cos(Pose[4]);
+
+	TransMatrix[0][3] = Pose[0];
+	TransMatrix[1][3] = Pose[1];
+	TransMatrix[2][3] = Pose[2];
+
+	TransMatrix[3][0] = 0;
+	TransMatrix[3][1] = 0;
+	TransMatrix[3][2] = 0;
+	TransMatrix[3][3] = 1;
 }
