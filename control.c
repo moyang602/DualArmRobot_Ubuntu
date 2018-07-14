@@ -61,7 +61,6 @@
 #include "SerialComm.h"
 #include "ForceControl.h"
 
-#define hand2base 300.0
 
 /*********************************函数声明**********************************/
 void send_event();
@@ -284,15 +283,6 @@ double VoltageFB = 0.0;
 // 供电电源电流反馈
 double CurrentFB = 0.0;
 
-double T_hand_end[4][4] = {{1.0, 0.0, 0.0, 0.0},
-						{0.0, 1.0, 0.0, 0.0},
-						{0.0, 0.0, 1.0, -hand2base},
-						{0.0, 0.0, 0.0, 1.0}};
-
-double T_hand_end_inv[4][4] = {{1.0, 0.0, 0.0, 0.0},
-						{0.0, 1.0, 0.0, 0.0},
-						{0.0, 0.0, 1.0, hand2base},
-						{0.0, 0.0, 0.0, 1.0}};
 
 // 标志量
 int power_on_flag = 0;
@@ -1239,7 +1229,7 @@ void rt_can_recv(void *arg)
 		if (return_value > 0)
 		{
 			memcpy(Posture,PostureRaw,sizeof(PostureRaw));
-		//	printf("rtn = %d, Pos1 = %lf, Pos2 = %lf, Pos3 = %lf\n", return_value, Posture[0], Posture[1], Posture[2]);
+			printf("rtn = %d, Pos1 = %lf, Pos2 = %lf, Pos3 = %lf\n", return_value, Posture[0], Posture[1], Posture[2]);
 		}
 
 		// c.GPS信息获取
@@ -1377,8 +1367,6 @@ void rt_can_recv(void *arg)
 				{
 					GetEndData(&ArmSelect, &MotionSpace, EndMoveData, &end_time);
 					motion_mode = END_MOTION;
-
-				//	printf("%f %f %f %f \n %f %f %f %f \n %f %f %f %f\n",EndMoveData[0],EndMoveData[1],EndMoveData[2],EndMoveData[3],EndMoveData[4],EndMoveData[5],EndMoveData[6],EndMoveData[7],EndMoveData[8],EndMoveData[9],EndMoveData[10],EndMoveData[11]);
 				}
 				break;
 
@@ -2059,7 +2047,7 @@ void rt_can_recv(void *arg)
 					}
 
 					//打印数据
-					if(rockerL==0x02&&key_2_count<50)
+				/*	if(rockerL==0x02&&key_2_count<50)
 					{
 						fprintf(fp,"%02x, %8.3f, %8.3f, %8.3f, %8.3f, %8.3f, %8.3f, %8.3f, %8.3f\n", rockerL, motor_current[0][0], motor_current[0][1], motor_current[0][2], motor_current[0][3],Joint_Angle_EP[0][0],Joint_Angle_EP[0][1],Joint_Angle_EP[0][2],Joint_Angle_EP[0][3]);
 						if(key_2_count<50)
@@ -2077,8 +2065,7 @@ void rt_can_recv(void *arg)
 							key_left_count++;
 						}
 					}
-
-				//	fprintf(fp,"%02x, %8.3f, %8.3f, %8.3f, %8.3f, %8.3f, %8.3f, %8.3f, %8.3f\n", rockerR, motor_current[1][0], motor_current[1][1], motor_current[1][2], motor_current[1][3],Joint_Angle_EP[1][0],Joint_Angle_EP[1][1],Joint_Angle_EP[1][2],Joint_Angle_EP[1][3]);
+				*/
 					NowTime = rt_timer_read();
 					double period1 = 0;
 					period1 = (NowTime - LastTime) / 1000;   //us

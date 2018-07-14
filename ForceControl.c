@@ -913,12 +913,12 @@ double F_thresholdR[6] = {1.5, 1.5, 2.0, 0.06, 0.06, 0.06};
 
 int ForceCompensationL(double ForceBefore[6], double AngleNow[7], double ForceAfter[6])	//unit: N  rad  N
 {
-	double G = 0.0;//16.65; // 末端工具  unit: N
+	double G = 17.93;//16.65; // 末端工具  unit: N
 	double GravityB[3] = {-G, 0, 0};	// 工具产生的重力在基坐标系下的表示
 	double GravityE[3];					// 工具产生的重力在末端力传感器坐标系下的表示
 	double MomentE[3];					// 工具产生的重力矩在末端力传感器坐标系下的表示
-	double ForceOffset[6] = {-180.417302, -103.603620, -126.257518, 2.469830, 2.590696, -8.179648};//{-139.525, -77.4, -101.45, 1.76, 2.1925, -6.445};
-	double P[3] = {0.0, 0.0, 0.0};//{-0.0001, 0.0051, 0.0715};		// 工具中心在末端力传感器坐标系下的表示
+	double ForceOffset[6] = {-183.181, -102.7555, -121.364, 2.5128, 2.542, -8.1463 };//{-139.525, -77.4, -101.45, 1.76, 2.1925, -6.445};
+	double P[3] = {-0.005706, 0.001721, 0.07103};//{-0.0001, 0.0051, 0.0715};		// 工具中心在末端力传感器坐标系下的表示
 
 	double TransMatrix[4][4];
 	KinL(AngleNow, TransMatrix);
@@ -968,12 +968,12 @@ int ForceCompensationL(double ForceBefore[6], double AngleNow[7], double ForceAf
 
 int ForceCompensationR(double ForceBefore[6], double AngleNow[7], double ForceAfter[6])	//unit: N  rad  N
 {
-	double G = 16.7645; // 末端工具  unit: N
+	double G = 0.0; // 末端工具  unit: N
 	double GravityB[3] = {-G, 0, 0};		// 工具产生的重力在基坐标系下的表示
 	double GravityE[3];						// 工具产生的重力在末端力传感器坐标系下的表示
 	double MomentE[3];						// 工具产生的重力矩在末端力传感器坐标系下的表示
-	double ForceOffset[6] = {97.81, 97.9, -51.35, 1.340, -0.125, 3.1000};
-	double P[3] = {-0.0042, -0.0004, 0.0727};			// 工具中心在末端力传感器坐标系下的表示
+	double ForceOffset[6] = {122.291, 128.8585, -76.5065, 0.40475, 0.617, 3.7865 };
+	double P[3] = {0.0, 0.0, 0.0};			// 工具中心在末端力传感器坐标系下的表示
 
 	double TransMatrix[4][4];
 	KinR(AngleNow, TransMatrix);
