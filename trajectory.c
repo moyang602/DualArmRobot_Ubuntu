@@ -4,16 +4,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-double L1 = 290.5;
-double L2 = 311.357;
+
 double pi = 3.1415926;
 double d3 = 310.5;
 double d4 = 310;
-double dend = 340;
-double Tool_Position[3] = {0.0, 0.0, 340.0};
+double dend = 270;
+double Tool_Position[3] = {0.0, 0.0, 270.0};
 
 double sqrt3c2 = 0.8660254037844;
-double beta_L1 = 270.0;
 double Minimum_Value = 1e-6;
 //int i=0;
 

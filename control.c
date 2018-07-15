@@ -167,10 +167,10 @@ int can_channel_number = 4;
 //						{1, 1, 1, 1, 1, 1, 1},
 //						{1, 1, 1, 1, 1, 1, 1},
 //						{1, 1, 1, 1, 1, 1, 1}};
-int can_switch[4][7] = {{1, 1, 1, 1, 1, 1, 1},
-						{1, 1, 1, 1, 1, 1, 1},
-						{1, 1, 1, 1, 1, 1, 0},
-						{1, 1, 1, 1, 1, 1, 1}};
+int can_switch[4][7] = {{0, 0, 0, 0, 0, 0, 0},
+						{0, 0, 0, 0, 1, 1, 1},
+						{0, 0, 1, 1, 0, 0, 0},
+						{0, 0, 1, 1, 0, 0, 1}};
 
 // 各节点速度方向
 double joint_direction[4][7] = {{1, 1, 1, 1, 1, -1, 1},
@@ -469,7 +469,10 @@ void send_event()
 	XFlush(MyDisplay);
 }
 
-
+int duijie_flag = 0;
+int leave_flag = 0;
+int return_flag = 0;
+int induijie_flag = 0;
 void view (void *n)
 {
 	struct sched_param the_priority;
@@ -575,6 +578,45 @@ void view (void *n)
 					printf("return_origin_position\n");
 				break;
 				*/
+
+				case '1':
+					printf("duijie_flag = 1\n");
+					duijie_flag = 1;
+
+				break;
+				case '2':
+					printf("duijie_flag = 0\n");
+					duijie_flag = 0;
+
+				break;
+				case '3':
+					printf("leave_flag = 1\n");
+					leave_flag = 1;
+
+				break;
+				case '4':
+					printf("leave_flag = 0\n");
+					leave_flag = 0;
+
+				break;
+				case '5':
+					printf("return_flag = 1\n");
+					return_flag = 1;
+
+				break;
+				case '6':
+					printf("return_flag = 0\n");
+					return_flag = 0;
+				break;
+				case '7':
+					printf("induijie_flag = 1\n");
+					induijie_flag = 1;
+
+				break;
+				case '8':
+					printf("induijie_flag = 0\n");
+					induijie_flag = 0;
+				break;
 
 				case 'e':	// 关程序
 				case 'E':
@@ -1229,7 +1271,7 @@ void rt_can_recv(void *arg)
 		if (return_value > 0)
 		{
 			memcpy(Posture,PostureRaw,sizeof(PostureRaw));
-			printf("rtn = %d, Pos1 = %lf, Pos2 = %lf, Pos3 = %lf\n", return_value, Posture[0], Posture[1], Posture[2]);
+		//	printf("rtn = %d, Pos1 = %lf, Pos2 = %lf, Pos3 = %lf\n", return_value, Posture[0], Posture[1], Posture[2]);
 		}
 
 		// c.GPS信息获取
@@ -1631,7 +1673,7 @@ void rt_can_recv(void *arg)
 			case CMD_CTR_DISENABLE:
 			{
 				motion_enable_flag = 0;
-				printf("motion_enable_flag = 0 by UDP\n");
+				printf("motion_enable_flag = 0 bytes_left UDP\n");
 				control_mode = 0;
 			}
 			break;
@@ -2807,7 +2849,7 @@ void rt_can_recv(void *arg)
 				case FORCE_MOTION:
 				{
 					int i_f = 0;
-					double force_limit[6] = {80.0, 80.0, 100.0, 7.0, 7.0, 7.0};
+					double force_limit[6] = {50.0, 50.0, 80.0, 7.0, 7.0, 7.0};
 
 					if(ForceControl_flagL == 1&& ForceNewDataL==1)	//左臂control
 					{
@@ -2986,6 +3028,37 @@ void rt_can_recv(void *arg)
 							A6D_VmmR[3] = A6D_VR[3];
 							A6D_VmmR[4] = A6D_VR[4];
 							A6D_VmmR[5] = A6D_VR[5];
+
+							if(duijie_flag == 1)
+							{
+								A6D_VmmR[2] = A6D_VmmR[2] + 1;
+								A6D_D_totalR[2] = A6D_D_totalR[2] - A6D_VmmR[2]*FDeltaT*0.001;
+							}
+
+							if(leave_flag == 1)
+							{
+								A6D_VmmR[1] = A6D_VmmR[1] + 1;
+								A6D_VmmR[5] = A6D_VmmR[5] - 0.001745;
+								A6D_D_totalR[1] = A6D_D_totalR[1] - A6D_VmmR[1]*FDeltaT*0.001;
+								A6D_D_totalR[5] = A6D_D_totalR[5] - A6D_VmmR[5]*FDeltaT;
+							}
+
+							if(return_flag == 1)
+							{
+								A6D_VmmR[1] = A6D_VmmR[1] - 1;
+								A6D_VmmR[5] = A6D_VmmR[5] + 0.001745;
+								A6D_D_totalR[1] = A6D_D_totalR[1] - A6D_VmmR[1]*FDeltaT*0.001;
+								A6D_D_totalR[5] = A6D_D_totalR[5] - A6D_VmmR[5]*FDeltaT;
+							}
+
+							if(induijie_flag == 1)
+							{
+								A6D_VmmR[2] = A6D_VmmR[2] - 1;
+								A6D_D_totalR[2] = A6D_D_totalR[2] - A6D_VmmR[2]*FDeltaT*0.001;
+							}
+
+
+
 
 							for(i_f = 0; i_f<6; i_f++)
 							{
@@ -3740,7 +3813,7 @@ void rt_can_recv(void *arg)
 										{
 											float plan[7]= {0.0};
 											double betaR;
-											betaR = Beta_CalL(AngleR);	// input: rad
+											betaR = Beta_CalR(AngleR);	// input: rad
 											double Angle_calR[7];
 											invKinR(AngleR, ControlT, betaR, Angle_calR);	// input:
 											for(i_OA=0;i_OA<7;i_OA++)
