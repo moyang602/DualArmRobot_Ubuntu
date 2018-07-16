@@ -1601,12 +1601,14 @@ void rt_can_recv(void *arg)
 							FetchStep = 1;
 						break;
 						case FETCH_DOCK:
+							First_ForceR = 1;
 							FetchStep = 2;
 						break;
 						case FETCH_ADJUST:
-							FetchStep = 4
+							FetchStep = 4;
 						break;
 						case FETCH_MOVEOUT:
+							First_ForceR = 1;
 							FetchStep = 5;
 						break;
 						case FETCH_BACK:
@@ -4021,6 +4023,7 @@ void rt_can_recv(void *arg)
 								{
 									moving_flag	= 0;
 									first_move_flag = 1;
+									FetchStep = 0;
 								}
 							}
 						}
@@ -4028,25 +4031,28 @@ void rt_can_recv(void *arg)
 
 						case 2: // dock the quick-changing mechanism
 						{
-							int i_OA =0;
+							int i_R =0;
 							static double TNowR[4][4];
 							static double ControlT[4][4];
+
 							if (first_move_flag)	//初次进入参数初始化
 							{
 								first_move_flag = 0;
 								moving_flag = 1;
 
 								memcpy(&OneArmStart,&RobotAngleFB,sizeof(OneArmStart));
-								for (i_OA = 0; i_OA < 7; ++i_OA)
+
+								double AngleR[7];
+								for (i_R = 0; i_R < 7; ++i_R)
 								{
-									AngleR[i_OA] = OneArmStart.RightArm[i_OA];
+									AngleR[i_R] = OneArmStart.RightArm[i_R];
 								}
 								KinR(AngleR, TNowR);
 
 								memcpy(&ControlT,&TNowR,sizeof(TNowR));
-								ControlT[0][3] += 0;
-								ControlT[1][3] += 0;
-								ControlT[2][3] += 0;
+								ControlT[0][3] += -42.5;
+								ControlT[1][3] += -1.5;
+								ControlT[2][3] += -17;
 
 								for(i_R=0;i_R<6;i_R++)
 								{
@@ -4072,15 +4078,15 @@ void rt_can_recv(void *arg)
 									Matrix2Pose(ControlT, PoseStop);
 
 									// 末端笛卡尔空间插值规划
-									for(i_OA=0;i_OA<6;i_OA++)
+									for(i_R=0;i_R<6;i_R++)
 									{
-										PlanPose[i_OA] = Five_Interpolation(PoseStart[i_OA], 0, 0, PoseStop[i_OA], 0, 0, 20,t);
+										PlanPose[i_R] = Five_Interpolation(PoseStart[i_R], 0, 0, PoseStop[i_R], 0, 0, 20,t);
 									}
 									if (t>20)
 									{
-										for(i_OA=0;i_OA<6;i_OA++)
+										for(i_R=0;i_R<6;i_R++)
 										{
-											PlanPose[i_OA] = PoseStop[i_OA];
+											PlanPose[i_R] = PoseStop[i_R];
 										}
 									}
 									double PlanMatrix[4][4];
@@ -4114,7 +4120,7 @@ void rt_can_recv(void *arg)
 											{
 												// 力控输出角等于当前关节角
 												memcpy(&OneArmStart,&RobotAngleFBDeg,sizeof(OneArmStart));
-											
+
 												for(i_R=0;i_R<7;i_R++)
 												{
 													A6D_Joint_PR[i_R] = OneArmStart.RightArm[i_R];
@@ -4166,7 +4172,7 @@ void rt_can_recv(void *arg)
 											double TempT[4][4];
 											matrix_multiply(TotalDeltaTR, deltaT, TempT);
 											memcpy(TotalDeltaTR,TempT,sizeof(TempT));
-											
+
 										}
 									}
 
@@ -4177,15 +4183,17 @@ void rt_can_recv(void *arg)
 									// 通过逆运动学计算当前位姿下关节角
 									double AngleRNow[7];
 									double AngleRBeta[7];
+
 									for(i_R=0; i_R<7; i_R++)
 									{
 										AngleRNow[i_R] = A6D_Joint_PR[i_R]*Degree2Rad;
 										AngleRBeta[i_R] = A6D_Joint_PR[i_R]*Degree2Rad;
 									}
 									double betaR;
+
 									betaR = Beta_CalR(AngleRBeta);	// input: rad
 									invKinR(AngleRNow, ControlTR, betaR, A6D_Joint_PR);	// input:
-								
+
 									Joint_Angle_EP[2][2] = JointDetect(2, 2, A6D_Joint_PR[0]*Degree2Rad);
 									Joint_Angle_EP[3][2] = JointDetect(3, 2, A6D_Joint_PR[1]*Degree2Rad);
 									Joint_Angle_EP[3][3] = JointDetect(3, 3, A6D_Joint_PR[2]*Degree2Rad);
@@ -4200,33 +4208,35 @@ void rt_can_recv(void *arg)
 									t = 0;
 									FetchStep = 3;
 									moving_flag	= 0;
-									first_move_flag = 1；
+									first_move_flag = 1;
 								}
 
 							}
 						}
 						break;
 
-						case 3:	// stop force control, wait 
+						case 3:	// stop force control, wait
 						{
 
 						}
 						break;
 
-						case 4:	// open force control, adjustme 
+						case 4:	// open force control, adjustme
 						{
-							int i_OA =0;
+							int i_R =0;
 							static double TNowR[4][4];
 							static double ControlT[4][4];
+
 							if (first_move_flag)	//初次进入参数初始化
 							{
 								first_move_flag = 0;
 								moving_flag = 1;
 
 								memcpy(&OneArmStart,&RobotAngleFB,sizeof(OneArmStart));
-								for (i_OA = 0; i_OA < 7; ++i_OA)
+								double AngleR[7];
+								for (i_R = 0; i_R < 7; ++i_R)
 								{
-									AngleR[i_OA] = OneArmStart.RightArm[i_OA];
+									AngleR[i_R] = OneArmStart.RightArm[i_R];
 								}
 								KinR(AngleR, TNowR);
 
@@ -4259,15 +4269,15 @@ void rt_can_recv(void *arg)
 									Matrix2Pose(ControlT, PoseStop);
 
 									// 末端笛卡尔空间插值规划
-									for(i_OA=0;i_OA<6;i_OA++)
+									for(i_R=0;i_R<6;i_R++)
 									{
-										PlanPose[i_OA] = Five_Interpolation(PoseStart[i_OA], 0, 0, PoseStop[i_OA], 0, 0, 20,t);
+										PlanPose[i_R] = Five_Interpolation(PoseStart[i_R], 0, 0, PoseStop[i_R], 0, 0, 5,t);
 									}
 									if (t>5)
 									{
-										for(i_OA=0;i_OA<6;i_OA++)
+										for(i_R=0;i_R<6;i_R++)
 										{
-											PlanPose[i_OA] = PoseStop[i_OA];
+											PlanPose[i_R] = PoseStop[i_R];
 										}
 									}
 									double PlanMatrix[4][4];
@@ -4301,7 +4311,7 @@ void rt_can_recv(void *arg)
 											{
 												// 力控输出角等于当前关节角
 												memcpy(&OneArmStart,&RobotAngleFBDeg,sizeof(OneArmStart));
-											
+
 												for(i_R=0;i_R<7;i_R++)
 												{
 													A6D_Joint_PR[i_R] = OneArmStart.RightArm[i_R];
@@ -4353,7 +4363,7 @@ void rt_can_recv(void *arg)
 											double TempT[4][4];
 											matrix_multiply(TotalDeltaTR, deltaT, TempT);
 											memcpy(TotalDeltaTR,TempT,sizeof(TempT));
-											
+
 										}
 									}
 
@@ -4364,15 +4374,17 @@ void rt_can_recv(void *arg)
 									// 通过逆运动学计算当前位姿下关节角
 									double AngleRNow[7];
 									double AngleRBeta[7];
+
 									for(i_R=0; i_R<7; i_R++)
 									{
 										AngleRNow[i_R] = A6D_Joint_PR[i_R]*Degree2Rad;
 										AngleRBeta[i_R] = A6D_Joint_PR[i_R]*Degree2Rad;
 									}
 									double betaR;
+
 									betaR = Beta_CalR(AngleRBeta);	// input: rad
 									invKinR(AngleRNow, ControlTR, betaR, A6D_Joint_PR);	// input:
-								
+
 									Joint_Angle_EP[2][2] = JointDetect(2, 2, A6D_Joint_PR[0]*Degree2Rad);
 									Joint_Angle_EP[3][2] = JointDetect(3, 2, A6D_Joint_PR[1]*Degree2Rad);
 									Joint_Angle_EP[3][3] = JointDetect(3, 3, A6D_Joint_PR[2]*Degree2Rad);
@@ -4385,16 +4397,18 @@ void rt_can_recv(void *arg)
 								else
 								{
 									t = 0;
+									FetchStep = 0;
 									moving_flag	= 0;
-									first_move_flag = 1；
+									first_move_flag = 1;
 								}
+
 							}
 						}
 						break;
 
 						case 5:	// fetch the tool
 						{
-							int i_OA =0;
+							int i_R =0;
 							static double TNowR[4][4];
 							static double ControlT[4][4];
 							if (first_move_flag)	//初次进入参数初始化
@@ -4403,15 +4417,16 @@ void rt_can_recv(void *arg)
 								moving_flag = 1;
 
 								memcpy(&OneArmStart,&RobotAngleFB,sizeof(OneArmStart));
-								for (i_OA = 0; i_OA < 7; ++i_OA)
+								double AngleR[7];;
+								for (i_R = 0; i_R < 7; ++i_R)
 								{
-									AngleR[i_OA] = OneArmStart.RightArm[i_OA];
+									AngleR[i_R] = OneArmStart.RightArm[i_R];
 								}
 								KinR(AngleR, TNowR);
 
 								memcpy(&ControlT,&TNowR,sizeof(TNowR));
 								ControlT[0][3] += 0;
-								ControlT[1][3] += 0;
+								ControlT[1][3] += -100;
 								ControlT[2][3] += 0;
 
 								for(i_R=0;i_R<6;i_R++)
@@ -4425,12 +4440,12 @@ void rt_can_recv(void *arg)
 								A6D_K[1] = 400;
 								A6D_K[2] = 300;
 								A6D_K[5] = 10;
-								A6D_enable[3] = 0；
-								A6D_enable[4] = 0；
+								A6D_enable[3] = 0;
+								A6D_enable[4] = 0;
 							}
 							else
 							{
-								if(t <= 20)
+								if(t <= 25)
 								{
 									t = t+time_interval;
 
@@ -4442,15 +4457,15 @@ void rt_can_recv(void *arg)
 									Matrix2Pose(ControlT, PoseStop);
 
 									// 末端笛卡尔空间插值规划
-									for(i_OA=0;i_OA<6;i_OA++)
+									for(i_R=0;i_R<6;i_R++)
 									{
-										PlanPose[i_OA] = Five_Interpolation(PoseStart[i_OA], 0, 0, PoseStop[i_OA], 0, 0, 20,t);
+										PlanPose[i_R] = Five_Interpolation(PoseStart[i_R], 0, 0, PoseStop[i_R], 0, 0, 25,t);
 									}
-									if (t>20)
+									if (t>25)
 									{
-										for(i_OA=0;i_OA<6;i_OA++)
+										for(i_R=0;i_R<6;i_R++)
 										{
-											PlanPose[i_OA] = PoseStop[i_OA];
+											PlanPose[i_R] = PoseStop[i_R];
 										}
 									}
 									double PlanMatrix[4][4];
@@ -4484,7 +4499,7 @@ void rt_can_recv(void *arg)
 											{
 												// 力控输出角等于当前关节角
 												memcpy(&OneArmStart,&RobotAngleFBDeg,sizeof(OneArmStart));
-											
+
 												for(i_R=0;i_R<7;i_R++)
 												{
 													A6D_Joint_PR[i_R] = OneArmStart.RightArm[i_R];
@@ -4536,7 +4551,7 @@ void rt_can_recv(void *arg)
 											double TempT[4][4];
 											matrix_multiply(TotalDeltaTR, deltaT, TempT);
 											memcpy(TotalDeltaTR,TempT,sizeof(TempT));
-											
+
 										}
 									}
 
@@ -4547,15 +4562,17 @@ void rt_can_recv(void *arg)
 									// 通过逆运动学计算当前位姿下关节角
 									double AngleRNow[7];
 									double AngleRBeta[7];
+
 									for(i_R=0; i_R<7; i_R++)
 									{
 										AngleRNow[i_R] = A6D_Joint_PR[i_R]*Degree2Rad;
 										AngleRBeta[i_R] = A6D_Joint_PR[i_R]*Degree2Rad;
 									}
 									double betaR;
+
 									betaR = Beta_CalR(AngleRBeta);	// input: rad
 									invKinR(AngleRNow, ControlTR, betaR, A6D_Joint_PR);	// input:
-								
+
 									Joint_Angle_EP[2][2] = JointDetect(2, 2, A6D_Joint_PR[0]*Degree2Rad);
 									Joint_Angle_EP[3][2] = JointDetect(3, 2, A6D_Joint_PR[1]*Degree2Rad);
 									Joint_Angle_EP[3][3] = JointDetect(3, 3, A6D_Joint_PR[2]*Degree2Rad);
@@ -4568,16 +4585,41 @@ void rt_can_recv(void *arg)
 								else
 								{
 									t = 0;
+									FetchStep = 0;
 									moving_flag	= 0;
-									first_move_flag = 1；
+									first_move_flag = 1;
 								}
+
 							}
 						}
 						break;
 
 						case 6:	// back to normal postition
 						{
+							if (first_move_flag)
+							{
+								first_move_flag = 0;
+								moving_flag	= 1;
 
+								memcpy(&RealTargetPos,&RobotAngleFB,sizeof(RealTargetPos));
+								RealTargetPos.RightArm[0] = 50*Degree2Rad;
+								RealTargetPos.RightArm[1] = -53*Degree2Rad;
+								RealTargetPos.RightArm[2] = 35*Degree2Rad;
+								RealTargetPos.RightArm[3] = -50*Degree2Rad;
+								RealTargetPos.RightArm[4] = -45*Degree2Rad;
+								RealTargetPos.RightArm[5] = -60*Degree2Rad;
+								RealTargetPos.RightArm[6] = -100*Degree2Rad;
+							}
+							else
+							{
+								return_value = AllJointMove(RealTargetPos,20,1,0,0,0);
+								if(return_value == 0)
+								{
+									moving_flag	= 0;
+									first_move_flag = 1;
+									FetchStep = 0;
+								}
+							}
 						}
 						break;
 
@@ -5812,7 +5854,7 @@ double JointDetect(int Can_CH, int Can_ID, double angle_in)		// input: rad    ou
 	// 发送数据速度限制
 	if ((angle_in - Joint_Angle_LastEP[Can_CH][Can_ID])/time_interval*Rad2Degree > VelocityLimit_deg[Can_CH][Can_ID])
 	{
-		printf("over speed ++++++++2  %f %f %f\n",angle_in,Joint_Angle_LastEP[Can_CH][Can_ID],(angle_in - Joint_Angle_LastEP[Can_CH][Can_ID])/time_interval*Rad2Degree);
+	//	printf("over speed ++++++++2  %f %f %f\n",angle_in,Joint_Angle_LastEP[Can_CH][Can_ID],(angle_in - Joint_Angle_LastEP[Can_CH][Can_ID])/time_interval*Rad2Degree);
 		out=Joint_Angle_LastEP[Can_CH][Can_ID] + VelocityLimit_deg[Can_CH][Can_ID]*time_interval*Degree2Rad;
 		JointError[Can_CH][Can_ID] = 2;
 		return out;
@@ -5820,7 +5862,7 @@ double JointDetect(int Can_CH, int Can_ID, double angle_in)		// input: rad    ou
 	}
 	else if ((angle_in - Joint_Angle_LastEP[Can_CH][Can_ID])/time_interval*Rad2Degree < -VelocityLimit_deg[Can_CH][Can_ID])
 	{
-		printf("over speed --------2  %f %f %f\n",angle_in,Joint_Angle_LastEP[Can_CH][Can_ID],(angle_in - Joint_Angle_LastEP[Can_CH][Can_ID])/time_interval*Rad2Degree);
+	//	printf("over speed --------2  %f %f %f\n",angle_in,Joint_Angle_LastEP[Can_CH][Can_ID],(angle_in - Joint_Angle_LastEP[Can_CH][Can_ID])/time_interval*Rad2Degree);
 		out=Joint_Angle_LastEP[Can_CH][Can_ID] - VelocityLimit_deg[Can_CH][Can_ID]*time_interval*Degree2Rad;
 		JointError[Can_CH][Can_ID] = -2;
 		return out;

@@ -1587,7 +1587,7 @@ int invKinL(double Angle_now[7], double TransMatrix[4][4], double Beta, double A
 	return 0;
 }
 
-int invKinR(double Angle_now[7], double TransMatrix[4][4], double Beta, double Angle_cal[7])
+int invKinR(double Angle_now[7], double TransMatrix[4][4], double Beta, double Angle_cal[7])  //input:rad  output: degree
 {
 	double px, py, pz;
 	double alfa = 0.0;

@@ -82,13 +82,13 @@
 #define SELFCONTROL_STOP	0xE2
 
 // 取工具指令
-#define FETCH_START			0xF1
-#define FETCH_STOP			0xF2
-#define FETCH_MOVEPRE		0xF3
-#define FETCH_DOCK			0xF4
-#define FETCH_ADJUST		0xF5
-#define FETCH_MOVEOUT		0xF6
-#define FETCH_BACK			0xF7
+#define FETCH_START			0x91
+#define FETCH_STOP			0x92
+#define FETCH_MOVEPRE		0x93
+#define FETCH_DOCK			0x94
+#define FETCH_ADJUST		0x95
+#define FETCH_MOVEOUT		0x96
+#define FETCH_BACK			0x97
 
 #define GLOABL_DEF
 #endif

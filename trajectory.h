@@ -31,7 +31,7 @@ double Beta_CalL(double Angle[7]);	// input: rad
 double Beta_CalR(double Angle[7]);	// input: rad
 // 逆运动学
 int invKinL(double Angle_now[7], double TransMatrix[4][4], double Beta, double Angle_cal[7]);	// input:
-int invKinR(double Angle_now[7], double TransMatrix[4][4], double Beta, double Angle_cal[7]);
+int invKinR(double Angle_now[7], double TransMatrix[4][4], double Beta, double Angle_cal[7]);  //input:rad  output: degree
 int ChooseSolve(double Angle_now[7], double Solve[8][7]);	// input: rad
 
 // 差分运动转换为矩阵
