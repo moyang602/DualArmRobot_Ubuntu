@@ -25,7 +25,9 @@
 #define RETURN_ORIGIN_POSITION	 121
 #define RETURN_ZERO			119
 #define MOVE_PRE_POSITION	 123
-#define DUTY_MOTION		124
+#define DUTY_MOTION			124
+#define FETCH_MOTION		125
+#define PLACE_MOTION		126  //0x7e
 
 #define ARM1 0
 #define ARM2 1
@@ -78,6 +80,15 @@
 // 自控指令
 #define SELFCONTROL_START	0xE1
 #define SELFCONTROL_STOP	0xE2
+
+// 取工具指令
+#define FETCH_START			0xF1
+#define FETCH_STOP			0xF2
+#define FETCH_MOVEPRE		0xF3
+#define FETCH_DOCK			0xF4
+#define FETCH_ADJUST		0xF5
+#define FETCH_MOVEOUT		0xF6
+#define FETCH_BACK			0xF7
 
 #define GLOABL_DEF
 #endif
