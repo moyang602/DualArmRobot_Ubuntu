@@ -90,5 +90,15 @@
 #define FETCH_MOVEOUT		0x96
 #define FETCH_BACK			0x97
 
+// Place tool
+#define PLACE_START			0x98
+#define PLACE_STOP			0x99
+#define PLACE_MOVEPRE		0x9a
+#define PLACE_DOCK			0x9b
+#define PLACE_DOCK2			0x9c
+#define PLACE_MOVEIN		0x9d
+#define PLACE_UNDOCK		0x9e
+#define PLACE_BACK			0x9f
+
 #define GLOABL_DEF
 #endif

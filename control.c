@@ -1595,6 +1595,19 @@ void rt_can_recv(void *arg)
 						break;
 						case FETCH_STOP:
 							FetchStep = 0;
+							A6D_K[0] = 150;
+							A6D_K[1] = 150;
+							A6D_K[2] = 200;
+							A6D_K[3] = 3;
+							A6D_K[4] = 3;
+							A6D_K[5] = 3;
+
+							A6D_enable[0] = 1;
+							A6D_enable[1] = 1;
+							A6D_enable[2] = 1;
+							A6D_enable[3] = 1;
+							A6D_enable[4] = 1;
+							A6D_enable[5] = 1;
 							motion_mode = 100;
 						break;
 						case FETCH_MOVEPRE:
@@ -1613,6 +1626,62 @@ void rt_can_recv(void *arg)
 						break;
 						case FETCH_BACK:
 							FetchStep = 6;
+						break;
+						case FORCE_CLEAR:
+							First_ForceR = 1;
+						break;
+
+						default:
+						break;
+					}
+				}
+				break;
+
+				case PLACE_MOTION:
+				{
+					int PlaceFlag = 0;
+					PlaceFlag = GetPlaceCMD();
+					switch(PlaceFlag)
+					{
+						case PLACE_START:
+							motion_mode = PLACE_MOTION;
+							PlaceStep = 0;
+						break;
+						case PLACE_STOP:
+							PlaceStep = 0;
+							A6D_K[0] = 150;
+							A6D_K[1] = 150;
+							A6D_K[2] = 200;
+							A6D_K[3] = 3;
+							A6D_K[4] = 3;
+							A6D_K[5] = 3;
+
+							A6D_enable[0] = 1;
+							A6D_enable[1] = 1;
+							A6D_enable[2] = 1;
+							A6D_enable[3] = 1;
+							A6D_enable[4] = 1;
+							A6D_enable[5] = 1;
+							motion_mode = 100;
+						break;
+						case PLACE_MOVEPRE:
+							PlaceStep = 1;
+						break;
+						case PLACE_DOCK:
+							First_ForceR = 1;
+							PlaceStep = 2;
+						break;
+						case PLACE_DOCK2:
+							PlaceStep = 3;
+						break;
+						case PLACE_MOVEIN:
+							PlaceStep = 4;
+						break;
+						case PLACE_UNDOCK:
+							PlaceStep = 5;
+						break;
+						case PLACE_BACK:
+							PlaceStep = 6;
 						break;
 						case FORCE_CLEAR:
 							First_ForceR = 1;
@@ -3597,7 +3666,7 @@ void rt_can_recv(void *arg)
 									{
 										ForceDataR[i_R] = 0;
 									}
-									FirstForceControlR == 1;
+									FirstForceControlR = 1;
 								}
 
 								double AngleR[7];	// unit: rad
@@ -4018,12 +4087,13 @@ void rt_can_recv(void *arg)
 							}
 							else
 							{
-								return_value = AllJointMove(RealTargetPos,20,1,0,0,0);
+								return_value = AllJointMove(RealTargetPos,12,1,0,0,0);
 								if(return_value == 0)
 								{
 									moving_flag	= 0;
 									first_move_flag = 1;
-									FetchStep = 0;
+									FetchStep = 2;
+									First_ForceR = 1;
 								}
 							}
 						}
@@ -4050,9 +4120,9 @@ void rt_can_recv(void *arg)
 								KinR(AngleR, TNowR);
 
 								memcpy(&ControlT,&TNowR,sizeof(TNowR));
-								ControlT[0][3] += -42.5;
+								ControlT[0][3] += -50;
 								ControlT[1][3] += -1.5;
-								ControlT[2][3] += -17;
+								ControlT[2][3] += -20;
 
 								for(i_R=0;i_R<6;i_R++)
 								{
@@ -4061,12 +4131,24 @@ void rt_can_recv(void *arg)
 									A6D_D_totalR[i_R] = 0.0;
 								}
 
-								FirstForceControlR == 1;
+								FirstForceControlR = 1;
+								A6D_K[0] = 150;
+								A6D_K[1] = 150;
 								A6D_K[2] = 300;
+								A6D_K[3] = 3;
+								A6D_K[4] = 3;
+								A6D_K[5] = 3;
+
+								A6D_enable[0] = 1;
+								A6D_enable[1] = 1;
+								A6D_enable[2] = 1;
+								A6D_enable[3] = 1;
+								A6D_enable[4] = 1;
+								A6D_enable[5] = 1;
 							}
 							else
 							{
-								if(t <= 20)
+								if(t <= 15)
 								{
 									t = t+time_interval;
 
@@ -4080,9 +4162,9 @@ void rt_can_recv(void *arg)
 									// 末端笛卡尔空间插值规划
 									for(i_R=0;i_R<6;i_R++)
 									{
-										PlanPose[i_R] = Five_Interpolation(PoseStart[i_R], 0, 0, PoseStop[i_R], 0, 0, 20,t);
+										PlanPose[i_R] = Five_Interpolation(PoseStart[i_R], 0, 0, PoseStop[i_R], 0, 0, 11,t);
 									}
-									if (t>20)
+									if (t>11)
 									{
 										for(i_R=0;i_R<6;i_R++)
 										{
@@ -4252,8 +4334,20 @@ void rt_can_recv(void *arg)
 									A6D_D_totalR[i_R] = 0.0;
 								}
 
-								FirstForceControlR == 1;
+								FirstForceControlR = 1;
+								A6D_K[0] = 150;
+								A6D_K[1] = 150;
 								A6D_K[2] = 200;
+								A6D_K[3] = 3;
+								A6D_K[4] = 3;
+								A6D_K[5] = 3;
+
+								A6D_enable[0] = 1;
+								A6D_enable[1] = 1;
+								A6D_enable[2] = 1;
+								A6D_enable[3] = 1;
+								A6D_enable[4] = 1;
+								A6D_enable[5] = 1;
 							}
 							else
 							{
@@ -4397,9 +4491,10 @@ void rt_can_recv(void *arg)
 								else
 								{
 									t = 0;
-									FetchStep = 0;
+									FetchStep = 5;
 									moving_flag	= 0;
 									first_move_flag = 1;
+									First_ForceR = 1;
 								}
 
 							}
@@ -4436,16 +4531,25 @@ void rt_can_recv(void *arg)
 									A6D_D_totalR[i_R] = 0.0;
 								}
 
-								FirstForceControlR == 1;
+								FirstForceControlR = 1;
+								A6D_K[0] = 150;
 								A6D_K[1] = 400;
-								A6D_K[2] = 300;
+								A6D_K[2] = 350;
+								A6D_K[3] = 3;
+								A6D_K[4] = 3;
 								A6D_K[5] = 10;
+
+								A6D_enable[0] = 1;
+								A6D_enable[1] = 0;
+								A6D_enable[2] = 1;
 								A6D_enable[3] = 0;
 								A6D_enable[4] = 0;
+								A6D_enable[5] = 1;
+
 							}
 							else
 							{
-								if(t <= 25)
+								if(t <= 20)
 								{
 									t = t+time_interval;
 
@@ -4459,9 +4563,9 @@ void rt_can_recv(void *arg)
 									// 末端笛卡尔空间插值规划
 									for(i_R=0;i_R<6;i_R++)
 									{
-										PlanPose[i_R] = Five_Interpolation(PoseStart[i_R], 0, 0, PoseStop[i_R], 0, 0, 25,t);
+										PlanPose[i_R] = Five_Interpolation(PoseStart[i_R], 0, 0, PoseStop[i_R], 0, 0, 20,t);
 									}
-									if (t>25)
+									if (t>20)
 									{
 										for(i_R=0;i_R<6;i_R++)
 										{
@@ -4585,7 +4689,7 @@ void rt_can_recv(void *arg)
 								else
 								{
 									t = 0;
-									FetchStep = 0;
+									FetchStep = 6;
 									moving_flag	= 0;
 									first_move_flag = 1;
 								}
@@ -4612,12 +4716,13 @@ void rt_can_recv(void *arg)
 							}
 							else
 							{
-								return_value = AllJointMove(RealTargetPos,20,1,0,0,0);
+								return_value = AllJointMove(RealTargetPos,10,1,0,0,0);
 								if(return_value == 0)
 								{
 									moving_flag	= 0;
 									first_move_flag = 1;
 									FetchStep = 0;
+									First_ForceR = 1;
 								}
 							}
 						}
@@ -4631,12 +4736,901 @@ void rt_can_recv(void *arg)
 			 	}
 			 	break;
 
+			 	case PLACE_MOTION:
+			 	{
+					//**********************   任务序列   ***********************//
+					switch(PlaceStep)
+					{
+						case 1:	// move to prepare plae
+						{
+							if (first_move_flag)
+							{
+								first_move_flag = 0;
+								moving_flag	= 1;
+
+								memcpy(&RealTargetPos,&RobotAngleFB,sizeof(RealTargetPos));
+								RealTargetPos.RightArm[0] = 36.301*Degree2Rad;
+								RealTargetPos.RightArm[1] = -51.017*Degree2Rad;
+								RealTargetPos.RightArm[2] = 31.035*Degree2Rad;
+								RealTargetPos.RightArm[3] = -52.553*Degree2Rad;
+								RealTargetPos.RightArm[4] = -86.734*Degree2Rad;
+								RealTargetPos.RightArm[5] = -58.855*Degree2Rad;
+								RealTargetPos.RightArm[6] = -101.686*Degree2Rad;
+							}
+							else
+							{
+								return_value = AllJointMove(RealTargetPos,10,1,0,0,0);
+								if(return_value == 0)
+								{
+									moving_flag	= 0;
+									first_move_flag = 1;
+									PlaceStep = 2;
+									First_ForceR = 1;
+								}
+							}
+						}
+						break;
+
+						case 2: // dock the quick-changing mechanism 1
+						{
+							int i_R =0;
+							static double TNowR[4][4];
+							static double ControlT[4][4];
+
+							if (first_move_flag)	//初次进入参数初始化
+							{
+								first_move_flag = 0;
+								moving_flag = 1;
+
+								memcpy(&OneArmStart,&RobotAngleFB,sizeof(OneArmStart));
+
+								double AngleR[7];
+								for (i_R = 0; i_R < 7; ++i_R)
+								{
+									AngleR[i_R] = OneArmStart.RightArm[i_R];
+								}
+								KinR(AngleR, TNowR);
+
+								memcpy(&ControlT,&TNowR,sizeof(TNowR));
+								ControlT[0][3] += -4.5;
+								ControlT[1][3] += 75;
+								ControlT[2][3] += -2;
+
+								for(i_R=0;i_R<6;i_R++)
+								{
+									AccR[i_R] = 0.0;
+									A6D_VR[i_R] = 0.0;
+									A6D_D_totalR[i_R] = 0.0;
+								}
+
+								FirstForceControlR = 1;
+								A6D_K[0] = 150;
+								A6D_K[1] = 150;
+								A6D_K[2] = 200;
+								A6D_K[3] = 3;
+								A6D_K[4] = 3;
+								A6D_K[5] = 3;
+
+								A6D_enable[0] = 1;
+								A6D_enable[1] = 1;
+								A6D_enable[2] = 1;
+								A6D_enable[3] = 1;
+								A6D_enable[4] = 1;
+								A6D_enable[5] = 1;
+
+								printf("step1\n");
+							}
+							else
+							{
+								if(t <= 15)
+								{
+									t = t+time_interval;
+
+									// 计算位姿向量
+									double PoseStart[6];
+									double PoseStop[6];
+									double PlanPose[6];
+									Matrix2Pose(TNowR, PoseStart);
+									Matrix2Pose(ControlT, PoseStop);
+
+									// 末端笛卡尔空间插值规划
+									for(i_R=0;i_R<6;i_R++)
+									{
+										PlanPose[i_R] = Five_Interpolation(PoseStart[i_R], 0, 0, PoseStop[i_R], 0, 0, 15,t);
+									}
+									if (t>15)
+									{
+										for(i_R=0;i_R<6;i_R++)
+										{
+											PlanPose[i_R] = PoseStop[i_R];
+										}
+									}
+									double PlanMatrix[4][4];
+									Pose2Matrix(PlanPose, PlanMatrix);
+
+									// 力控制
+									double force_limit[6] = {80.0, 80.0, 100.0, 7.0, 7.0, 7.0};
+
+									static double TotalDeltaTR[4][4] = {{1,0,0,0},{0,1,0,0},{0,0,1,0},{0,0,0,1}};
+
+									// 当采集到力传感器数据时进行力控制
+									if(ForceNewDataR==1)	//右臂control 利用逆运动学进行融合
+									{
+										int position_change_flagR = 1;
+										// 当末端力超过六维力传感器限制时关闭运动控制
+										for(i_R=0; i_R<6; i_R++)
+										{
+											if(fabs(ForceDataR[i_R]) > force_limit[i_R])
+											{
+												position_change_flagR = 0;
+												motion_enable_flag = 0;
+												printf("forceR limited\n");
+												break;
+											}
+										}
+
+										if(position_change_flagR == 1)
+										{
+											// 第一次进入力控制时
+											if(FirstForceControlR == 1)
+											{
+												// 力控输出角等于当前关节角
+												memcpy(&OneArmStart,&RobotAngleFBDeg,sizeof(OneArmStart));
+
+												for(i_R=0;i_R<7;i_R++)
+												{
+													A6D_Joint_PR[i_R] = OneArmStart.RightArm[i_R];
+													A6D_Joint_VR[i_R] = 0;
+												}
+												// 初始化总位移矩阵
+												memset(TotalDeltaTR,0,sizeof(TotalDeltaTR));
+												TotalDeltaTR[0][0] = 1;
+												TotalDeltaTR[1][1] = 1;
+												TotalDeltaTR[2][2] = 1;
+												TotalDeltaTR[3][3] = 1;
+
+												FirstForceControlR = 0;
+
+												printf("step2\n");
+											}
+
+											// 计算阻抗控制下，此步移动量
+											for(i_R=0;i_R<6;i_R++)
+											{
+												A6D_C[i_R] = 2*A6D_ep[i_R]*sqrt(A6D_K[i_R]*A6D_m[i_R]);
+											}
+											for(i_R=0;i_R<6;i_R++)
+											{
+												AccR[i_R] = (ForceDataR[i_R] - A6D_K[i_R]*A6D_D_totalR[i_R] - A6D_C[i_R]*A6D_VR[i_R])/A6D_m[i_R];
+												A6D_D_totalR[i_R] = A6D_D_totalR[i_R] + AccR[i_R]*FDeltaT*FDeltaT/2.0 + A6D_VR[i_R]*FDeltaT;
+												A6D_VR[i_R] = A6D_VR[i_R] + AccR[i_R]*FDeltaT;
+												A6D_PR[i_R] = A6D_VR[i_R]*FDeltaT;
+											}
+
+											// 对特定方向关闭控制
+											for(i_R=0;i_R<6;i_R++)
+											{
+												if(A6D_enable[i_R] == 0)
+												{
+													A6D_VR[i_R] = 0;
+													A6D_PR[i_R] = 0.0;
+												}
+											}
+											// 计算阻抗控制末端变换矩阵
+											double deltaTRaw[4][4],deltaT[4][4];
+
+											delta2tr(A6D_PR, deltaTRaw);
+											Schmidt(deltaTRaw, deltaT);
+
+											deltaT[0][3] = deltaT[0][3]*1000;
+											deltaT[1][3] = deltaT[1][3]*1000;
+											deltaT[2][3] = deltaT[2][3]*1000;  // mm
+
+											// 计算阻抗控制总变换矩阵
+											double TempT[4][4];
+											matrix_multiply(TotalDeltaTR, deltaT, TempT);
+											memcpy(TotalDeltaTR,TempT,sizeof(TempT));
+
+										}
+									}
+
+									double ControlTR[4][4];
+									// 计算叠加阻抗控制后末端矩阵
+									matrix_multiply(PlanMatrix,TotalDeltaTR,ControlTR);
+
+									// 通过逆运动学计算当前位姿下关节角
+									double AngleRNow[7];
+									double AngleRBeta[7];
+
+									for(i_R=0; i_R<7; i_R++)
+									{
+										AngleRNow[i_R] = A6D_Joint_PR[i_R]*Degree2Rad;
+										AngleRBeta[i_R] = A6D_Joint_PR[i_R]*Degree2Rad;
+									}
+									double betaR;
+
+									betaR = Beta_CalR(AngleRBeta);	// input: rad
+									invKinR(AngleRNow, ControlTR, betaR, A6D_Joint_PR);	// input:
+
+									Joint_Angle_EP[2][2] = JointDetect(2, 2, A6D_Joint_PR[0]*Degree2Rad);
+									Joint_Angle_EP[3][2] = JointDetect(3, 2, A6D_Joint_PR[1]*Degree2Rad);
+									Joint_Angle_EP[3][3] = JointDetect(3, 3, A6D_Joint_PR[2]*Degree2Rad);
+									Joint_Angle_EP[2][3] = JointDetect(2, 3, A6D_Joint_PR[3]*Degree2Rad);
+									Joint_Angle_EP[1][4] = JointDetect(1, 4, A6D_Joint_PR[4]*Degree2Rad);
+									Joint_Angle_EP[1][5] = JointDetect(1, 5, A6D_Joint_PR[5]*Degree2Rad);
+									Joint_Angle_EP[1][6] = JointDetect(1, 6, A6D_Joint_PR[6]*Degree2Rad);
+
+								}
+								else
+								{
+									t = 0;
+									PlaceStep = 3;
+									moving_flag	= 0;
+									first_move_flag = 1;
+
+								}
+
+							}
+						}
+						break;
+
+						case 3:	// dock the quick-changing mechanism 2
+						{
+							int i_R =0;
+							static double TNowR[4][4];
+							static double ControlT[4][4];
+
+							if (first_move_flag)	//初次进入参数初始化
+							{
+								first_move_flag = 0;
+								moving_flag = 1;
+
+								memcpy(&OneArmStart,&RobotAngleFB,sizeof(OneArmStart));
+
+								double AngleR[7];
+								for (i_R = 0; i_R < 7; ++i_R)
+								{
+									AngleR[i_R] = OneArmStart.RightArm[i_R];
+								}
+								KinR(AngleR, TNowR);
+
+								memcpy(&ControlT,&TNowR,sizeof(TNowR));
+								ControlT[0][3] += -13.5;
+								ControlT[1][3] += 0;
+								ControlT[2][3] += -5;
+
+								for(i_R=0;i_R<6;i_R++)
+								{
+									AccR[i_R] = 0.0;
+									A6D_VR[i_R] = 0.0;
+									A6D_D_totalR[i_R] = 0.0;
+								}
+
+								FirstForceControlR = 1;
+								A6D_K[0] = 300;
+								A6D_K[1] = 150;
+								A6D_K[2] = 350;
+								A6D_K[3] = 3;
+								A6D_K[4] = 3;
+								A6D_K[5] = 3;
+
+								A6D_enable[0] = 1;
+								A6D_enable[1] = 1;
+								A6D_enable[2] = 1;
+								A6D_enable[3] = 1;
+								A6D_enable[4] = 1;
+								A6D_enable[5] = 1;
+							}
+							else
+							{
+								if(t <= 6)
+								{
+									t = t+time_interval;
+
+									// 计算位姿向量
+									double PoseStart[6];
+									double PoseStop[6];
+									double PlanPose[6];
+									Matrix2Pose(TNowR, PoseStart);
+									Matrix2Pose(ControlT, PoseStop);
+
+									// 末端笛卡尔空间插值规划
+									for(i_R=0;i_R<6;i_R++)
+									{
+										PlanPose[i_R] = Five_Interpolation(PoseStart[i_R], 0, 0, PoseStop[i_R], 0, 0, 3,t);
+									}
+									if (t>3)
+									{
+										for(i_R=0;i_R<6;i_R++)
+										{
+											PlanPose[i_R] = PoseStop[i_R];
+										}
+									}
+									double PlanMatrix[4][4];
+									Pose2Matrix(PlanPose, PlanMatrix);
+
+									// 力控制
+									double force_limit[6] = {80.0, 80.0, 100.0, 7.0, 7.0, 7.0};
+
+									static double TotalDeltaTR[4][4] = {{1,0,0,0},{0,1,0,0},{0,0,1,0},{0,0,0,1}};
+
+									// 当采集到力传感器数据时进行力控制
+									if(ForceNewDataR==1)	//右臂control 利用逆运动学进行融合
+									{
+										int position_change_flagR = 1;
+										// 当末端力超过六维力传感器限制时关闭运动控制
+										for(i_R=0; i_R<6; i_R++)
+										{
+											if(fabs(ForceDataR[i_R]) > force_limit[i_R])
+											{
+												position_change_flagR = 0;
+												motion_enable_flag = 0;
+												printf("forceR limited\n");
+												break;
+											}
+										}
+
+										if(position_change_flagR == 1)
+										{
+											// 第一次进入力控制时
+											if(FirstForceControlR == 1)
+											{
+												// 力控输出角等于当前关节角
+												memcpy(&OneArmStart,&RobotAngleFBDeg,sizeof(OneArmStart));
+
+												for(i_R=0;i_R<7;i_R++)
+												{
+													A6D_Joint_PR[i_R] = OneArmStart.RightArm[i_R];
+													A6D_Joint_VR[i_R] = 0;
+												}
+												// 初始化总位移矩阵
+												memset(TotalDeltaTR,0,sizeof(TotalDeltaTR));
+												TotalDeltaTR[0][0] = 1;
+												TotalDeltaTR[1][1] = 1;
+												TotalDeltaTR[2][2] = 1;
+												TotalDeltaTR[3][3] = 1;
+
+												FirstForceControlR = 0;
+											}
+
+											// 计算阻抗控制下，此步移动量
+											for(i_R=0;i_R<6;i_R++)
+											{
+												A6D_C[i_R] = 2*A6D_ep[i_R]*sqrt(A6D_K[i_R]*A6D_m[i_R]);
+											}
+											for(i_R=0;i_R<6;i_R++)
+											{
+												AccR[i_R] = (ForceDataR[i_R] - A6D_K[i_R]*A6D_D_totalR[i_R] - A6D_C[i_R]*A6D_VR[i_R])/A6D_m[i_R];
+												A6D_D_totalR[i_R] = A6D_D_totalR[i_R] + AccR[i_R]*FDeltaT*FDeltaT/2.0 + A6D_VR[i_R]*FDeltaT;
+												A6D_VR[i_R] = A6D_VR[i_R] + AccR[i_R]*FDeltaT;
+												A6D_PR[i_R] = A6D_VR[i_R]*FDeltaT;
+											}
+
+											// 对特定方向关闭控制
+											for(i_R=0;i_R<6;i_R++)
+											{
+												if(A6D_enable[i_R] == 0)
+												{
+													A6D_VR[i_R] = 0;
+													A6D_PR[i_R] = 0.0;
+												}
+											}
+											// 计算阻抗控制末端变换矩阵
+											double deltaTRaw[4][4],deltaT[4][4];
+
+											delta2tr(A6D_PR, deltaTRaw);
+											Schmidt(deltaTRaw, deltaT);
+
+											deltaT[0][3] = deltaT[0][3]*1000;
+											deltaT[1][3] = deltaT[1][3]*1000;
+											deltaT[2][3] = deltaT[2][3]*1000;  // mm
+
+											// 计算阻抗控制总变换矩阵
+											double TempT[4][4];
+											matrix_multiply(TotalDeltaTR, deltaT, TempT);
+											memcpy(TotalDeltaTR,TempT,sizeof(TempT));
+
+										}
+									}
+
+									double ControlTR[4][4];
+									// 计算叠加阻抗控制后末端矩阵
+									matrix_multiply(PlanMatrix,TotalDeltaTR,ControlTR);
+
+									// 通过逆运动学计算当前位姿下关节角
+									double AngleRNow[7];
+									double AngleRBeta[7];
+
+									for(i_R=0; i_R<7; i_R++)
+									{
+										AngleRNow[i_R] = A6D_Joint_PR[i_R]*Degree2Rad;
+										AngleRBeta[i_R] = A6D_Joint_PR[i_R]*Degree2Rad;
+									}
+									double betaR;
+
+									betaR = Beta_CalR(AngleRBeta);	// input: rad
+									invKinR(AngleRNow, ControlTR, betaR, A6D_Joint_PR);	// input:
+
+									Joint_Angle_EP[2][2] = JointDetect(2, 2, A6D_Joint_PR[0]*Degree2Rad);
+									Joint_Angle_EP[3][2] = JointDetect(3, 2, A6D_Joint_PR[1]*Degree2Rad);
+									Joint_Angle_EP[3][3] = JointDetect(3, 3, A6D_Joint_PR[2]*Degree2Rad);
+									Joint_Angle_EP[2][3] = JointDetect(2, 3, A6D_Joint_PR[3]*Degree2Rad);
+									Joint_Angle_EP[1][4] = JointDetect(1, 4, A6D_Joint_PR[4]*Degree2Rad);
+									Joint_Angle_EP[1][5] = JointDetect(1, 5, A6D_Joint_PR[5]*Degree2Rad);
+									Joint_Angle_EP[1][6] = JointDetect(1, 6, A6D_Joint_PR[6]*Degree2Rad);
+
+								}
+								else
+								{
+									t = 0;
+									PlaceStep = 4;
+									moving_flag	= 0;
+									first_move_flag = 1;
+								}
+
+							}
+						}
+						break;
+
+						case 4:	// dock the quick-changing mechanism 3
+						{
+							int i_R =0;
+							static double TNowR[4][4];
+							static double ControlT[4][4];
+
+							if (first_move_flag)	//初次进入参数初始化
+							{
+								first_move_flag = 0;
+								moving_flag = 1;
+
+								memcpy(&OneArmStart,&RobotAngleFB,sizeof(OneArmStart));
+
+								double AngleR[7];
+								for (i_R = 0; i_R < 7; ++i_R)
+								{
+									AngleR[i_R] = OneArmStart.RightArm[i_R];
+								}
+								KinR(AngleR, TNowR);
+
+								memcpy(&ControlT,&TNowR,sizeof(TNowR));
+								ControlT[0][3] += 0;
+								ControlT[1][3] += 17.5;
+								ControlT[2][3] += 0;
+
+								for(i_R=0;i_R<6;i_R++)
+								{
+									AccR[i_R] = 0.0;
+									A6D_VR[i_R] = 0.0;
+									A6D_D_totalR[i_R] = 0.0;
+								}
+
+								FirstForceControlR = 1;
+								A6D_K[0] = 150;
+								A6D_K[1] = 1000;
+								A6D_K[2] = 300;
+								A6D_K[3] = 3;
+								A6D_K[4] = 3;
+								A6D_K[5] = 3;
+
+								A6D_enable[0] = 1;
+								A6D_enable[1] = 0;
+								A6D_enable[2] = 1;
+								A6D_enable[3] = 0;
+								A6D_enable[4] = 0;
+								A6D_enable[5] = 1;
+							}
+							else
+							{
+								if(t <= 15)
+								{
+									t = t+time_interval;
+
+									// 计算位姿向量
+									double PoseStart[6];
+									double PoseStop[6];
+									double PlanPose[6];
+									Matrix2Pose(TNowR, PoseStart);
+									Matrix2Pose(ControlT, PoseStop);
+
+									// 末端笛卡尔空间插值规划
+									for(i_R=0;i_R<6;i_R++)
+									{
+										PlanPose[i_R] = Five_Interpolation(PoseStart[i_R], 0, 0, PoseStop[i_R], 0, 0, 15,t);
+									}
+									if (t>15)
+									{
+										for(i_R=0;i_R<6;i_R++)
+										{
+											PlanPose[i_R] = PoseStop[i_R];
+										}
+									}
+									double PlanMatrix[4][4];
+									Pose2Matrix(PlanPose, PlanMatrix);
+
+									// 力控制
+									double force_limit[6] = {80.0, 80.0, 100.0, 7.0, 7.0, 7.0};
+
+									static double TotalDeltaTR[4][4] = {{1,0,0,0},{0,1,0,0},{0,0,1,0},{0,0,0,1}};
+
+									// 当采集到力传感器数据时进行力控制
+									if(ForceNewDataR==1)	//右臂control 利用逆运动学进行融合
+									{
+										int position_change_flagR = 1;
+										// 当末端力超过六维力传感器限制时关闭运动控制
+										for(i_R=0; i_R<6; i_R++)
+										{
+											if(fabs(ForceDataR[i_R]) > force_limit[i_R])
+											{
+												position_change_flagR = 0;
+												motion_enable_flag = 0;
+												printf("forceR limited\n");
+												break;
+											}
+										}
+
+										if(position_change_flagR == 1)
+										{
+											// 第一次进入力控制时
+											if(FirstForceControlR == 1)
+											{
+												// 力控输出角等于当前关节角
+												memcpy(&OneArmStart,&RobotAngleFBDeg,sizeof(OneArmStart));
+
+												for(i_R=0;i_R<7;i_R++)
+												{
+													A6D_Joint_PR[i_R] = OneArmStart.RightArm[i_R];
+													A6D_Joint_VR[i_R] = 0;
+												}
+												// 初始化总位移矩阵
+												memset(TotalDeltaTR,0,sizeof(TotalDeltaTR));
+												TotalDeltaTR[0][0] = 1;
+												TotalDeltaTR[1][1] = 1;
+												TotalDeltaTR[2][2] = 1;
+												TotalDeltaTR[3][3] = 1;
+
+												FirstForceControlR = 0;
+											}
+
+											// 计算阻抗控制下，此步移动量
+											for(i_R=0;i_R<6;i_R++)
+											{
+												A6D_C[i_R] = 2*A6D_ep[i_R]*sqrt(A6D_K[i_R]*A6D_m[i_R]);
+											}
+											A6D_C[1] = 2*2.2*sqrt(A6D_K[1]*A6D_m[1]);
+											for(i_R=0;i_R<6;i_R++)
+											{
+												AccR[i_R] = (ForceDataR[i_R] - A6D_K[i_R]*A6D_D_totalR[i_R] - A6D_C[i_R]*A6D_VR[i_R])/A6D_m[i_R];
+												A6D_D_totalR[i_R] = A6D_D_totalR[i_R] + AccR[i_R]*FDeltaT*FDeltaT/2.0 + A6D_VR[i_R]*FDeltaT;
+												A6D_VR[i_R] = A6D_VR[i_R] + AccR[i_R]*FDeltaT;
+												A6D_PR[i_R] = A6D_VR[i_R]*FDeltaT;
+											}
+
+											// 对特定方向关闭控制
+											for(i_R=0;i_R<6;i_R++)
+											{
+												if(A6D_enable[i_R] == 0)
+												{
+													A6D_VR[i_R] = 0;
+													A6D_PR[i_R] = 0.0;
+												}
+											}
+											// 计算阻抗控制末端变换矩阵
+											double deltaTRaw[4][4],deltaT[4][4];
+
+											delta2tr(A6D_PR, deltaTRaw);
+											Schmidt(deltaTRaw, deltaT);
+
+											deltaT[0][3] = deltaT[0][3]*1000;
+											deltaT[1][3] = deltaT[1][3]*1000;
+											deltaT[2][3] = deltaT[2][3]*1000;  // mm
+
+											// 计算阻抗控制总变换矩阵
+											double TempT[4][4];
+											matrix_multiply(TotalDeltaTR, deltaT, TempT);
+											memcpy(TotalDeltaTR,TempT,sizeof(TempT));
+
+										}
+									}
+
+									double ControlTR[4][4];
+									// 计算叠加阻抗控制后末端矩阵
+									matrix_multiply(PlanMatrix,TotalDeltaTR,ControlTR);
+
+									// 通过逆运动学计算当前位姿下关节角
+									double AngleRNow[7];
+									double AngleRBeta[7];
+
+									for(i_R=0; i_R<7; i_R++)
+									{
+										AngleRNow[i_R] = A6D_Joint_PR[i_R]*Degree2Rad;
+										AngleRBeta[i_R] = A6D_Joint_PR[i_R]*Degree2Rad;
+									}
+									double betaR;
+
+									betaR = Beta_CalR(AngleRBeta);	// input: rad
+									invKinR(AngleRNow, ControlTR, betaR, A6D_Joint_PR);	// input:
+
+									Joint_Angle_EP[2][2] = JointDetect(2, 2, A6D_Joint_PR[0]*Degree2Rad);
+									Joint_Angle_EP[3][2] = JointDetect(3, 2, A6D_Joint_PR[1]*Degree2Rad);
+									Joint_Angle_EP[3][3] = JointDetect(3, 3, A6D_Joint_PR[2]*Degree2Rad);
+									Joint_Angle_EP[2][3] = JointDetect(2, 3, A6D_Joint_PR[3]*Degree2Rad);
+									Joint_Angle_EP[1][4] = JointDetect(1, 4, A6D_Joint_PR[4]*Degree2Rad);
+									Joint_Angle_EP[1][5] = JointDetect(1, 5, A6D_Joint_PR[5]*Degree2Rad);
+									Joint_Angle_EP[1][6] = JointDetect(1, 6, A6D_Joint_PR[6]*Degree2Rad);
+
+								}
+								else
+								{
+									t = 0;
+									PlaceStep = 0;
+									moving_flag	= 0;
+									first_move_flag = 1;
+								}
+
+							}
+						}
+						break;
+
+						case 5:	// undock the mechanism
+						{
+							int i_R =0;
+							static double TNowR[4][4];
+							static double ControlT[4][4];
+
+							if (first_move_flag)	//初次进入参数初始化
+							{
+								first_move_flag = 0;
+								moving_flag = 1;
+
+								memcpy(&OneArmStart,&RobotAngleFB,sizeof(OneArmStart));
+								double AngleR[7];
+								for (i_R = 0; i_R < 7; ++i_R)
+								{
+									AngleR[i_R] = OneArmStart.RightArm[i_R];
+								}
+								KinR(AngleR, TNowR);
+
+								memcpy(&ControlT,&TNowR,sizeof(TNowR));
+								ControlT[0][3] += 45;
+								ControlT[1][3] += 1.5;
+								ControlT[2][3] += 18;
+
+								for(i_R=0;i_R<6;i_R++)
+								{
+									AccR[i_R] = 0.0;
+									A6D_VR[i_R] = 0.0;
+									A6D_D_totalR[i_R] = 0.0;
+								}
+
+								FirstForceControlR = 1;
+								A6D_K[0] = 150;
+								A6D_K[1] = 150;
+								A6D_K[2] = 250;
+								A6D_K[3] = 3;
+								A6D_K[4] = 3;
+								A6D_K[5] = 3;
+
+								A6D_enable[0] = 1;
+								A6D_enable[1] = 1;
+								A6D_enable[2] = 1;
+								A6D_enable[3] = 1;
+								A6D_enable[4] = 1;
+								A6D_enable[5] = 1;
+							}
+							else
+							{
+								if(t <= 15)
+								{
+									t = t+time_interval;
+
+									// 计算位姿向量
+									double PoseStart[6];
+									double PoseStop[6];
+									double PlanPose[6];
+									Matrix2Pose(TNowR, PoseStart);
+									Matrix2Pose(ControlT, PoseStop);
+
+									// 末端笛卡尔空间插值规划
+									for(i_R=0;i_R<6;i_R++)
+									{
+										PlanPose[i_R] = Five_Interpolation(PoseStart[i_R], 0, 0, PoseStop[i_R], 0, 0, 15,t);
+									}
+									if (t>15)
+									{
+										for(i_R=0;i_R<6;i_R++)
+										{
+											PlanPose[i_R] = PoseStop[i_R];
+										}
+									}
+									double PlanMatrix[4][4];
+									Pose2Matrix(PlanPose, PlanMatrix);
+
+									// 力控制
+									double force_limit[6] = {80.0, 80.0, 100.0, 7.0, 7.0, 7.0};
+
+									static double TotalDeltaTR[4][4] = {{1,0,0,0},{0,1,0,0},{0,0,1,0},{0,0,0,1}};
+
+									// 当采集到力传感器数据时进行力控制
+									if(ForceNewDataR==1)	//右臂control 利用逆运动学进行融合
+									{
+										int position_change_flagR = 1;
+										// 当末端力超过六维力传感器限制时关闭运动控制
+										for(i_R=0; i_R<6; i_R++)
+										{
+											if(fabs(ForceDataR[i_R]) > force_limit[i_R])
+											{
+												position_change_flagR = 0;
+												motion_enable_flag = 0;
+												printf("forceR limited\n");
+												break;
+											}
+										}
+
+										if(position_change_flagR == 1)
+										{
+											// 第一次进入力控制时
+											if(FirstForceControlR == 1)
+											{
+												// 力控输出角等于当前关节角
+												memcpy(&OneArmStart,&RobotAngleFBDeg,sizeof(OneArmStart));
+
+												for(i_R=0;i_R<7;i_R++)
+												{
+													A6D_Joint_PR[i_R] = OneArmStart.RightArm[i_R];
+													A6D_Joint_VR[i_R] = 0;
+												}
+												// 初始化总位移矩阵
+												memset(TotalDeltaTR,0,sizeof(TotalDeltaTR));
+												TotalDeltaTR[0][0] = 1;
+												TotalDeltaTR[1][1] = 1;
+												TotalDeltaTR[2][2] = 1;
+												TotalDeltaTR[3][3] = 1;
+
+												FirstForceControlR = 0;
+											}
+
+											// 计算阻抗控制下，此步移动量
+											for(i_R=0;i_R<6;i_R++)
+											{
+												A6D_C[i_R] = 2*A6D_ep[i_R]*sqrt(A6D_K[i_R]*A6D_m[i_R]);
+											}
+											for(i_R=0;i_R<6;i_R++)
+											{
+												AccR[i_R] = (ForceDataR[i_R] - A6D_K[i_R]*A6D_D_totalR[i_R] - A6D_C[i_R]*A6D_VR[i_R])/A6D_m[i_R];
+												A6D_D_totalR[i_R] = A6D_D_totalR[i_R] + AccR[i_R]*FDeltaT*FDeltaT/2.0 + A6D_VR[i_R]*FDeltaT;
+												A6D_VR[i_R] = A6D_VR[i_R] + AccR[i_R]*FDeltaT;
+												A6D_PR[i_R] = A6D_VR[i_R]*FDeltaT;
+											}
+
+											// 对特定方向关闭控制
+											for(i_R=0;i_R<6;i_R++)
+											{
+												if(A6D_enable[i_R] == 0)
+												{
+													A6D_VR[i_R] = 0;
+													A6D_PR[i_R] = 0.0;
+												}
+											}
+											// 计算阻抗控制末端变换矩阵
+											double deltaTRaw[4][4],deltaT[4][4];
+
+											delta2tr(A6D_PR, deltaTRaw);
+											Schmidt(deltaTRaw, deltaT);
+
+											deltaT[0][3] = deltaT[0][3]*1000;
+											deltaT[1][3] = deltaT[1][3]*1000;
+											deltaT[2][3] = deltaT[2][3]*1000;  // mm
+
+											// 计算阻抗控制总变换矩阵
+											double TempT[4][4];
+											matrix_multiply(TotalDeltaTR, deltaT, TempT);
+											memcpy(TotalDeltaTR,TempT,sizeof(TempT));
+
+										}
+									}
+
+									double ControlTR[4][4];
+									// 计算叠加阻抗控制后末端矩阵
+									matrix_multiply(PlanMatrix,TotalDeltaTR,ControlTR);
+
+									// 通过逆运动学计算当前位姿下关节角
+									double AngleRNow[7];
+									double AngleRBeta[7];
+
+									for(i_R=0; i_R<7; i_R++)
+									{
+										AngleRNow[i_R] = A6D_Joint_PR[i_R]*Degree2Rad;
+										AngleRBeta[i_R] = A6D_Joint_PR[i_R]*Degree2Rad;
+									}
+									double betaR;
+
+									betaR = Beta_CalR(AngleRBeta);	// input: rad
+									invKinR(AngleRNow, ControlTR, betaR, A6D_Joint_PR);	// input:
+
+									Joint_Angle_EP[2][2] = JointDetect(2, 2, A6D_Joint_PR[0]*Degree2Rad);
+									Joint_Angle_EP[3][2] = JointDetect(3, 2, A6D_Joint_PR[1]*Degree2Rad);
+									Joint_Angle_EP[3][3] = JointDetect(3, 3, A6D_Joint_PR[2]*Degree2Rad);
+									Joint_Angle_EP[2][3] = JointDetect(2, 3, A6D_Joint_PR[3]*Degree2Rad);
+									Joint_Angle_EP[1][4] = JointDetect(1, 4, A6D_Joint_PR[4]*Degree2Rad);
+									Joint_Angle_EP[1][5] = JointDetect(1, 5, A6D_Joint_PR[5]*Degree2Rad);
+									Joint_Angle_EP[1][6] = JointDetect(1, 6, A6D_Joint_PR[6]*Degree2Rad);
+
+								}
+								else
+								{
+									t = 0;
+									PlaceStep = 6;
+									moving_flag	= 0;
+									first_move_flag = 1;
+								}
+
+							}
+						}
+						break;
+
+						case 6:	// back to normal postition
+						{
+							if (first_move_flag)
+							{
+								first_move_flag = 0;
+								moving_flag	= 1;
+
+								memcpy(&RealTargetPos,&RobotAngleFB,sizeof(RealTargetPos));
+								RealTargetPos.RightArm[0] = 0*Degree2Rad;
+								RealTargetPos.RightArm[1] = 0*Degree2Rad;
+								RealTargetPos.RightArm[2] = 0*Degree2Rad;
+								RealTargetPos.RightArm[3] = 0*Degree2Rad;
+								RealTargetPos.RightArm[4] = 0*Degree2Rad;
+								RealTargetPos.RightArm[5] = 0*Degree2Rad;
+								RealTargetPos.RightArm[6] = 0*Degree2Rad;
+							}
+							else
+							{
+								return_value = AllJointMove(RealTargetPos,15,1,0,0,0);
+								if(return_value == 0)
+								{
+									moving_flag	= 0;
+									first_move_flag = 1;
+									PlaceStep = 0;
+									First_ForceR = 1;
+								}
+							}
+						}
+						break;
+
+						default:
+						break;
+
+					}
+
+			 	}
+			 	break;
+
+
 				default:
 				break;
 
 			}
 
 			// d.运动保护
+			int ii = 0;
+			double force_MAX[6] = {80.0, 80.0, 100.0, 7.0, 7.0, 7.0};
+			for(ii=0; ii<6; ii++)
+			{
+				if(fabs(ForceDataL[ii]) > force_MAX[ii])
+				{
+					motion_enable_flag = 0;
+					printf("forceL limited\n");
+					break;
+				}
+
+				if(fabs(ForceDataR[ii]) > force_MAX[ii])
+				{
+					motion_enable_flag = 0;
+					printf("forceR limited\n");
+					break;
+				}
+			}
 
 			// e.指令下发
 			if(motion_enable_flag == 1&& NoCollisionFlag == 1)

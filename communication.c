@@ -16,6 +16,7 @@ struct FindHomeCMD_Struct FindHomeData;
 struct ForceCMD_Struct ForceCMD;
 struct DutyCMD_Struct DutyCMD;
 struct DutyCMD_Struct FetchCMD;
+struct DutyCMD_Struct PlaceCMD;
 
 int UDP_Sock;
 struct sockaddr_in DestPCAddr;
@@ -276,6 +277,25 @@ int UDPRecv()
 			}
 			break;
 
+			case PLACE_MOTION:
+			{
+				unsigned char sum = 0;
+				for (i = 0; i < (sizeof(PlaceCMD) -1); ++i)
+				{
+					sum += recvbuff[i];
+				}
+				if (sum != recvbuff[sizeof(PlaceCMD) -1])	//校验和不正确直接退出
+				{
+					printf("recv %d bytes wrong data!\n",n);
+					return 0;
+				}
+
+				memcpy(&PlaceCMD,recvbuff,sizeof(PlaceCMD));
+
+				return PLACE_MOTION;
+			}
+			break;
+
 			default:
 			break;
 		}
@@ -392,4 +412,10 @@ int GetFetchCMD(void)
 {
 	printf("FetchMode = %02x\n",FetchCMD.Command);
 	return FetchCMD.Command;
+}
+
+int GetPlaceCMD(void)
+{
+	printf("PlaceMode = %02x\n",PlaceCMD.Command);
+	return PlaceCMD.Command;
 }

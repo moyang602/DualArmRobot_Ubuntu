@@ -214,5 +214,6 @@ int GetHandCMD(int* HandSelect, float* HandAngleL, float* HandAngleR);
 int GetForceCMD(int *ParamType, float ForceParam[7]);
 int GetDutyCMD(void);
 int GetFetchCMD(void);
+int GetPlaceCMD(void);
 
 #endif
