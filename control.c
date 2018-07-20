@@ -342,7 +342,9 @@ int DutyStep = 0;
 int DutyForceFlag = 0;
 
 int FetchStep = 0;
+int FetchPos = 0;
 int PlaceStep = 0;
+int PlacePos = 0;
 /********************** UDP通讯相关 Start ***************************/
 int UDPTimes = 0;	// UDP 周期计数
 
@@ -1610,8 +1612,17 @@ void rt_can_recv(void *arg)
 							A6D_enable[5] = 1;
 							motion_mode = 100;
 						break;
-						case FETCH_MOVEPRE:
+						case FETCH_MOVEPRE1:
 							FetchStep = 1;
+							FetchPos = 1;
+						break;
+						case FETCH_MOVEPRE2:
+							FetchStep = 1;
+							FetchPos = 2;
+						break;
+						case FETCH_MOVEPRE3:
+							FetchStep = 1;
+							FetchPos = 3;
 						break;
 						case FETCH_DOCK:
 							First_ForceR = 1;
@@ -1664,8 +1675,17 @@ void rt_can_recv(void *arg)
 							A6D_enable[5] = 1;
 							motion_mode = 100;
 						break;
-						case PLACE_MOVEPRE:
+						case PLACE_MOVEPRE1:
 							PlaceStep = 1;
+							PlacePos = 1;
+						break;
+						case PLACE_MOVEPRE2:
+							PlaceStep = 1;
+							PlacePos = 2;
+						break;
+						case PLACE_MOVEPRE3:
+							PlaceStep = 1;
+							PlacePos = 3;
 						break;
 						case PLACE_DOCK:
 							First_ForceR = 1;
@@ -4069,33 +4089,111 @@ void rt_can_recv(void *arg)
 					//**********************   任务序列   ***********************//
 					switch(FetchStep)
 					{
-						case 1:	// move to prepare plae
+						case 1:	// move to prepare place
 						{
-							if (first_move_flag)
+							static int moveflag = 0;
+							switch(moveflag)
 							{
-								first_move_flag = 0;
-								moving_flag	= 1;
-
-								memcpy(&RealTargetPos,&RobotAngleFB,sizeof(RealTargetPos));
-								RealTargetPos.RightArm[0] = 9.356*Degree2Rad;
-								RealTargetPos.RightArm[1] = -40.093*Degree2Rad;
-								RealTargetPos.RightArm[2] = 57.088*Degree2Rad;
-								RealTargetPos.RightArm[3] = -80.761*Degree2Rad;
-								RealTargetPos.RightArm[4] = -100.145*Degree2Rad;
-								RealTargetPos.RightArm[5] = -61.801*Degree2Rad;
-								RealTargetPos.RightArm[6] = -91.686*Degree2Rad;
-							}
-							else
-							{
-								return_value = AllJointMove(RealTargetPos,12,1,0,0,0);
-								if(return_value == 0)
+								case 0:
 								{
-									moving_flag	= 0;
-									first_move_flag = 1;
-									FetchStep = 2;
-									First_ForceR = 1;
+									if (first_move_flag)
+									{
+
+										first_move_flag = 0;
+										moving_flag	= 1;
+
+										memcpy(&RealTargetPos,&RobotAngleFB,sizeof(RealTargetPos));
+										RealTargetPos.RightArm[0] = 50*Degree2Rad;
+										RealTargetPos.RightArm[1] = -53*Degree2Rad;
+										RealTargetPos.RightArm[2] = 35*Degree2Rad;
+										RealTargetPos.RightArm[3] = -50*Degree2Rad;
+										RealTargetPos.RightArm[4] = -45*Degree2Rad;
+										RealTargetPos.RightArm[5] = -60*Degree2Rad;
+										RealTargetPos.RightArm[6] = -100*Degree2Rad;
+									}
+									else
+									{
+										return_value = AllJointMove(RealTargetPos,8,1,0,0,0);
+										if(return_value == 0)
+										{
+											moving_flag	= 0;
+											first_move_flag = 1;
+											moveflag = 1;
+											First_ForceR = 1;
+										}
+									}
 								}
+								break;
+
+								case 1:
+								{
+									if (first_move_flag)
+									{
+
+										first_move_flag = 0;
+										moving_flag	= 1;
+
+										memcpy(&RealTargetPos,&RobotAngleFB,sizeof(RealTargetPos));
+										switch(FetchPos)
+										{
+											case 1:
+											{
+												RealTargetPos.RightArm[0] = 11.522*Degree2Rad;
+												RealTargetPos.RightArm[1] = -39.449*Degree2Rad;
+												RealTargetPos.RightArm[2] = 55.279*Degree2Rad;
+												RealTargetPos.RightArm[3] = -79.605*Degree2Rad;
+												RealTargetPos.RightArm[4] = -98.132*Degree2Rad;
+												RealTargetPos.RightArm[5] = -63.091*Degree2Rad;
+												RealTargetPos.RightArm[6] = -92.408*Degree2Rad;
+											}
+											break;
+											case 2:
+											{
+												RealTargetPos.RightArm[0] = 27.633*Degree2Rad;
+												RealTargetPos.RightArm[1] = -42.885*Degree2Rad;
+												RealTargetPos.RightArm[2] = 25.110*Degree2Rad;
+												RealTargetPos.RightArm[3] = -88.091*Degree2Rad;
+												RealTargetPos.RightArm[4] = -104.812*Degree2Rad;
+												RealTargetPos.RightArm[5] = -50.813*Degree2Rad;
+												RealTargetPos.RightArm[6] = -67.156*Degree2Rad;
+											}
+											break;
+											case 3:
+											{
+												RealTargetPos.RightArm[0] = 30.344*Degree2Rad;
+												RealTargetPos.RightArm[1] = -56.905*Degree2Rad;
+												RealTargetPos.RightArm[2] = 19.610*Degree2Rad;
+												RealTargetPos.RightArm[3] = -89.224*Degree2Rad;
+												RealTargetPos.RightArm[4] = -119.920*Degree2Rad;
+												RealTargetPos.RightArm[5] = -53.481*Degree2Rad;
+												RealTargetPos.RightArm[6] = -47.403*Degree2Rad;
+											}
+											break;
+											default:
+											break;
+										}
+
+									}
+									else
+									{
+										return_value = AllJointMove(RealTargetPos,10,1,0,0,0);
+										if(return_value == 0)
+										{
+											moving_flag	= 0;
+											first_move_flag = 1;
+											moveflag = 0;
+											FetchStep = 0;
+											First_ForceR = 1;
+										}
+									}
+								}
+								break;
+
+								default:
+								break;
+
 							}
+
 						}
 						break;
 
@@ -4120,9 +4218,35 @@ void rt_can_recv(void *arg)
 								KinR(AngleR, TNowR);
 
 								memcpy(&ControlT,&TNowR,sizeof(TNowR));
-								ControlT[0][3] += -50;
-								ControlT[1][3] += -1.5;
-								ControlT[2][3] += -20;
+
+								switch(FetchPos)
+								{
+									case 1:
+									{
+										ControlT[0][3] += -60.7;
+										ControlT[1][3] += 0;
+										ControlT[2][3] += -29;
+									}
+									break;
+									case 2:
+									{
+										ControlT[0][3] += -46.7;
+										ControlT[1][3] += 0;
+										ControlT[2][3] += -21.5;
+									}
+									break;
+									case 3:
+									{
+										ControlT[0][3] += -49.5;
+										ControlT[1][3] += 0;
+										ControlT[2][3] += -23.9;
+									}
+									break;
+									default:
+									break;
+								}
+
+
 
 								for(i_R=0;i_R<6;i_R++)
 								{
@@ -4323,9 +4447,33 @@ void rt_can_recv(void *arg)
 								KinR(AngleR, TNowR);
 
 								memcpy(&ControlT,&TNowR,sizeof(TNowR));
-								ControlT[0][3] += 0;
-								ControlT[1][3] += 0;
-								ControlT[2][3] += 0;
+
+								switch(FetchPos)
+								{
+									case 1:
+									{
+										ControlT[0][3] += 0;
+										ControlT[1][3] += 0;
+										ControlT[2][3] += 0;
+									}
+									break;
+									case 2:
+									{
+										ControlT[0][3] += 0;
+										ControlT[1][3] += 0;
+										ControlT[2][3] += 0;
+									}
+									break;
+									case 3:
+									{
+										ControlT[0][3] += 0;
+										ControlT[1][3] += 0;
+										ControlT[2][3] += 0;
+									}
+									break;
+									default:
+									break;
+								}
 
 								for(i_R=0;i_R<6;i_R++)
 								{
@@ -4520,9 +4668,33 @@ void rt_can_recv(void *arg)
 								KinR(AngleR, TNowR);
 
 								memcpy(&ControlT,&TNowR,sizeof(TNowR));
-								ControlT[0][3] += 0;
-								ControlT[1][3] += -100;
-								ControlT[2][3] += 0;
+
+								switch(FetchPos)
+								{
+									case 1:
+									{
+										ControlT[0][3] += 0;
+										ControlT[1][3] += -100;
+										ControlT[2][3] += 0;
+									}
+									break;
+									case 2:
+									{
+										ControlT[0][3] += 0;
+										ControlT[1][3] += -100;
+										ControlT[2][3] += 0;
+									}
+									break;
+									case 3:
+									{
+										ControlT[0][3] += 0;
+										ControlT[1][3] += -100;
+										ControlT[2][3] += 0;
+									}
+									break;
+									default:
+									break;
+								}
 
 								for(i_R=0;i_R<6;i_R++)
 								{
@@ -4743,31 +4915,106 @@ void rt_can_recv(void *arg)
 					{
 						case 1:	// move to prepare plae
 						{
-							if (first_move_flag)
+							static int moveflag = 0;
+							switch(moveflag)
 							{
-								first_move_flag = 0;
-								moving_flag	= 1;
-
-								memcpy(&RealTargetPos,&RobotAngleFB,sizeof(RealTargetPos));
-								RealTargetPos.RightArm[0] = 36.301*Degree2Rad;
-								RealTargetPos.RightArm[1] = -51.017*Degree2Rad;
-								RealTargetPos.RightArm[2] = 31.035*Degree2Rad;
-								RealTargetPos.RightArm[3] = -52.553*Degree2Rad;
-								RealTargetPos.RightArm[4] = -86.734*Degree2Rad;
-								RealTargetPos.RightArm[5] = -58.855*Degree2Rad;
-								RealTargetPos.RightArm[6] = -101.686*Degree2Rad;
-							}
-							else
-							{
-								return_value = AllJointMove(RealTargetPos,10,1,0,0,0);
-								if(return_value == 0)
+								case 0:
 								{
-									moving_flag	= 0;
-									first_move_flag = 1;
-									PlaceStep = 2;
-									First_ForceR = 1;
+									if (first_move_flag)
+									{
+										first_move_flag = 0;
+										moving_flag	= 1;
+
+										memcpy(&RealTargetPos,&RobotAngleFB,sizeof(RealTargetPos));
+										RealTargetPos.RightArm[0] = 50*Degree2Rad;
+										RealTargetPos.RightArm[1] = -53*Degree2Rad;
+										RealTargetPos.RightArm[2] = 35*Degree2Rad;
+										RealTargetPos.RightArm[3] = -50*Degree2Rad;
+										RealTargetPos.RightArm[4] = -45*Degree2Rad;
+										RealTargetPos.RightArm[5] = -60*Degree2Rad;
+										RealTargetPos.RightArm[6] = -100*Degree2Rad;
+									}
+									else
+									{
+										return_value = AllJointMove(RealTargetPos,8,1,0,0,0);
+										if(return_value == 0)
+										{
+											moving_flag	= 0;
+											first_move_flag = 1;
+											moveflag = 1;
+											First_ForceR = 1;
+										}
+									}
 								}
+								break;
+
+								case 1:
+								{
+									if (first_move_flag)
+									{
+										first_move_flag = 0;
+										moving_flag	= 1;
+
+										memcpy(&RealTargetPos,&RobotAngleFB,sizeof(RealTargetPos));
+										switch(PlacePos)
+										{
+											case 1:
+											{
+												RealTargetPos.RightArm[0] = 36.301*Degree2Rad;
+												RealTargetPos.RightArm[1] = -51.017*Degree2Rad;
+												RealTargetPos.RightArm[2] = 31.035*Degree2Rad;
+												RealTargetPos.RightArm[3] = -52.553*Degree2Rad;
+												RealTargetPos.RightArm[4] = -86.734*Degree2Rad;
+												RealTargetPos.RightArm[5] = -58.855*Degree2Rad;
+												RealTargetPos.RightArm[6] = -101.686*Degree2Rad;
+											}
+											break;
+											case 2:
+											{
+												RealTargetPos.RightArm[0] = 30.612*Degree2Rad;
+												RealTargetPos.RightArm[1] = -60.694*Degree2Rad;
+												RealTargetPos.RightArm[2] = 37.273*Degree2Rad;
+												RealTargetPos.RightArm[3] = -63.636*Degree2Rad;
+												RealTargetPos.RightArm[4] = -107.175*Degree2Rad;
+												RealTargetPos.RightArm[5] = -58.881*Degree2Rad;
+												RealTargetPos.RightArm[6] = -80.038*Degree2Rad;
+											}
+											break;
+											case 3:
+											{
+												RealTargetPos.RightArm[0] = 31.007*Degree2Rad;
+												RealTargetPos.RightArm[1] = -73.166*Degree2Rad;
+												RealTargetPos.RightArm[2] = 34.000*Degree2Rad;
+												RealTargetPos.RightArm[3] = -64.746*Degree2Rad;
+												RealTargetPos.RightArm[4] = -120.025*Degree2Rad;
+												RealTargetPos.RightArm[5] = -58.116*Degree2Rad;
+												RealTargetPos.RightArm[6] = -64.977*Degree2Rad;
+											}
+											break;
+											default:
+											break;
+										}
+
+									}
+									else
+									{
+										return_value = AllJointMove(RealTargetPos,15,1,0,0,0);
+										if(return_value == 0)
+										{
+											moving_flag	= 0;
+											first_move_flag = 1;
+											PlaceStep = 2;
+											moveflag = 0;
+											First_ForceR = 1;
+										}
+									}
+								}
+								break;
+
+								default:
+								break;
 							}
+
 						}
 						break;
 
@@ -4792,9 +5039,34 @@ void rt_can_recv(void *arg)
 								KinR(AngleR, TNowR);
 
 								memcpy(&ControlT,&TNowR,sizeof(TNowR));
-								ControlT[0][3] += -4.5;
-								ControlT[1][3] += 75;
-								ControlT[2][3] += -2;
+
+								switch(PlacePos)
+								{
+									case 1:
+									{
+										ControlT[0][3] += -4.5;
+										ControlT[1][3] += 75;
+										ControlT[2][3] += -2;
+									}
+									break;
+									case 2:
+									{
+										ControlT[0][3] += -4.3;
+										ControlT[1][3] += 74;
+										ControlT[2][3] += 2;
+									}
+									break;
+									case 3:
+									{
+										ControlT[0][3] += -6.77;
+										ControlT[1][3] += 75.7;
+										ControlT[2][3] += 4;
+									}
+									break;
+									default:
+									break;
+								}
+
 
 								for(i_R=0;i_R<6;i_R++)
 								{
@@ -4995,9 +5267,33 @@ void rt_can_recv(void *arg)
 								KinR(AngleR, TNowR);
 
 								memcpy(&ControlT,&TNowR,sizeof(TNowR));
-								ControlT[0][3] += -13.5;
-								ControlT[1][3] += 0;
-								ControlT[2][3] += -5;
+
+								switch(PlacePos)
+								{
+									case 1:
+									{
+										ControlT[0][3] += -13.5;
+										ControlT[1][3] += 0;
+										ControlT[2][3] += -5;
+									}
+									break;
+									case 2:
+									{
+										ControlT[0][3] += -6.7;
+										ControlT[1][3] += 0;
+										ControlT[2][3] += -1.8;
+									}
+									break;
+									case 3:
+									{
+										ControlT[0][3] += -7.5;
+										ControlT[1][3] += 0;
+										ControlT[2][3] += -2;
+									}
+									break;
+									default:
+									break;
+								}
 
 								for(i_R=0;i_R<6;i_R++)
 								{
@@ -5193,9 +5489,34 @@ void rt_can_recv(void *arg)
 								KinR(AngleR, TNowR);
 
 								memcpy(&ControlT,&TNowR,sizeof(TNowR));
-								ControlT[0][3] += 0;
-								ControlT[1][3] += 17.5;
-								ControlT[2][3] += 0;
+
+								switch(PlacePos)
+								{
+									case 1:
+									{
+										ControlT[0][3] += 0;
+										ControlT[1][3] += 17.5;
+										ControlT[2][3] += 0;
+
+									}
+									break;
+									case 2:
+									{
+										ControlT[0][3] += 0;
+										ControlT[1][3] += 12;
+										ControlT[2][3] += 0;
+									}
+									break;
+									case 3:
+									{
+										ControlT[0][3] += 0;
+										ControlT[1][3] += 12;
+										ControlT[2][3] += 0;
+									}
+									break;
+									default:
+									break;
+								}
 
 								for(i_R=0;i_R<6;i_R++)
 								{
@@ -5391,9 +5712,34 @@ void rt_can_recv(void *arg)
 								KinR(AngleR, TNowR);
 
 								memcpy(&ControlT,&TNowR,sizeof(TNowR));
-								ControlT[0][3] += 45;
-								ControlT[1][3] += 1.5;
-								ControlT[2][3] += 18;
+
+								switch(PlacePos)
+								{
+									case 1:
+									{
+										ControlT[0][3] += 45;
+										ControlT[1][3] += 1.5;
+										ControlT[2][3] += 18;
+
+									}
+									break;
+									case 2:
+									{
+										ControlT[0][3] += 45;
+										ControlT[1][3] += 1.5;
+										ControlT[2][3] += 18;
+									}
+									break;
+									case 3:
+									{
+										ControlT[0][3] += 45;
+										ControlT[1][3] += 1.5;
+										ControlT[2][3] += 18;
+									}
+									break;
+									default:
+									break;
+								}
 
 								for(i_R=0;i_R<6;i_R++)
 								{
@@ -5570,31 +5916,75 @@ void rt_can_recv(void *arg)
 
 						case 6:	// back to normal postition
 						{
-							if (first_move_flag)
-							{
-								first_move_flag = 0;
-								moving_flag	= 1;
 
-								memcpy(&RealTargetPos,&RobotAngleFB,sizeof(RealTargetPos));
-								RealTargetPos.RightArm[0] = 0*Degree2Rad;
-								RealTargetPos.RightArm[1] = 0*Degree2Rad;
-								RealTargetPos.RightArm[2] = 0*Degree2Rad;
-								RealTargetPos.RightArm[3] = 0*Degree2Rad;
-								RealTargetPos.RightArm[4] = 0*Degree2Rad;
-								RealTargetPos.RightArm[5] = 0*Degree2Rad;
-								RealTargetPos.RightArm[6] = 0*Degree2Rad;
-							}
-							else
+							static int movebbackflag = 0;
+							switch(movebbackflag)
 							{
-								return_value = AllJointMove(RealTargetPos,15,1,0,0,0);
-								if(return_value == 0)
+								case 0:
 								{
-									moving_flag	= 0;
-									first_move_flag = 1;
-									PlaceStep = 0;
-									First_ForceR = 1;
+									if (first_move_flag)
+									{
+										first_move_flag = 0;
+										moving_flag	= 1;
+
+										memcpy(&RealTargetPos,&RobotAngleFB,sizeof(RealTargetPos));
+										RealTargetPos.RightArm[0] = 50*Degree2Rad;
+										RealTargetPos.RightArm[1] = -53*Degree2Rad;
+										RealTargetPos.RightArm[2] = 35*Degree2Rad;
+										RealTargetPos.RightArm[3] = -50*Degree2Rad;
+										RealTargetPos.RightArm[4] = -45*Degree2Rad;
+										RealTargetPos.RightArm[5] = -60*Degree2Rad;
+										RealTargetPos.RightArm[6] = -100*Degree2Rad;
+									}
+									else
+									{
+										return_value = AllJointMove(RealTargetPos,8,1,0,0,0);
+										if(return_value == 0)
+										{
+											moving_flag	= 0;
+											first_move_flag = 1;
+											movebbackflag = 1;
+											First_ForceR = 1;
+										}
+									}
 								}
+								break;
+
+								case 1:
+								{
+									if (first_move_flag)
+									{
+										first_move_flag = 0;
+										moving_flag	= 1;
+
+										memcpy(&RealTargetPos,&RobotAngleFB,sizeof(RealTargetPos));
+										RealTargetPos.RightArm[0] = 0*Degree2Rad;
+										RealTargetPos.RightArm[1] = 0*Degree2Rad;
+										RealTargetPos.RightArm[2] = 0*Degree2Rad;
+										RealTargetPos.RightArm[3] = 0*Degree2Rad;
+										RealTargetPos.RightArm[4] = 0*Degree2Rad;
+										RealTargetPos.RightArm[5] = 0*Degree2Rad;
+										RealTargetPos.RightArm[6] = 0*Degree2Rad;
+									}
+									else
+									{
+										return_value = AllJointMove(RealTargetPos,15,1,0,0,0);
+										if(return_value == 0)
+										{
+											moving_flag	= 0;
+											first_move_flag = 1;
+											PlaceStep = 0;
+											First_ForceR = 1;
+											movebbackflag =0;
+										}
+									}
+								}
+								break;
+
+								default:
+								break;
 							}
+
 						}
 						break;
 

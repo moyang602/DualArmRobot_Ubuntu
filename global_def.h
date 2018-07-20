@@ -84,7 +84,9 @@
 // 取工具指令
 #define FETCH_START			0x91
 #define FETCH_STOP			0x92
-#define FETCH_MOVEPRE		0x93
+#define FETCH_MOVEPRE1		0x8a
+#define FETCH_MOVEPRE2		0x8b
+#define FETCH_MOVEPRE3		0x8c
 #define FETCH_DOCK			0x94
 #define FETCH_ADJUST		0x95
 #define FETCH_MOVEOUT		0x96
@@ -93,7 +95,9 @@
 // Place tool
 #define PLACE_START			0x98
 #define PLACE_STOP			0x99
-#define PLACE_MOVEPRE		0x9a
+#define PLACE_MOVEPRE1		0x8d
+#define PLACE_MOVEPRE2		0x8e
+#define PLACE_MOVEPRE3		0x8f
 #define PLACE_DOCK			0x9b
 #define PLACE_DOCK2			0x9c
 #define PLACE_MOVEIN		0x9d
