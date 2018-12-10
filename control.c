@@ -167,10 +167,10 @@ int can_channel_number = 4;
 //						{1, 1, 1, 1, 1, 1, 1},
 //						{1, 1, 1, 1, 1, 1, 1},
 //						{1, 1, 1, 1, 1, 1, 1}};
-int can_switch[4][7] = {{0, 0, 0, 0, 0, 0, 0},
+int can_switch[4][7] = {{0, 0, 0, 0, 1, 1, 1},
 						{0, 0, 0, 0, 1, 1, 1},
-						{0, 0, 1, 1, 0, 0, 0},
-						{0, 0, 1, 1, 0, 0, 1}};
+						{1, 1, 1, 1, 0, 0, 0},
+						{1, 1, 1, 1, 0, 0, 1}};
 
 // 各节点速度方向
 double joint_direction[4][7] = {{1, 1, 1, 1, 1, -1, 1},
@@ -1266,7 +1266,7 @@ void rt_can_recv(void *arg)
 		/******************* Step1: 机器人状态获取 *********************/
 		{
 			// a.机器人关节数据获取
-			if (elmo_init_flag==1||servo_on_flag==1)
+			if (elmo_init_flag==1&&servo_on_flag==1)
 			{
 				// 数据同步接收 发送远程帧
 				SYNC_Receive_S();
@@ -1378,7 +1378,7 @@ void rt_can_recv(void *arg)
 			}
 
 			// e.机器人关节数据获取
-			if (elmo_init_flag==1||servo_on_flag==1)
+			if (elmo_init_flag==1&&servo_on_flag==1)
 			{
 				// 数据同步接收 接收关节数据
 				SYNC_Receive_R();
